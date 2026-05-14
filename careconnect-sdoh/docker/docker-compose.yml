@@ -1,0 +1,29 @@
+services:
+  iris:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: careconnect-iris
+    ports:
+      - "1972:1972"
+      - "52773:52773"
+    volumes:
+      - ../src:/src:ro
+    healthcheck:
+      test: ["CMD", "bash", "-c", "cat < /dev/null > /dev/tcp/localhost/1972"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 90s
+
+  mcp:
+    image: docker.iscinternal.com/docker-intersystems/intersystems/irishealth-community:2026.2.0AI.162.0
+    container_name: careconnect-mcp
+    entrypoint: ["/usr/irissys/bin/iris-mcp-server"]
+    command: ["--config", "/etc/iris-mcp/config.toml", "run"]
+    network_mode: "service:iris"
+    volumes:
+      - ./config.toml:/etc/iris-mcp/config.toml:ro
+    depends_on:
+      iris:
+        condition: service_healthy
