@@ -12,7 +12,6 @@ services:
     ports:
       - "1972:1972"
       - "52773:52773"
-      - "8000:8000"   # MCP SSE endpoint (shared via network_mode below)
     healthcheck:
       test: ["CMD", "bash", "-c", "cat < /dev/null > /dev/tcp/localhost/52773"]
       interval: 10s
@@ -34,10 +33,9 @@ services:
     # Override entrypoint — do NOT start IRIS, just launch the MCP gateway
     entrypoint: ["/usr/irissys/bin/iris-mcp-server"]
     command: [
-      "--transport", "http://0.0.0.0:8000",
       "run",
       "--iris-host", "localhost",
-      "--iris-port", "52773",
+      "--iris-port", "1972",
       "--iris-user", "_SYSTEM",
       "--iris-password", "SYS",
       "--iris-endpoint", "/mcp/kgtickets"

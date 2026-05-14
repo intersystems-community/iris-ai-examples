@@ -21,17 +21,14 @@ services:
     container_name: careconnect-mcp
     entrypoint: ["/usr/irissys/bin/iris-mcp-server"]
     command: [
-      "--transport", "http://0.0.0.0:8888",
       "run",
       "--iris-host", "localhost",
-      "--iris-port", "52773",
+      "--iris-port", "1972",
       "--iris-user", "_SYSTEM",
       "--iris-password", "SYS",
       "--iris-endpoint", "/mcp/careconnect"
     ]
     network_mode: "service:iris"
-    ports:
-      - "8888:8888"
     depends_on:
       iris:
         condition: service_healthy

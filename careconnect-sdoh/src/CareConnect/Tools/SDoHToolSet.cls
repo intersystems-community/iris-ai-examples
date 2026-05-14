@@ -15,14 +15,13 @@ Include %AI
 ///   GetInteropTraces        — view recent message flow from the production
 ///   GetProductionStatus     — check whether the production is running
 ///   StartProduction         — start CareConnect.Production
-Class CareConnect.Tools.SDoHToolSet Extends %AI.ToolSet [DependsOn = CareConnect.Tools.SDoHToolSet]
+Class CareConnect.Tools.SDoHToolSet Extends %AI.ToolSet
 {
 
 XData Definition
 {
 <ToolSet>
   <Description>CareConnect SDoH Tools — patient lookup, risk assessment, care planning, interop tracing</Description>
-  <Include Class="CareConnect.Tools.SDoHToolSet"/>
 
   <Tool Name="SearchPatients" Method="SearchPatients">
     <Description>List all demo patients or search by name, condition, or patient ID. Returns patientId values for use with FetchPatientSummary.</Description>
@@ -175,21 +174,21 @@ ClassMethod DraftCarePlan(patientId As %String, sdohScores As %String) As %Strin
     Set scoresLC = $ZCONVERT(sdohScores, "L")
     Set out = "Care Plan for "_patientId_":"_$Char(10,10)
     Set step = 1
-    If scoresLC["economic" {
+    If (scoresLC["economic") {
         Set out = out_step_". Connect with financial assistance programs — SNAP, Medicaid, emergency rental assistance"_$Char(10)
         Set step = step + 1
     }
-    If (scoresLC["health care")||(scoresLC["transport") {
+    If ((scoresLC["health care")||(scoresLC["transport")) {
         Set out = out_step_". Schedule CHW home visit within 5 days — assess transportation barriers"_$Char(10)
         Set step = step + 1
         Set out = out_step_". Enroll in patient transport program or telehealth if available"_$Char(10)
         Set step = step + 1
     }
-    If scoresLC["neighborhood"] {
+    If (scoresLC["neighborhood") {
         Set out = out_step_". Report housing issues to housing authority — document mold/safety concerns"_$Char(10)
         Set step = step + 1
     }
-    If (scoresLC["social")||(scoresLC["isolat") {
+    If ((scoresLC["social")||(scoresLC["isolat")) {
         Set out = out_step_". Refer to community social connection program — senior center, peer support group"_$Char(10)
         Set step = step + 1
     }
