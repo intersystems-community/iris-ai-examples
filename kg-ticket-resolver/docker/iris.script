@@ -1,0 +1,38 @@
+zn "%SYS"
+do ##class(Security.Services).Get("%Service_Bindings",.p)
+set p("Enabled")=1
+do ##class(Security.Services).Modify("%Service_Bindings",.p)
+do ##class(Security.Users).UnExpireUserPasswords("_SYSTEM")
+set sc = ##class(Security.Users).Get("_SYSTEM",.Props)
+set Props("ChangePassword") = 0
+set sc = ##class(Security.Users).Modify("_SYSTEM",.Props)
+
+set props("NameSpace")       = "USER"
+set props("DispatchClass")   = "KGTicketResolver.MCP.Service"
+set props("AutheEnabled")    = 96
+set props("MatchRoles")      = ":%All"
+set props("Recurse")         = 1
+set props("Enabled")         = 1
+do ##class(Security.Applications).Create("/mcp/kgtickets", .props)
+
+zn "USER"
+
+; Load all classes
+do $system.OBJ.LoadDir("/src/KGTicketResolver","k",,1)
+
+; Compile in dependency order
+do $system.OBJ.Compile("KGTicketResolver.Ticket.Record","ck")
+do $system.OBJ.Compile("KGTicketResolver.Setup.DemoData","ck")
+do $system.OBJ.Compile("KGTicketResolver.MCP.Service","ck")
+do $system.OBJ.Compile("KGTicketResolver.Tools.ToolSet","ck")
+do $system.OBJ.Compile("KGTicketResolver.Setup.MCPSetup","ck")
+
+; Seed demo data
+do ##class(KGTicketResolver.Setup.DemoData).Load()
+
+; Register MCP tools
+set mgr = ##class(%AI.ToolMgr).GetOrCreate("/mcp/kgtickets",.isNew)
+do ##class(%AI.MCP.Service).LoadToolSetsToManager(mgr,"KGTicketResolver.Tools.ToolSet")
+write "KGTicketResolver ready. Tools: ",mgr.FindTools("").%Size(),!
+
+halt
