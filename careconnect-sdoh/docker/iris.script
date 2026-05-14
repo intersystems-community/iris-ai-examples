@@ -1,0 +1,34 @@
+zn "%SYS"
+do ##class(Security.Services).Get("%Service_Bindings",.p)
+set p("Enabled")=1
+do ##class(Security.Services).Modify("%Service_Bindings",.p)
+do ##class(Security.Users).UnExpireUserPasswords("_SYSTEM")
+set sc = ##class(Security.Users).Get("_SYSTEM",.Props)
+set Props("ChangePassword") = 0
+set sc = ##class(Security.Users).Modify("_SYSTEM",.Props)
+
+set sc = ##class(Security.Users).Get("CSPSystem",.CProps)
+set CProps("Roles") = "%All"
+set CProps("NameSpace") = "USER"
+set CProps("Password") = "]]]U1lT"
+set CProps("ChangePassword") = 0
+set sc = ##class(Security.Users).Modify("CSPSystem",.CProps)
+
+set props("NameSpace")          = "USER"
+set props("DispatchClass")      = "CareConnect.MCP.Service"
+set props("AutheEnabled")       = 96
+set props("IsNameSpaceDefault") = 0
+set props("MatchRoles")         = ":%All"
+set props("Recurse")            = 1
+set props("Enabled")            = 1
+do ##class(Security.Applications).Create("/mcp/careconnect", .props)
+
+zn "USER"
+do $system.OBJ.Load("/src/CareConnect/Tools/SDoHToolSet.cls","k")
+do $system.OBJ.Load("/src/CareConnect/MCP/Service.cls","k")
+do $system.OBJ.Compile("CareConnect.Tools.SDoHToolSet","ck")
+do $system.OBJ.Compile("CareConnect.MCP.Service","ck")
+
+write "Setup complete. SDoHToolSet: ",##class(%Dictionary.ClassDefinition).%ExistsId("CareConnect.Tools.SDoHToolSet"),!
+write "MCP.Service: ",##class(%Dictionary.ClassDefinition).%ExistsId("CareConnect.MCP.Service"),!
+halt

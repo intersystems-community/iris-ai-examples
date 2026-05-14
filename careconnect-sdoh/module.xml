@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Export generator="Cache" version="25">
+  <Document name="careconnect-hackathon.ZPM">
+    <Module>
+      <Name>careconnect-hackathon</Name>
+      <Version>1.0.0</Version>
+      <Description>CareConnect SDoH — AI Hub hackathon example. Healthcare AI agent with MCP tools, IRIS Interoperability production, and demo patient data.</Description>
+      <Packaging>module</Packaging>
+      <SourcesRoot>src</SourcesRoot>
+      <Resource Name="CareConnect.PKG"/>
+      <Invoke Method="Run" Class="CareConnect.Setup.MCPSetup"/>
+    </Module>
+  </Document>
+</Export>
