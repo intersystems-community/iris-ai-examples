@@ -41,7 +41,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
         "/usr/irissys/bin/iris-mcp-server",
         "run",
         "--iris-host", "localhost",
-        "--iris-port", "52773",
+        "--iris-port", "1972",
         "--iris-user", "_SYSTEM",
         "--iris-password", "SYS",
         "--iris-endpoint", "/mcp/kgtickets"

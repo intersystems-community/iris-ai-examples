@@ -33,6 +33,6 @@ do ##class(KGTicketResolver.Setup.DemoData).Load()
 ; Register MCP tools
 set mgr = ##class(%AI.ToolMgr).GetOrCreate("/mcp/kgtickets",.isNew)
 do ##class(%AI.MCP.Service).LoadToolSetsToManager(mgr,"KGTicketResolver.Tools.ToolSet")
-write "KGTicketResolver ready. Tools: ",mgr.FindTools("").%Size(),!
+write "KGTicketResolver ready. ToolSet registered: KGTicketResolver.Tools.ToolSet",!
 
 halt

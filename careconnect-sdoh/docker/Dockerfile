@@ -5,8 +5,8 @@ FROM $IMAGE
 
 USER root
 
-COPY --chown=${ISC_PACKAGE_MGRUSER}:${ISC_PACKAGE_IRISGROUP} iris.script /home/irisowner/irisdev/iris.script
-COPY --chown=${ISC_PACKAGE_MGRUSER}:${ISC_PACKAGE_IRISGROUP} ../src/CareConnect /src/CareConnect
+COPY --chown=${ISC_PACKAGE_MGRUSER}:${ISC_PACKAGE_IRISGROUP} docker/iris.script /home/irisowner/irisdev/iris.script
+COPY --chown=${ISC_PACKAGE_MGRUSER}:${ISC_PACKAGE_IRISGROUP} src/CareConnect /src/CareConnect
 
 USER ${ISC_PACKAGE_MGRUSER}
 WORKDIR /home/irisowner

@@ -40,11 +40,10 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
         "/usr/irissys/bin/iris-mcp-server",
         "run",
         "--iris-host", "localhost",
-        "--iris-port", "52773",
+        "--iris-port", "1972",
         "--iris-user", "_SYSTEM",
         "--iris-password", "SYS",
         "--iris-endpoint", "/mcp/careconnect"
-      ]
     }
   }
 }
@@ -138,18 +137,19 @@ careconnect-sdoh/
 │   ├── docker-compose.yml    Two services: iris (full stack) + mcp (sidecar)
 │   ├── Dockerfile            Builds IRIS image with classes pre-compiled + data seeded
 │   └── iris.script           Compiles all classes, seeds demo data, starts production
-├── Tools/SDoHToolSet.cls     %AI.ToolSet — all 9 tools
-├── MCP/Service.cls           %AI.MCP.Service at /mcp/careconnect
-├── Agent/SDoHAssessment.cls  %AI.Agent definition (optional — tools work via MCP directly)
-├── Production.cls            Ens.Production wiring BS/BP/BO
-├── Patient.cls               %Persistent demo patient table
-├── Message/                  FollowUpRequest + FollowUpResponse message classes
-├── Service/SDoHFollowUpBS.cls   BusinessService
-├── Process/SDoHFollowUpBP.cls   BusinessProcess
-├── Operation/SDoHFollowUpBO.cls BusinessOperation
-└── Setup/
-    ├── DemoData.cls          Seeds 3 demo patients (idempotent)
-    └── MCPSetup.cls          Registers CSP app + starts production
+└── src/CareConnect/
+    ├── Tools/SDoHToolSet.cls     %AI.ToolSet — all 9 tools
+    ├── MCP/Service.cls           %AI.MCP.Service at /mcp/careconnect
+    ├── Agent/SDoHAssessment.cls  %AI.Agent definition (optional — tools work via MCP directly)
+    ├── Production.cls            Ens.Production wiring BS/BP/BO
+    ├── Patient.cls               %Persistent demo patient table
+    ├── Message/                  FollowUpRequest + FollowUpResponse message classes
+    ├── Service/SDoHFollowUpBS.cls   BusinessService
+    ├── Process/SDoHFollowUpBP.cls   BusinessProcess
+    ├── Operation/SDoHFollowUpBO.cls BusinessOperation
+    └── Setup/
+        ├── DemoData.cls          Seeds 3 demo patients (idempotent)
+        └── MCPSetup.cls          Registers CSP app + starts production
 ```
 
 ## Notes for demos
