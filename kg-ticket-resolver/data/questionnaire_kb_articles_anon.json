@@ -1,0 +1,29 @@
+[
+  {
+    "id": "kb-tcui-meui-migration",
+    "title": "TCUI to MEUI Migration Guide",
+    "category": "Migration",
+    "crisis_level": "high",
+    "content": "## Overview\nThis guide addresses common issues when migrating questionnaires from TCUI to MEUI interface.\n\n## Common Issues\n1. Layout misalignment after migration\n2. Missing form fields\n3. Validation errors on previously working forms\n\n## Solutions\n1. Clear browser cache after migration\n2. Verify all custom CSS is MEUI-compatible\n3. Test all form validations in MEUI environment\n\n## Crisis Prevention\n- Always backup questionnaire configurations before migration\n- Test in staging environment first\n- Have rollback plan ready",
+    "source": "Generated from an advisor's 'TCUI to MEUI' group + 15 similar AI-detected tickets",
+    "product": "PlanetCare"
+  },
+  {
+    "id": "kb-historical-data-fixes",
+    "title": "Post-Upgrade Historical Data Validation",
+    "category": "Data Integrity",
+    "crisis_level": "high",
+    "content": "## Critical Steps After Upgrade\n1. Run data validation scripts immediately\n2. Check questionnaire response integrity\n3. Verify historical reports still function\n\n## Known Issues\n- Date fields may show incorrect timezone\n- Numeric responses may lose precision\n- Multi-select fields may be corrupted\n\n## Emergency Contacts\n- Data Team: ext 5555\n- DBA On-Call: ext 5556",
+    "source": "Generated from crisis pattern analysis across 34 tickets",
+    "product": "PlanetCare"
+  },
+  {
+    "id": "kb-site-questionnaire-config",
+    "title": "Site-Level Questionnaire Configuration",
+    "category": "Configuration",
+    "crisis_level": "medium",
+    "content": "## Configuration Steps\n1. Access Site Admin > Questionnaires\n2. Select 'Site-Specific Settings'\n3. Configure required fields\n\n## Common Mistakes\n- Not setting proper permissions\n- Forgetting to activate after configuration\n- Missing required field mappings",
+    "source": "Generated from Cluster 0 (74 tickets) + an advisor's configuration group",
+    "product": "PlanetCare"
+  }
+]

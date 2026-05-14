@@ -21,9 +21,20 @@ A community health worker assistant that assesses Social Determinants of Health 
 
 ---
 
-## Coming Soon
+### [`kg-ticket-resolver/`](./kg-ticket-resolver/)
 
-- `kg-ticket-resolver/` — Multi-agent support ticket knowledge base generation with KBAC authorization
+**Support Ticket Knowledge Mining Agent**
+
+A support engineer assistant that mines a backlog of EMR support tickets, scores completeness, finds similar tickets via semantic search, and drafts KB articles using an AI Hub agent. Uses [iris-vector-graph](https://github.com/intersystems-community/iris-vector-graph) for hybrid vector + graph retrieval.
+
+- 6 MCP tools: MDS scoring, semantic search, cluster analysis, KB article generation, wiki management
+- `%AI.Agent` running inside IRIS for KB article synthesis
+- iris-vector-graph `kg_NodeEmbeddings` for semantic ticket search
+- Graph_KG provenance: `AUTHORED_KB` / `SOURCED_KB` edges trace every article to source tickets
+- Pre-existing wiki with documented knowledge gaps, augmented by the agent
+- Jupyter notebooks for data science exploration of the same pipeline
+
+**What it shows:** `%AI.Agent` + `%AI.Provider`, `%AI.ToolSet`, iris-vector-graph semantic search, Graph_KG provenance, MDS completeness scoring, wiki augmentation pattern
 - More examples at [intersystems-community](https://github.com/intersystems-community)
 
 ## Requirements
