@@ -1,14 +1,12 @@
-ARG IMAGE=docker.iscinternal.com/docker-intersystems/intersystems/irishealth-community:2026.2.0AI.162.0
+# Set IMAGE to the tag produced by `docker load` from the EAP portal download.
+# See README.md for download instructions.
+ARG IMAGE=irishealth-community:2026.2.0AI.162.0
 FROM $IMAGE
 
 USER root
 
-COPY --chown=${ISC_PACKAGE_MGRUSER}:${ISC_PACKAGE_IRISGROUP} services/iris-ai-hub/iris.script /home/irisowner/irisdev/iris.script
-COPY --chown=${ISC_PACKAGE_MGRUSER}:${ISC_PACKAGE_IRISGROUP} services/iris-ai-hub/init/ /init/
-COPY --chown=${ISC_PACKAGE_MGRUSER}:${ISC_PACKAGE_IRISGROUP} src/CareConnect/MCP/ /src/CareConnect/MCP/
-COPY --chown=${ISC_PACKAGE_MGRUSER}:${ISC_PACKAGE_IRISGROUP} src/CareConnect/Tools/ /src/CareConnect/Tools/
-
-RUN chmod +x /init/entrypoint.sh
+COPY --chown=${ISC_PACKAGE_MGRUSER}:${ISC_PACKAGE_IRISGROUP} iris.script /home/irisowner/irisdev/iris.script
+COPY --chown=${ISC_PACKAGE_MGRUSER}:${ISC_PACKAGE_IRISGROUP} ../src/CareConnect /src/CareConnect
 
 USER ${ISC_PACKAGE_MGRUSER}
 WORKDIR /home/irisowner
@@ -18,4 +16,4 @@ RUN iris start IRIS quietly \
  && iris stop IRIS quietly
 
 EXPOSE 1972 52773
-CMD ["-a", "/init/entrypoint.sh"]
+ENTRYPOINT ["/tini", "--", "/iris-main"]
