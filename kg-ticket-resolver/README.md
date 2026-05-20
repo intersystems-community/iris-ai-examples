@@ -27,9 +27,11 @@ docker compose up -d
 
 Wait ~2 minutes. IRIS initializes, loads 276 demo tickets, and registers 6 MCP tools.
 
-### 3. Connect Claude Desktop
+### 3. Connect your AI client
 
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+**Claude CLI** (recommended — works on Linux, Mac, Windows):
+
+Add to `~/.claude.json`:
 
 ```json
 {
@@ -51,7 +53,36 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 }
 ```
 
-Restart Claude Desktop. The `kgtickets` server appears with 6 tools.
+Then: `claude` — the `kgtickets` tools appear automatically.
+
+**VS Code with Claude Code extension:**
+
+Create `.vscode/mcp.json` in your workspace:
+
+```json
+{
+  "servers": {
+    "kgtickets": {
+      "type": "stdio",
+      "command": "docker",
+      "args": [
+        "exec", "-i", "kgtickets-mcp",
+        "/usr/irissys/bin/iris-mcp-server",
+        "run",
+        "--iris-host", "localhost",
+        "--iris-port", "1972",
+        "--iris-user", "_SYSTEM",
+        "--iris-password", "SYS",
+        "--iris-endpoint", "/mcp/kgtickets"
+      ]
+    }
+  }
+}
+```
+
+**Claude Desktop** (Mac): same JSON as Claude CLI, in `~/Library/Application Support/Claude/claude_desktop_config.json`.
+
+**HTTP mode** (no `docker exec`): `MCP_PORT=8888 docker compose up -d` then point any MCP client at `http://localhost:8888/mcp`.
 
 ### 4. Demo script
 
