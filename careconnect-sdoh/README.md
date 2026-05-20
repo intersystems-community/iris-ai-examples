@@ -44,6 +44,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
         "--iris-user", "_SYSTEM",
         "--iris-password", "SYS",
         "--iris-endpoint", "/mcp/careconnect"
+      ]
     }
   }
 }
