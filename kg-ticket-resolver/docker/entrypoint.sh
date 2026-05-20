@@ -1,12 +1,10 @@
 #!/bin/bash
-SETUP_FLAG="/tmp/.kgtickets-ready"
+SETUP_FLAG="/home/irisowner/.kgtickets-ready"
 
 if [ ! -f "$SETUP_FLAG" ]; then
     echo "Waiting for IRIS superserver..."
     for i in $(seq 1 30); do
-        if bash -c "cat < /dev/null > /dev/tcp/localhost/1972" 2>/dev/null; then
-            break
-        fi
+        bash -c "cat < /dev/null > /dev/tcp/localhost/1972" 2>/dev/null && break
         sleep 2
     done
     sleep 3
