@@ -5,10 +5,11 @@ services:
       dockerfile: docker/Dockerfile
     container_name: careconnect-iris
     ports:
-      - "1972:1972"
-      - "52773:52773"
+      - "${IRIS_PORT:-1972}:1972"
+      - "${IRIS_WEB_PORT:-52773}:52773"
+      - "${MCP_PORT:-8888}:8888"
     healthcheck:
-      test: ["CMD", "bash", "-c", "cat < /dev/null > /dev/tcp/localhost/52773"]
+      test: ["CMD", "bash", "-c", "cat < /dev/null > /dev/tcp/localhost/1972 && cat < /dev/null > /dev/tcp/localhost/52773"]
       interval: 10s
       timeout: 5s
       retries: 18
@@ -20,15 +21,10 @@ services:
       dockerfile: docker/Dockerfile
     container_name: careconnect-mcp
     entrypoint: ["/usr/irissys/bin/iris-mcp-server"]
-    command: [
-      "run",
-      "--iris-host", "localhost",
-      "--iris-port", "1972",
-      "--iris-user", "_SYSTEM",
-      "--iris-password", "SYS",
-      "--iris-endpoint", "/mcp/careconnect"
-    ]
+    command: ["--config", "/etc/iris-mcp/mcp-config.toml", "run"]
     network_mode: "service:iris"
+    volumes:
+      - ./mcp-config.toml:/etc/iris-mcp/mcp-config.toml:ro
     depends_on:
       iris:
         condition: service_healthy

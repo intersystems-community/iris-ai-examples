@@ -6,7 +6,10 @@ FROM $IMAGE
 USER root
 
 COPY --chown=${ISC_PACKAGE_MGRUSER}:${ISC_PACKAGE_IRISGROUP} docker/iris.script /home/irisowner/irisdev/iris.script
+COPY --chown=${ISC_PACKAGE_MGRUSER}:${ISC_PACKAGE_IRISGROUP} docker/entrypoint.sh /entrypoint.sh
 COPY --chown=${ISC_PACKAGE_MGRUSER}:${ISC_PACKAGE_IRISGROUP} src/CareConnect /src/CareConnect
+
+RUN chmod +x /entrypoint.sh
 
 USER ${ISC_PACKAGE_MGRUSER}
 WORKDIR /home/irisowner
@@ -16,4 +19,4 @@ RUN iris start IRIS quietly \
  && iris stop IRIS quietly
 
 EXPOSE 1972 52773
-ENTRYPOINT ["/tini", "--", "/iris-main"]
+ENTRYPOINT ["/tini", "--", "/entrypoint.sh"]
