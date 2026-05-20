@@ -1,5 +1,5 @@
 #!/bin/bash
-SETUP_FLAG="/tmp/.careconnect-ready"
+SETUP_FLAG="/tmp/.kgtickets-ready"
 
 if [ ! -f "$SETUP_FLAG" ]; then
     echo "Waiting for IRIS superserver..."
@@ -13,15 +13,14 @@ if [ ! -f "$SETUP_FLAG" ]; then
 
     cat > /tmp/startup.script << 'IRISEOF'
 zn "USER"
-do $system.OBJ.Delete("CareConnect.Tools.SDoHToolSet","k")
-do $system.OBJ.Load("/src/CareConnect/Tools/SDoHToolSet.cls","k")
-do $system.OBJ.Compile("CareConnect.Tools.SDoHToolSet","ck")
-set mgr = ##class(%AI.ToolMgr).GetOrCreate("/mcp/careconnect",.isNew)
+do $system.OBJ.Delete("KGTicketResolver.Tools.ToolSet","k")
+do $system.OBJ.Load("/src/KGTicketResolver/Tools/ToolSet.cls","k")
+do $system.OBJ.Compile("KGTicketResolver.Tools.ToolSet","ck")
+set mgr = ##class(%AI.ToolMgr).GetOrCreate("/mcp/kgtickets",.isNew)
 do mgr.Cleanup()
-set mgr = ##class(%AI.ToolMgr).GetOrCreate("/mcp/careconnect",.isNew)
-do ##class(%AI.MCP.Service).LoadToolSetsToManager(mgr,"CareConnect.Tools.SDoHToolSet")
+set mgr = ##class(%AI.ToolMgr).GetOrCreate("/mcp/kgtickets",.isNew)
+do ##class(%AI.MCP.Service).LoadToolSetsToManager(mgr,"KGTicketResolver.Tools.ToolSet")
 write "Tools: ",mgr.FindTools("").%Size(),!
-do ##class(Ens.Director).StartProduction("CareConnect.Production")
 write "Ready",!
 halt
 IRISEOF
