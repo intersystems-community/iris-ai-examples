@@ -26,9 +26,13 @@ docker compose up -d
 
 Wait ~90 seconds. IRIS initializes, seeds 3 demo patients, starts the Interoperability production, and registers 9 MCP tools.
 
-### 3. Connect Claude Desktop
+### 3. Connect your AI client
 
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+The MCP server runs on `localhost:8888`. Any MCP-compatible client works.
+
+**Claude CLI** (recommended — works on Linux, Mac, Windows):
+
+Add to `~/.claude.json`:
 
 ```json
 {
@@ -50,7 +54,44 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 }
 ```
 
-Restart Claude Desktop. The `careconnect` server appears with 9 tools.
+Then: `claude` — the `careconnect` tools appear automatically.
+
+**VS Code with Claude Code extension:**
+
+Create `.vscode/mcp.json` in your workspace:
+
+```json
+{
+  "servers": {
+    "careconnect": {
+      "type": "stdio",
+      "command": "docker",
+      "args": [
+        "exec", "-i", "careconnect-mcp",
+        "/usr/irissys/bin/iris-mcp-server",
+        "run",
+        "--iris-host", "localhost",
+        "--iris-port", "1972",
+        "--iris-user", "_SYSTEM",
+        "--iris-password", "SYS",
+        "--iris-endpoint", "/mcp/careconnect"
+      ]
+    }
+  }
+}
+```
+
+**Claude Desktop** (Mac):
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json` using the same JSON as Claude CLI above. Restart Claude Desktop.
+
+**HTTP mode** (no `docker exec` — any MCP client):
+
+```bash
+MCP_PORT=8888 docker compose up -d
+```
+
+Point any MCP client at `http://localhost:8888/mcp` directly.
 
 ### 4. Demo script
 
