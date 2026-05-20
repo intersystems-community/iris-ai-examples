@@ -29,7 +29,9 @@ Wait ~2 minutes. IRIS initializes, loads 276 demo tickets, and registers 6 MCP t
 
 ### 3. Connect your AI client
 
-**Claude CLI** (recommended — works on Linux, Mac, Windows):
+The MCP server runs on **port 8888** once the stack is up. Use `mcp-remote` to connect any MCP client — Claude CLI, VS Code, or Claude Desktop on Linux, Mac, or Windows.
+
+**Claude CLI** (Linux / Mac / Windows):
 
 Add to `~/.claude.json`:
 
@@ -37,23 +39,14 @@ Add to `~/.claude.json`:
 {
   "mcpServers": {
     "kgtickets": {
-      "command": "docker",
-      "args": [
-        "exec", "-i", "kgtickets-mcp",
-        "/usr/irissys/bin/iris-mcp-server",
-        "run",
-        "--iris-host", "localhost",
-        "--iris-port", "1972",
-        "--iris-user", "_SYSTEM",
-        "--iris-password", "SYS",
-        "--iris-endpoint", "/mcp/kgtickets"
-      ]
+      "command": "npx",
+      "args": ["mcp-remote", "http://localhost:8888/mcp"]
     }
   }
 }
 ```
 
-Then: `claude` — the `kgtickets` tools appear automatically.
+Run `claude`. The `kgtickets` tools appear automatically.
 
 **VS Code with Claude Code extension:**
 
@@ -64,25 +57,18 @@ Create `.vscode/mcp.json` in your workspace:
   "servers": {
     "kgtickets": {
       "type": "stdio",
-      "command": "docker",
-      "args": [
-        "exec", "-i", "kgtickets-mcp",
-        "/usr/irissys/bin/iris-mcp-server",
-        "run",
-        "--iris-host", "localhost",
-        "--iris-port", "1972",
-        "--iris-user", "_SYSTEM",
-        "--iris-password", "SYS",
-        "--iris-endpoint", "/mcp/kgtickets"
-      ]
+      "command": "npx",
+      "args": ["mcp-remote", "http://localhost:8888/mcp"]
     }
   }
 }
 ```
 
-**Claude Desktop** (Mac): same JSON as Claude CLI, in `~/Library/Application Support/Claude/claude_desktop_config.json`.
+**Claude Desktop:**
 
-**HTTP mode** (no `docker exec`): `MCP_PORT=8888 docker compose up -d` then point any MCP client at `http://localhost:8888/mcp`.
+Same JSON as Claude CLI, in `~/Library/Application Support/Claude/claude_desktop_config.json` (Mac) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows).
+
+> **Tip:** Run `npm install -g mcp-remote` once to avoid the `npx` download delay on each start.
 
 ### 4. Demo script
 

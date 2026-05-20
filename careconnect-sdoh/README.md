@@ -28,7 +28,47 @@ Wait ~90 seconds. IRIS initializes, seeds 3 demo patients, starts the Interopera
 
 ### 3. Connect your AI client
 
-The MCP server runs on `localhost:8888`. Any MCP-compatible client works.
+The MCP server runs on **port 8888** once the stack is up. Use `mcp-remote` to connect any MCP client — Claude CLI, VS Code, or Claude Desktop on Linux, Mac, or Windows.
+
+**Claude CLI** (Linux / Mac / Windows):
+
+Add to `~/.claude.json`:
+
+```json
+{
+  "mcpServers": {
+    "careconnect": {
+      "command": "npx",
+      "args": ["mcp-remote", "http://localhost:8888/mcp"]
+    }
+  }
+}
+```
+
+Run `claude`. The `careconnect` tools appear automatically.
+
+**VS Code with Claude Code extension:**
+
+Create `.vscode/mcp.json` in your workspace:
+
+```json
+{
+  "servers": {
+    "careconnect": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["mcp-remote", "http://localhost:8888/mcp"]
+    }
+  }
+}
+```
+
+**Claude Desktop:**
+
+Same JSON as Claude CLI, in `~/Library/Application Support/Claude/claude_desktop_config.json` (Mac) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows).
+
+> **Tip:** Run `npm install -g mcp-remote` once to avoid the `npx` download delay on each start.
+
 
 **Claude CLI** (recommended — works on Linux, Mac, Windows):
 

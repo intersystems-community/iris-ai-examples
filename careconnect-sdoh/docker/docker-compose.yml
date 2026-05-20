@@ -9,10 +9,10 @@ services:
       - "${IRIS_WEB_PORT:-52773}:52773"
       - "${MCP_PORT:-8888}:8888"
     healthcheck:
-      test: ["CMD", "bash", "-c", "cat < /dev/null > /dev/tcp/localhost/1972 && cat < /dev/null > /dev/tcp/localhost/52773"]
+      test: ["CMD", "python3", "-c", "import urllib.request,base64,sys; req=urllib.request.Request('http://localhost:52773/mcp/careconnect/v1/services'); req.add_header('Authorization','Basic '+base64.b64encode(b'_SYSTEM:SYS').decode()); r=urllib.request.urlopen(req,timeout=5); d=r.read(); sys.exit(0 if b'name' in d else 1)"]
       interval: 10s
-      timeout: 5s
-      retries: 18
+      timeout: 10s
+      retries: 24
       start_period: 120s
 
   mcp:
