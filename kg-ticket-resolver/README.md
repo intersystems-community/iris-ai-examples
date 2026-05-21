@@ -29,13 +29,45 @@ Wait ~2 minutes. The container is ready when `docker compose ps` shows `healthy`
 
 ### 3. Connect your AI client
 
-The MCP server runs on **port 8888**. Connect using `npx mcp-remote` — works on Linux, Mac, and Windows with Claude CLI, VS Code, or Claude Desktop.
+The stack exposes an MCP server on **port 8888** (HTTP streaming transport).
 
-**Requires Node.js** (`node --version` to check; install from https://nodejs.org if needed).
+**Option A — iris-mcp-server directly (recommended)**
 
-**Claude CLI:**
+Download `iris-mcp-server` from the [EAP portal](https://evaluation.intersystems.com/Eval/early-access/AIHub). Create `config.toml`:
 
-Add to `~/.claude.json` (create it if it doesn't exist):
+```toml
+[mcp]
+transport = "stdio"
+
+[[iris]]
+name      = "kgtickets"
+server    = { host = "localhost", port = 1972, username = "_SYSTEM", password = "SYS" }
+pool      = { min = 1, max = 3 }
+endpoints = [{ path = "/mcp/kgtickets" }]
+
+[logging]
+level  = "info"
+output = "stderr"
+```
+
+> **Port note:** `port = 1972` is the IRIS superserver (wgproto) port. If you mapped it to a different host port, use that host port here.
+
+Add to `~/.claude.json` (Claude CLI) or your client's MCP config:
+
+```json
+{
+  "mcpServers": {
+    "kgtickets": {
+      "command": "/path/to/iris-mcp-server",
+      "args": ["--config", "/path/to/config.toml", "run"]
+    }
+  }
+}
+```
+
+**Option B — mcp-remote (no binary download required)**
+
+Requires Node.js. Proxies to the HTTP server running inside the container.
 
 ```json
 {
@@ -48,31 +80,13 @@ Add to `~/.claude.json` (create it if it doesn't exist):
 }
 ```
 
-Run `claude`. The `kgtickets` tools appear automatically.
+> **VS Code with Claude Code:** Use the same config in `.vscode/mcp.json` with `"type": "stdio"` added.
 
-**VS Code with Claude Code extension:**
+> **Claude Desktop:** Same JSON in `~/Library/Application Support/Claude/claude_desktop_config.json` (Mac) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows).
 
-Create `.vscode/mcp.json` in your workspace:
+For full `iris-mcp-server` configuration options, see the [MCP Server Guide](https://github.com/intersystems-community/ai-hub-eap/blob/master/MCP_Server_Guide.md).
 
-```json
-{
-  "servers": {
-    "kgtickets": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["mcp-remote", "http://localhost:8888/mcp"]
-    }
-  }
-}
-```
 
-**Claude Desktop:**
-
-Same JSON as Claude CLI above, in:
-- Mac: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
-
-> **Tip:** `npm install -g mcp-remote` installs it once and avoids the `npx` download on each start.
 
 ### 4. Demo script
 
