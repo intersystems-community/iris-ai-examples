@@ -20,19 +20,21 @@ docker load < irishealth-community-2026.2.0AI.162.0-docker.tar.gz
 ### 2. Start the stack
 
 ```bash
-cd docker
+cd careconnect-sdoh/docker
 docker compose up -d
 ```
 
-Wait ~90 seconds. IRIS initializes, seeds 3 demo patients, starts the Interoperability production, and registers 9 MCP tools.
+Wait ~90 seconds for IRIS to initialize. The container is ready when `docker compose ps` shows `healthy`.
 
 ### 3. Connect your AI client
 
-The MCP server runs on **port 8888** once the stack is up. Use `mcp-remote` to connect any MCP client — Claude CLI, VS Code, or Claude Desktop on Linux, Mac, or Windows.
+The MCP server runs on **port 8888**. Connect using `npx mcp-remote` — works on Linux, Mac, and Windows with Claude CLI, VS Code, or Claude Desktop.
 
-**Claude CLI** (Linux / Mac / Windows):
+**Requires Node.js** (`node --version` to check; install from https://nodejs.org if needed).
 
-Add to `~/.claude.json`:
+**Claude CLI:**
+
+Add to `~/.claude.json` (create it if it doesn't exist):
 
 ```json
 {
@@ -65,9 +67,11 @@ Create `.vscode/mcp.json` in your workspace:
 
 **Claude Desktop:**
 
-Same JSON as Claude CLI, in `~/Library/Application Support/Claude/claude_desktop_config.json` (Mac) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows).
+Same JSON as Claude CLI above, in:
+- Mac: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
 
-> **Tip:** Run `npm install -g mcp-remote` once to avoid the `npx` download delay on each start.
+> **Tip:** `npm install -g mcp-remote` installs it once and avoids the `npx` download on each start.
 
 
 **Claude CLI** (recommended — works on Linux, Mac, Windows):
