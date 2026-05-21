@@ -29,11 +29,7 @@ Wait ~2 minutes. The container is ready when `docker compose ps` shows `healthy`
 
 ### 3. Connect your AI client
 
-The stack exposes an MCP server on **port 8888** (HTTP streaming transport).
-
-**Option A — iris-mcp-server directly (recommended)**
-
-Download `iris-mcp-server` from the [EAP portal](https://evaluation.intersystems.com/Eval/early-access/AIHub). Create `config.toml`:
+`iris-mcp-server` is included in your AI Hub installation (`bin/iris-mcp-server`). Create `config.toml`:
 
 ```toml
 [mcp]
@@ -50,10 +46,11 @@ level  = "info"
 output = "stderr"
 ```
 
-> **Port note:** `port = 1972` is the IRIS superserver (wgproto) port. If you mapped it to a different host port, use that host port here.
+> **Port note:** `port = 1972` is the IRIS superserver (wgproto) port. If you remapped it in Docker, use the host-side port here.
 
-Add to `~/.claude.json` (Claude CLI) or your client's MCP config:
+Add to your MCP client config:
 
+**Claude CLI** — `~/.claude.json`:
 ```json
 {
   "mcpServers": {
@@ -65,26 +62,22 @@ Add to `~/.claude.json` (Claude CLI) or your client's MCP config:
 }
 ```
 
-**Option B — mcp-remote (no binary download required)**
-
-Requires Node.js. Proxies to the HTTP server running inside the container.
-
+**VS Code with Claude Code** — `.vscode/mcp.json`:
 ```json
 {
-  "mcpServers": {
+  "servers": {
     "kgtickets": {
-      "command": "npx",
-      "args": ["mcp-remote", "http://localhost:8888/mcp"]
+      "type": "stdio",
+      "command": "/path/to/iris-mcp-server",
+      "args": ["--config", "/path/to/config.toml", "run"]
     }
   }
 }
 ```
 
-> **VS Code with Claude Code:** Use the same config in `.vscode/mcp.json` with `"type": "stdio"` added.
+**Claude Desktop** — same JSON as Claude CLI, in `~/Library/Application Support/Claude/claude_desktop_config.json` (Mac) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows).
 
-> **Claude Desktop:** Same JSON in `~/Library/Application Support/Claude/claude_desktop_config.json` (Mac) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows).
-
-For full `iris-mcp-server` configuration options, see the [MCP Server Guide](https://github.com/intersystems-community/ai-hub-eap/blob/master/MCP_Server_Guide.md).
+Full configuration reference: [MCP Server Guide](https://github.com/intersystems-community/ai-hub-eap/blob/master/MCP_Server_Guide.md)
 
 
 
