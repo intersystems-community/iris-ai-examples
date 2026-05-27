@@ -6,7 +6,6 @@ This example demonstrates the Python-first developer experience on IRIS AI Hub:
 - Tools defined as Python class methods with the `@tool` decorator
 - Agent orchestration via `iris_llm.Agent` — no ObjectScript required
 - IRIS data access via `intersystems-irispython` (`iris.connect()`)
-- ObjectScript tools from the companion `careconnect-sdoh` example, bridged via MCP
 
 ## Prerequisites
 
@@ -37,19 +36,19 @@ docker compose run agent python agent.py "List all patients"
 ```
 agent.py (iris_llm — pure Python)
 │
-├── SDoHPythonTools (@tool methods)
-│   ├── assess_sdoh_risk        — Python keyword scoring over patient text
-│   ├── fetch_community_resources — community resource lookup by zip code
-│   └── summarize_sdoh_findings — CHW action brief synthesis
-│
-└── ObjectScript MCP bridge (mcp:remote → IRIS)
-    ├── SearchPatients          — FHIR SQL patient roster
-    ├── FetchPatientSummary     — clinical summary from IRIS
-    └── GetInteropTraces        — Interoperability production traces
+└── SDoHPythonTools (@tool methods)
+    ├── assess_sdoh_risk        — Python keyword scoring, IRIS data via iris.connect()
+    ├── fetch_community_resources — community resource lookup by zip code
+    └── summarize_sdoh_findings — CHW action brief synthesis
 ```
 
 The `iris_llm` wheel and `intersystems-irispython` are both copied from the IRIS
 image at build time via a multi-stage Dockerfile — no bundled wheels in this repo.
+
+> **iris_llm version note**: `mcp:remote` tool bridging requires iris_llm 0.2+
+> (not yet in the 162 image). This example uses Python-native tools only via
+> `iris.connect()`. Cross-surface bridging (Python agent + ObjectScript MCP tools
+> in one agent) is documented in the roadmap.
 
 ## Tool Authoring Pattern
 
@@ -92,7 +91,7 @@ CHW> Give me a full CHW action brief for Maria Santos
 | Tools | ObjectScript `%AI.ToolSet` | Python `iris_llm.ToolSet` |
 | Entry point | Claude Desktop / VS Code MCP | `python agent.py` |
 | Data access | FHIR SQL in ObjectScript | `iris.connect()` in Python |
-| IRIS required | Yes (MCP server) | Yes (data) + MCP bridge |
+| IRIS required | Yes (MCP server) | Yes (iris.connect() for patient data) |
 | Target audience | ObjectScript devs, IRIS experts | Python/AI developers |
 
 Both examples use the same IRIS container and the same demo patient data.
