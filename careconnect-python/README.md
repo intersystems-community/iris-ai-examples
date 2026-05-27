@@ -95,3 +95,16 @@ CHW> Give me a full CHW action brief for Maria Santos
 | Target audience | ObjectScript devs, IRIS experts | Python/AI developers |
 
 Both examples use the same IRIS container and the same demo patient data.
+
+## Development Notes
+
+### Why not ZPM?
+
+`irishealth-community:2026.2.0AI.162.0` does not ship with ZPM. Installing it at
+image build time adds a network dependency and complexity without improving the
+developer experience for a Docker-based demo.
+
+The IRIS setup (`iris.script` + `entrypoint.sh`) is intentionally kept as
+plain ObjectScript executed at build time — deterministic, no network required,
+runs in 30 seconds. ZPM becomes relevant when distributing to existing IRIS
+installations via Open Exchange, which is a future step for this example.
