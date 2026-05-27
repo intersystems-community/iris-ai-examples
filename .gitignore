@@ -1,0 +1,3 @@
+.speckit/
+.env
+docker/.env
