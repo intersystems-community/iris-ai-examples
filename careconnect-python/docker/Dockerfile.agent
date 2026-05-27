@@ -1,0 +1,17 @@
+ARG IMAGE=irishealth-community:2026.2.0AI.162.0
+FROM $IMAGE AS iris-source
+
+FROM python:3.12-slim AS agent
+
+WORKDIR /app
+
+COPY --from=iris-source /usr/irissys/dev/python/iris_llm-*.whl /wheels/
+COPY --from=iris-source /usr/irissys/dev/python/intersystems_irispython-*.whl /wheels/
+
+RUN pip install --no-cache-dir /wheels/intersystems_irispython-*.whl /wheels/iris_llm-*.whl \
+    && pip install --no-cache-dir langchain-core>=0.3.0
+
+COPY src/ /app/src/
+
+WORKDIR /app/src
+CMD ["python", "agent.py"]

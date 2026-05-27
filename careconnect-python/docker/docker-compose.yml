@@ -1,0 +1,41 @@
+services:
+  iris:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.iris
+      args:
+        IMAGE: ${IMAGE:-irishealth-community:2026.2.0AI.162.0}
+    container_name: careconnect-python-iris
+    ports:
+      - "${IRIS_PORT:-31972}:1972"
+      - "${IRIS_WEB_PORT:-31773}:52773"
+    entrypoint: ["/entrypoint.sh"]
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request,base64,sys; req=urllib.request.Request('http://localhost:52773/mcp/careconnect/v1/services'); req.add_header('Authorization','Basic '+base64.b64encode(b'_SYSTEM:SYS').decode()); r=urllib.request.urlopen(req,timeout=5); d=r.read(); sys.exit(0 if b'name' in d else 1)"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 120s
+
+  agent:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.agent
+      args:
+        IMAGE: ${IMAGE:-irishealth-community:2026.2.0AI.162.0}
+    container_name: careconnect-python-agent
+    depends_on:
+      iris:
+        condition: service_healthy
+    environment:
+      - IRIS_HOST=iris
+      - IRIS_PORT=1972
+      - IRIS_USERNAME=${IRIS_USERNAME:-_SYSTEM}
+      - IRIS_PASSWORD=${IRIS_PASSWORD:-SYS}
+      - IRIS_NAMESPACE=USER
+      - IRIS_MCP_URL=http://iris:52773/mcp/careconnect
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    stdin_open: true
+    tty: true
+    command: ["python", "agent.py"]
