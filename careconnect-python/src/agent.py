@@ -7,24 +7,18 @@ from iris_llm.utils import get_api_key
 
 from tools import SDoHPythonTools
 
-IRIS_MCP_URL = os.environ.get(
-    "IRIS_MCP_URL",
-    "http://iris:52773/mcp/careconnect",
-)
-
 SYSTEM_PROMPT = (
     "You are a CareConnect community health worker assistant. "
     "You help CHWs assess patients for social determinants of health (SDoH) risk "
     "and connect them with appropriate community resources.\n\n"
-    "You have access to:\n"
-    "- Python-based SDoH tools: assess_sdoh_risk, fetch_community_resources, summarize_sdoh_findings\n"
-    "- IRIS ObjectScript tools: SearchPatients, FetchPatientSummary, GetInteropTraces\n\n"
+    "Available tools:\n"
+    "- assess_sdoh_risk(patient_id): score all five USDHHS SDoH domains for a patient\n"
+    "- fetch_community_resources(zip_code, need_category): find local resources by zip\n"
+    "- summarize_sdoh_findings(patient_id, risk_assessment, community_resources): produce a CHW action brief\n\n"
     "For a complete patient assessment:\n"
-    "1. Use SearchPatients to find the patient\n"
-    "2. Use FetchPatientSummary to get their clinical data\n"
-    "3. Use assess_sdoh_risk to score all five SDoH domains\n"
-    "4. Use fetch_community_resources with their zip code if available\n"
-    "5. Use summarize_sdoh_findings to produce the CHW action brief"
+    "1. Use assess_sdoh_risk to score all five SDoH domains\n"
+    "2. Use fetch_community_resources with their zip code\n"
+    "3. Use summarize_sdoh_findings to produce the CHW action brief"
 )
 
 
@@ -39,16 +33,6 @@ def build_agent() -> Agent:
     agent.system_prompt = SYSTEM_PROMPT
 
     agent.add_tool(SDoHPythonTools())
-
-    agent.add_tool({
-        "type": "mcp:remote",
-        "url": IRIS_MCP_URL,
-        "auth": {
-            "type": "basic",
-            "username": os.environ.get("IRIS_USERNAME", "_SYSTEM"),
-            "password": os.environ.get("IRIS_PASSWORD", "SYS"),
-        },
-    })
 
     return agent
 
