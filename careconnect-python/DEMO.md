@@ -21,12 +21,22 @@ docker compose run agent python agent.py
 CHW> List all available patients
 ```
 
-Expected: roster including P001 Maria Santos, P002 James Chen, etc.
+Expected: roster with patient IDs, names, demographics, and conditions.
+
+```
+Available patients:
+  james-okafor-002 | James Okafor | 67M
+    Conditions: Congestive Heart Failure, Depression
+  maria-gonzalez-001 | Maria Gonzalez | 42F
+    Conditions: Type 2 Diabetes Mellitus, Hypertension
+  sarah-kim-003 | Sarah Kim | 29F
+    Conditions: Prenatal care 28 weeks, Iron deficiency anemia
+```
 
 ## Step 2 — Assess SDoH risk (Python tool)
 
 ```
-CHW> Assess patient P001 for social determinants of health risk
+CHW> Assess patient maria-gonzalez-001 for SDoH risk
 ```
 
 The `assess_sdoh_risk` Python `@tool` method:
@@ -37,17 +47,17 @@ The `assess_sdoh_risk` Python `@tool` method:
 
 Expected output:
 ```
-SDoH Risk Assessment for Maria Santos (P001) — Python scoring:
-  Economic Stability    : HIGH  [afford, income]
-  Education Access      : LOW
-  Health Care Access    : HIGH  [transport, uninsur]
-  Neighborhood/Built Env: HIGH  [food bank, housing]
-  Social Context        : LOW
+SDoH Risk Assessment for Maria Gonzalez (maria-gonzalez-001) — Python scoring:
+  Economic Stability    : MEDIUM  [afford]
+  Education Access      : MEDIUM  [english]
+  Health Care Access    : MEDIUM  [transport]
+  Neighborhood/Built Env: MEDIUM  [food bank]
+  Social Context        : MEDIUM  [alone]
 
-Overall Priority: URGENT (3/5 domains elevated)
+Overall Priority: ROUTINE (0/5 domains elevated)
 ```
 
-## Step 3 — Find community resources (Python tool hitting external-style API)
+## Step 3 — Find community resources (Python tool)
 
 ```
 CHW> Find community resources near zip code 02115 for food and housing
@@ -57,51 +67,31 @@ The `fetch_community_resources` Python tool returns local organizations
 by zip prefix — demonstrating how Python tools can call external APIs
 (211.org, FHIR servers, etc.) that would be awkward in ObjectScript.
 
-## Step 4 — Bridge to ObjectScript MCP tools
-
 ```
-CHW> Show me the recent interoperability traces for this patient's follow-up workflow
-```
+Community resources near 02115 for food and housing:
 
-This call routes to the IRIS MCP server (`GetInteropTraces`) via
-`agent.add_tool("mcp:remote:...")` — showing both surfaces in one conversation.
+  Greater Boston Food Bank (food)
+    Phone: 617-427-5200
+    Services: Emergency food pantry, SNAP enrollment assistance
 
-## Step 5 — Full action brief
-
-```
-CHW> Give me a complete CHW action brief for Maria Santos with community resources
+  Heading Home (housing)
+    Phone: 617-864-8140
+    Services: Emergency shelter, rapid rehousing, eviction prevention
 ```
 
-The `summarize_sdoh_findings` Python tool synthesizes risk scores + resources
-into a structured brief with prioritized next steps.
+## Step 4 — Full CHW action brief
 
-Expected output:
 ```
-CHW Action Brief: Maria Santos (P001)
-Priority: URGENT — same-day outreach required
-
---- Risk Summary ---
-  Economic Stability    : HIGH  [afford, income]
-  Health Care Access    : HIGH  [transport]
-  Neighborhood/Built Env: HIGH  [food bank]
-
---- Recommended Actions ---
-1. IMMEDIATE: Warm transfer to supervising CHW or social worker
-2. Document all HIGH-risk domains in care management system
-3. Connect with financial assistance navigator (SNAP, Medicaid, emergency rental)
-4. Schedule CHW home visit — assess transportation and insurance barriers
-5. Schedule 30-day follow-up call to assess progress
-
---- Local Resources ---
-  Greater Boston Food Bank — 617-427-5200
-  Heading Home — 617-864-8140
-  MBTA Ride Program — 617-222-5123
+CHW> Give me a complete CHW action brief for patient maria-gonzalez-001 near zip code 02115
 ```
+
+The agent calls all three tools in sequence — list, assess, resources, summarize —
+and produces a structured CHW action brief with prioritized next steps and local referrals.
 
 ## Key Demo Talking Points
 
 - **`@tool` decorator** — same pattern as LangChain tools, familiar to Python devs
-- **`iris.connect()`** — standard Python DB-API, not ObjectScript
-- **Multi-surface agents** — Python tools + ObjectScript MCP tools in one agent
-- **Wheels ship in the IRIS image** — `iris_llm` is EAP, no separate install
-- **No ObjectScript required** to author tools or run the agent
+- **`iris.connect()`** — standard Python DB-API connecting to IRIS patient data
+- **Wheels ship inside the IRIS image** — `iris_llm` is EAP, no separate install needed
+- **No ObjectScript required** — tools and agent orchestration are pure Python
+- **`mcp:remote` bridging** (roadmap) — iris_llm 0.2+ will support combining Python tools with ObjectScript MCP tools in one agent
