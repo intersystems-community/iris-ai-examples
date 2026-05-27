@@ -50,6 +50,40 @@ def _score_domain(text_lower: str, keywords: list[str]) -> tuple[str, list[str]]
 class SDoHPythonTools(ToolSet):
 
     @tool
+    def list_patients(self, search: str = "") -> str:
+        """
+        List demo patients or search by name, condition, or patient ID.
+        Returns patient IDs and demographics for use with assess_sdoh_risk.
+
+        Args:
+            search: Optional search term (name, condition, or patient ID).
+                    Leave empty to list all patients.
+        """
+        conn = _get_iris_connection()
+        cur = conn.cursor()
+        if not search:
+            cur.execute(
+                "SELECT PatientId, Name, Demographics, Conditions "
+                "FROM CareConnect.Patient ORDER BY Name"
+            )
+        else:
+            term = f"%{search.lower()}%"
+            cur.execute(
+                "SELECT PatientId, Name, Demographics, Conditions "
+                "FROM CareConnect.Patient "
+                "WHERE LOWER(Name) LIKE ? OR LOWER(Conditions) LIKE ? OR PatientId = ?",
+                [term, term, search],
+            )
+        rows = cur.fetchall()
+        if not rows:
+            return "No patients found. The demo data may not be loaded yet."
+        lines = ["Available patients:"]
+        for patient_id, name, demographics, conditions in rows:
+            lines.append(f"  {patient_id} | {name} | {demographics}")
+            lines.append(f"    Conditions: {conditions}")
+        return "\n".join(lines)
+
+    @tool
     def assess_sdoh_risk(self, patient_id: str) -> str:
         """
         Score a patient on all five USDHHS SDoH domains using Python-based
