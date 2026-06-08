@@ -199,6 +199,23 @@ Point any MCP client at `http://localhost:8888/mcp` directly.
 - **Live message tracing** — `GetInteropTraces` reads `Ens.MessageHeader` to show the agent what the production just did
 - **MCP sidecar pattern** — `iris-mcp-server` runs alongside IRIS in Docker Compose, sharing the network
 
+## Evaluating the agent
+
+A self-contained, provider-agnostic eval suite lives in [`evals/`](./evals/). It
+scores the agent across five layers (deterministic regression, clinician-truth
+recall, tool-use trajectory, real-world outcome via the Interop audit trail, and
+LLM-as-judge), and surfaces three real defects the demo script hides — including
+a care plan that turns out to be identical for every patient. It runs offline
+with no API key:
+
+```bash
+cd evals
+python run_evals.py
+```
+
+See [`evals/EVALS.md`](./evals/EVALS.md) for the lessons and the
+measure → fix → re-measure loop.
+
 ## Architecture
 
 ```

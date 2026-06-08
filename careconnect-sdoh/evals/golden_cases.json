@@ -1,0 +1,82 @@
+{
+  "_about": "Golden eval set for the CareConnect SDoH agent. Each case carries TWO ground truths: 'rule_expected' is what the shipped ObjectScript tool should deterministically return given the canonical input (a regression target), and 'human_label' is the clinician ground truth for the patient (which reveals where the rule itself under-calls risk). Patient facts mirror CareConnect.Setup.DemoData. Domain keys: economic, education, health_care, neighborhood, social. Values: HIGH | MEDIUM | LOW.",
+  "cases": [
+    {
+      "id": "maria-complete",
+      "patientId": "maria-gonzalez-001",
+      "prompt": "Do a complete SDoH assessment for Maria Gonzalez — find her, assess her risks, draft a care plan, trigger an urgent follow-up, and show me the message traces.",
+      "search_query": "maria",
+      "expect_followup": true,
+      "priority": "urgent",
+      "adversarial": false,
+      "expected_trajectory": ["SearchPatients", "FetchPatientSummary", "SearchSDoHProtocols", "AssessSDoHRisk", "DraftCarePlan", "StartProduction", "TriggerFollowUp", "GetInteropTraces"],
+      "rule_expected": {
+        "domains": {"economic": "HIGH", "education": "HIGH", "health_care": "HIGH", "neighborhood": "HIGH", "social": "HIGH"},
+        "priority": "URGENT"
+      },
+      "human_label": {
+        "domains": {"economic": "HIGH", "education": "HIGH", "health_care": "HIGH", "neighborhood": "HIGH", "social": "HIGH"},
+        "priority": "URGENT"
+      },
+      "tags": ["happy-path", "full-workflow"]
+    },
+    {
+      "id": "james-complete",
+      "patientId": "james-okafor-002",
+      "prompt": "Do a complete SDoH assessment for James Okafor — find him, assess his risks, draft a care plan, trigger an urgent follow-up, and show me the traces.",
+      "search_query": "james",
+      "expect_followup": true,
+      "priority": "urgent",
+      "adversarial": false,
+      "expected_trajectory": ["SearchPatients", "FetchPatientSummary", "SearchSDoHProtocols", "AssessSDoHRisk", "DraftCarePlan", "StartProduction", "TriggerFollowUp", "GetInteropTraces"],
+      "rule_expected": {
+        "domains": {"economic": "LOW", "education": "LOW", "health_care": "MEDIUM", "neighborhood": "HIGH", "social": "HIGH"},
+        "priority": "HIGH"
+      },
+      "human_label": {
+        "domains": {"economic": "HIGH", "education": "LOW", "health_care": "HIGH", "neighborhood": "HIGH", "social": "HIGH"},
+        "priority": "URGENT"
+      },
+      "tags": ["rule-blind-spot", "under-called-priority", "full-workflow"]
+    },
+    {
+      "id": "sarah-assess-only",
+      "patientId": "sarah-kim-003",
+      "prompt": "Assess Sarah Kim's social determinants of health and draft a care plan. Do not trigger any workflow yet.",
+      "search_query": "sarah",
+      "expect_followup": false,
+      "priority": "routine",
+      "adversarial": false,
+      "expected_trajectory": ["SearchPatients", "FetchPatientSummary", "SearchSDoHProtocols", "AssessSDoHRisk", "DraftCarePlan"],
+      "rule_expected": {
+        "domains": {"economic": "LOW", "education": "LOW", "health_care": "HIGH", "neighborhood": "HIGH", "social": "LOW"},
+        "priority": "HIGH"
+      },
+      "human_label": {
+        "domains": {"economic": "HIGH", "education": "LOW", "health_care": "HIGH", "neighborhood": "HIGH", "social": "LOW"},
+        "priority": "HIGH"
+      },
+      "tags": ["rule-blind-spot", "no-followup", "negative-control"]
+    },
+    {
+      "id": "maria-paraphrase-adversarial",
+      "patientId": "maria-gonzalez-001",
+      "prompt": "Do a complete SDoH assessment for Maria Gonzalez and trigger an urgent follow-up.",
+      "search_query": "maria",
+      "expect_followup": true,
+      "priority": "urgent",
+      "adversarial": true,
+      "agent_summary": "Patient struggles to pay for her medication. She lost her position recently and depends on a community pantry. She has nobody at home and cannot travel to her appointments. She mainly speaks Spanish.",
+      "expected_trajectory": ["SearchPatients", "FetchPatientSummary", "SearchSDoHProtocols", "AssessSDoHRisk", "DraftCarePlan", "StartProduction", "TriggerFollowUp", "GetInteropTraces"],
+      "rule_expected": {
+        "domains": {"economic": "HIGH", "education": "HIGH", "health_care": "HIGH", "neighborhood": "HIGH", "social": "HIGH"},
+        "priority": "URGENT"
+      },
+      "human_label": {
+        "domains": {"economic": "HIGH", "education": "HIGH", "health_care": "HIGH", "neighborhood": "HIGH", "social": "HIGH"},
+        "priority": "URGENT"
+      },
+      "tags": ["adversarial", "seam-sensitivity", "paraphrase-attack"]
+    }
+  ]
+}

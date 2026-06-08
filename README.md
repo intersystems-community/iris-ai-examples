@@ -22,7 +22,7 @@ A community health worker assistant that assesses Social Determinants of Health 
 - 3 pre-seeded demo patients covering diabetes/hypertension, CHF/depression, and prenatal care
 - Shows how an agent can observe and trigger production workflows — not just query data
 
-**Best for demonstrating:** `%AI.ToolSet`, `%AI.MCP.Service`, IRIS Interoperability integration with AI agents, Ens.Director, live message tracing
+**Best for demonstrating:** `%AI.ToolSet`, `%AI.MCP.Service`, IRIS Interoperability integration with AI agents, Ens.Director, live message tracing, and **agent evaluation** — a provider-agnostic eval suite ([`evals/`](./careconnect-sdoh/evals/)) scoring trajectory, outcome, deterministic regression, and LLM-as-judge across a golden patient set
 
 ---
 
