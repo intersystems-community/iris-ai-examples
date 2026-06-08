@@ -1,0 +1,15 @@
+# Core harness runs on the standard library alone (mock provider, no network).
+# The extras below are only needed for the notebook and for real-model runs.
+
+# Notebook + charts
+jupyter>=1.0.0
+ipykernel>=6.0.0
+matplotlib>=3.7.0
+pandas>=2.0.0
+
+# Real-model providers (optional — pick whichever you'll run)
+anthropic>=0.40.0
+openai>=1.0.0
+
+# Optional: parity-check the Python tool port against a live IRIS
+# intersystems-irispython>=3.2.0
