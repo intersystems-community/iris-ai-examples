@@ -1,6 +1,6 @@
 # Pharmacy — PlanetCare Knowledge Base
 
-*Last updated: 2025-09-30 | Maintainer: Pharmacy IT*
+_Last updated: 2025-09-30 | Maintainer: Pharmacy IT_
 
 ## Overview
 
@@ -14,8 +14,8 @@ and formulary management.
 This section is largely undocumented. The pharmacy team has reported recurring issues with:
 
 - Batch/lot numbers not captured during floor dispensing
-- Medication order routing failures for non-formulary drugs  
+- Medication order routing failures for non-formulary drugs
 - Dispense verification errors on multi-dose medications
 
-*These represent institutional knowledge held by individual pharmacists — not in any system.*  
-*The KB Mining pipeline will extract patterns from resolved tickets and populate this section.*
+_These represent institutional knowledge held by individual pharmacists — not in any system._  
+_The KB Mining pipeline will extract patterns from resolved tickets and populate this section._

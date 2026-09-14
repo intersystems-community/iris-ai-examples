@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.env
+.coverage
+htmlcov/
+.pytest_cache/
+dist/
+build/
+
+# iris-mcp-server binary — Linux ARM64 only, extract from EAP image instead
+# See docs/eap-setup.md Step 3b
+services/iris-mcp-sidecar/iris-mcp-server

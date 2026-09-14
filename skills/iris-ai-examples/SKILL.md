@@ -1,11 +1,11 @@
 ## <!-- markdownlint-disable MD013 MD041 MD060 -->
 
 name: iris-ai-examples
-description: Reference patterns for IRIS AI Hub — CareConnect SDoH (9-tool %AI.ToolSet + Interoperability) and KG Ticket Resolver (%AI.Agent inside IRIS + VECTOR_COSINE + Graph_KG). Load when studying full-stack IRIS AI patterns or starting a new AI Hub application.
+description: Reference patterns for IRIS AI Hub — CareConnect SDoH (17-tool %AI.ToolSet + Interoperability) and KG Ticket Resolver (%AI.Agent inside IRIS + VECTOR_COSINE + Graph_KG). Load when studying full-stack IRIS AI patterns or starting a new AI Hub application.
 author: tdyar
 version: 0.1.0
 managed_by: iris-ai-examples
-source: ~/ws/iris-ai-examples/skills/iris-ai-examples
+source: skills/iris-ai-examples
 benchmark_tasks:
 
 - "Find where %AI.Agent is used inside IRIS (not from Python) in these examples"
@@ -26,9 +26,9 @@ Load when:
 
 ## Quick Reference — CareConnect SDoH
 
-**Repo:** `~/ws/iris-ai-examples/careconnect-sdoh/`
+**Repo:** `careconnect-sdoh/`
 
-**Entry point:** `src/CareConnect/Tools/SDoHToolSet.cls` — `%AI.ToolSet`, 9 tools, 6-domain
+**Entry point:** `src/CareConnect/Tools/SDoHToolSet.cls` — `%AI.ToolSet`, 17 tools, 6-domain
 SDoH scorer. Extends `%AI.ToolSet`, each tool is an `XData` block + ObjectScript method.
 
 **MCP endpoint:** `src/CareConnect/MCP/Service.cls` — extends `%AI.MCP.Service`, registered
@@ -48,7 +48,7 @@ cd careconnect-sdoh/evals && python run_evals.py
 
 ## Quick Reference — KG Ticket Resolver
 
-**Repo:** `~/ws/iris-ai-examples/kg-ticket-resolver/`
+**Repo:** `kg-ticket-resolver/`
 
 **Entry point:** `src/KGTicketResolver/Tools/ToolSet.cls` — `%AI.ToolSet`, 6 tools.
 
@@ -85,10 +85,10 @@ SQL: `VECTOR_COSINE(SummaryVec, TO_VECTOR(?, DOUBLE))`.
 from iris_devtester import IRISContainer
 
 # CareConnect SDoH
-c = IRISContainer.attach("careconnect-iris")
+c = IRISContainer.attach("careconnect-sdoh-iris-hub")
 
 # KG Ticket Resolver
-c = IRISContainer.attach("kgtickets-iris")
+c = IRISContainer.attach("kg-ticket-resolver-iris")
 
 rows = c.execute_sql("SELECT * FROM CareConnect.Patient")
 c.execute("Do ##class(CareConnect.Setup.DemoData).Populate()")

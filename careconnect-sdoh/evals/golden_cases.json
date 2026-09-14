@@ -1,5 +1,5 @@
 {
-  "_about": "Golden eval set for the CareConnect SDoH agent. Each case carries TWO ground truths: 'rule_expected' is what the shipped ObjectScript tool should deterministically return given the canonical input (a regression target), and 'human_label' is the clinician ground truth for the patient (which reveals where the rule itself under-calls risk). Patient facts mirror CareConnect.Setup.DemoData. Domain keys: economic, education, health_care, neighborhood, social. Values: HIGH | MEDIUM | LOW.",
+  "_about": "Golden eval set for the CareConnect SDoH agent. Each case carries TWO ground truths: 'rule_expected' is what the shipped ObjectScript tool should deterministically return given the canonical input (a regression target), and 'human_label' is the clinician ground truth for the patient (which reveals where the rule itself under-calls risk). Patient facts mirror CareConnect.Setup.DemoData. Domain keys: economic, education, health_care, neighborhood, social, transportation. Values: HIGH | MEDIUM | LOW. Health Care Access is the only domain that floors at MEDIUM rather than LOW — absence of evidence is not scored as low risk for access to care.",
   "cases": [
     {
       "id": "maria-complete",
@@ -11,11 +11,11 @@
       "adversarial": false,
       "expected_trajectory": ["SearchPatients", "FetchPatientSummary", "SearchSDoHProtocols", "AssessSDoHRisk", "DraftCarePlan", "StartProduction", "TriggerFollowUp", "GetInteropTraces"],
       "rule_expected": {
-        "domains": {"economic": "HIGH", "education": "HIGH", "health_care": "HIGH", "neighborhood": "HIGH", "social": "HIGH"},
+        "domains": {"economic": "HIGH", "education": "HIGH", "health_care": "MEDIUM", "neighborhood": "HIGH", "social": "HIGH", "transportation": "HIGH"},
         "priority": "URGENT"
       },
       "human_label": {
-        "domains": {"economic": "HIGH", "education": "HIGH", "health_care": "HIGH", "neighborhood": "HIGH", "social": "HIGH"},
+        "domains": {"economic": "HIGH", "education": "HIGH", "health_care": "HIGH", "neighborhood": "HIGH", "social": "HIGH", "transportation": "HIGH"},
         "priority": "URGENT"
       },
       "tags": ["happy-path", "full-workflow"]
@@ -30,11 +30,11 @@
       "adversarial": false,
       "expected_trajectory": ["SearchPatients", "FetchPatientSummary", "SearchSDoHProtocols", "AssessSDoHRisk", "DraftCarePlan", "StartProduction", "TriggerFollowUp", "GetInteropTraces"],
       "rule_expected": {
-        "domains": {"economic": "LOW", "education": "LOW", "health_care": "MEDIUM", "neighborhood": "HIGH", "social": "HIGH"},
-        "priority": "HIGH"
+        "domains": {"economic": "LOW", "education": "LOW", "health_care": "MEDIUM", "neighborhood": "HIGH", "social": "HIGH", "transportation": "LOW"},
+        "priority": "ROUTINE"
       },
       "human_label": {
-        "domains": {"economic": "HIGH", "education": "LOW", "health_care": "HIGH", "neighborhood": "HIGH", "social": "HIGH"},
+        "domains": {"economic": "HIGH", "education": "LOW", "health_care": "HIGH", "neighborhood": "HIGH", "social": "HIGH", "transportation": "LOW"},
         "priority": "URGENT"
       },
       "tags": ["rule-blind-spot", "under-called-priority", "full-workflow"]
@@ -49,11 +49,11 @@
       "adversarial": false,
       "expected_trajectory": ["SearchPatients", "FetchPatientSummary", "SearchSDoHProtocols", "AssessSDoHRisk", "DraftCarePlan"],
       "rule_expected": {
-        "domains": {"economic": "LOW", "education": "LOW", "health_care": "HIGH", "neighborhood": "HIGH", "social": "LOW"},
+        "domains": {"economic": "LOW", "education": "LOW", "health_care": "HIGH", "neighborhood": "HIGH", "social": "LOW", "transportation": "HIGH"},
         "priority": "HIGH"
       },
       "human_label": {
-        "domains": {"economic": "HIGH", "education": "LOW", "health_care": "HIGH", "neighborhood": "HIGH", "social": "LOW"},
+        "domains": {"economic": "HIGH", "education": "LOW", "health_care": "HIGH", "neighborhood": "HIGH", "social": "LOW", "transportation": "HIGH"},
         "priority": "HIGH"
       },
       "tags": ["rule-blind-spot", "no-followup", "negative-control"]
@@ -68,12 +68,13 @@
       "adversarial": true,
       "agent_summary": "Patient struggles to pay for her medication. She lost her position recently and depends on a community pantry. She has nobody at home and cannot travel to her appointments. She mainly speaks Spanish.",
       "expected_trajectory": ["SearchPatients", "FetchPatientSummary", "SearchSDoHProtocols", "AssessSDoHRisk", "DraftCarePlan", "StartProduction", "TriggerFollowUp", "GetInteropTraces"],
+      "_rule_expected_note": "Aspirational, not a regression target. Every risk in the paraphrase is real, so this is what a keyword rule OUGHT to return. It returns 0/6 ROUTINE instead, and this case is designed to fail L1 to make that visible. Do not 'fix' it by copying the actual output here.",
       "rule_expected": {
-        "domains": {"economic": "HIGH", "education": "HIGH", "health_care": "HIGH", "neighborhood": "HIGH", "social": "HIGH"},
+        "domains": {"economic": "HIGH", "education": "HIGH", "health_care": "HIGH", "neighborhood": "HIGH", "social": "HIGH", "transportation": "HIGH"},
         "priority": "URGENT"
       },
       "human_label": {
-        "domains": {"economic": "HIGH", "education": "HIGH", "health_care": "HIGH", "neighborhood": "HIGH", "social": "HIGH"},
+        "domains": {"economic": "HIGH", "education": "HIGH", "health_care": "HIGH", "neighborhood": "HIGH", "social": "HIGH", "transportation": "HIGH"},
         "priority": "URGENT"
       },
       "tags": ["adversarial", "seam-sensitivity", "paraphrase-attack"]

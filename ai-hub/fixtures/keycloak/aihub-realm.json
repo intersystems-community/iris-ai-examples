@@ -1,0 +1,92 @@
+{
+  "realm": "aihub",
+  "enabled": true,
+  "sslRequired": "none",
+  "accessTokenLifespan": 900,
+  "clientScopes": [
+    {
+      "name": "mcp.read",
+      "description": "Read-tier MCP tools",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      }
+    },
+    {
+      "name": "mcp.write",
+      "description": "Write-tier MCP tools",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      }
+    },
+    {
+      "name": "mcp.admin",
+      "description": "Admin-tier MCP tools",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      }
+    },
+    {
+      "name": "mcp.audience",
+      "description": "Puts aud=mcp-api in the access token. IRIS rejects the token if this audience is missing from OAuth2.ResourceServer.Audiences.",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "mcp-api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "mcp-api",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "mcp-read",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "read-secret",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "defaultClientScopes": ["mcp.audience", "mcp.read"],
+      "optionalClientScopes": []
+    },
+    {
+      "clientId": "mcp-write",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "write-secret",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "defaultClientScopes": ["mcp.audience", "mcp.write"],
+      "optionalClientScopes": []
+    },
+    {
+      "clientId": "mcp-admin",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "admin-secret",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "defaultClientScopes": ["mcp.audience", "mcp.admin"],
+      "optionalClientScopes": []
+    }
+  ]
+}

@@ -1,0 +1,67 @@
+###############################################################################
+# docker-compose.test.yml — CareConnect SDoH test stack
+#
+# This file covers the IVG knowledge graph services only, on offset ports (55975,
+# 55900), so an IVG stack can run beside the demo stack. Nothing starts it for you —
+# tests/conftest.py brings up docker-compose.yml, not this file.
+#
+# The normal path is the demo stack:
+#   docker compose up -d --wait                  # FHIR, hub, sidecar, app, jupyter
+#   docker compose --profile ivg up -d --wait    # adds IVG on 19800
+#   make test-smoke test-contract test-e2e test-ivg
+#
+# To use this file instead, start it and point the tests at its ports:
+#   docker compose -f docker-compose.test.yml --profile ivg up -d --wait
+#   IVG_BASE=http://localhost:55900 make test-ivg
+###############################################################################
+
+name: careconnect-sdoh-test
+
+services:
+
+  # IVG stack — test ports offset from prod (19800 → 55900, 19720 → 55975)
+  careconnect-ivg-iris:
+    build:
+      context: ./services/careconnect-ivg
+      dockerfile: Dockerfile.iris
+    container_name: careconnect-sdoh-test-ivg-iris
+    ports:
+      - "${TEST_IVG_IRIS_PORT:-55975}:1972"
+    healthcheck:
+      test: ["CMD", "bash", "-c", "iris session iris -U CARECONNECT 'write 1,!'"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 90s
+    profiles:
+      - ivg
+
+  careconnect-ivg-bolt:
+    build:
+      context: ./services/careconnect-ivg
+      dockerfile: Dockerfile
+    container_name: careconnect-sdoh-test-ivg-bolt
+    ports:
+      - "${TEST_IVG_BOLT_PORT:-55900}:8000"
+    environment:
+      - IRIS_HOST=careconnect-ivg-iris
+      - IRIS_PORT=1972
+      - IRIS_NAMESPACE=CARECONNECT
+      - IRIS_USERNAME=_SYSTEM
+      - IRIS_PASSWORD=${IRIS_PASSWORD:-SYS}
+      - IVG_API_KEY=${IVG_API_KEY:-changeme}
+    volumes:
+      - ./services/careconnect-ivg/load_graph_on_start.py:/app/load_graph_on_start.py:ro
+      - ./services/careconnect-ivg/careconnect_api.py:/app/careconnect_api.py:ro
+      - ./services/careconnect-ivg/requirements.txt:/app/requirements.txt:ro
+    depends_on:
+      careconnect-ivg-iris:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "-H", "X-API-Key: ${IVG_API_KEY:-changeme}", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    profiles:
+      - ivg

@@ -6,13 +6,14 @@ This repo shows how **iris-agentic-dev + iris-vector-graph + iris-devtester + ir
 fit together. Study these examples to understand the full IRIS AI stack. Every pattern
 here has been demo-proven at InterSystems READY 2026.
 
-**Three examples, two tech stacks:**
+**Four examples, two tech stacks:**
 
 | Example               | Stack              | AI Hub APIs                                                   | Key IRIS feature                                |
 | --------------------- | ------------------ | ------------------------------------------------------------- | ----------------------------------------------- |
 | `careconnect-sdoh/`   | ObjectScript + MCP | `%AI.ToolSet`, `%AI.MCP.Service`                              | IRIS Interoperability BS→BP→BO                  |
 | `kg-ticket-resolver/` | ObjectScript + MCP | `%AI.ToolSet`, `%AI.MCP.Service`, `%AI.Agent`, `%AI.Provider` | IRIS native vector search + Graph_KG provenance |
 | `careconnect-python/` | Python + iris_llm  | `iris_llm.Agent` (@tool decorator)                            | Python-first, no ObjectScript                   |
+| `ai-hub/`             | Both               | OTel, ConfigStore, Python bridge, OAuth 2.0, external MCP     | Pattern library — no stack, no seeded data      |
 
 ---
 
@@ -33,8 +34,9 @@ here has been demo-proven at InterSystems READY 2026.
 
 **What it demonstrates:** An AI agent for Social Determinants of Health screening.
 A community health worker tells Claude: _"Assess Maria Gonzalez for SDoH risks and trigger
-a follow-up."_ Claude calls 9 MCP tools, scores 6 USDHHS SDoH domains, drafts a care plan,
-and fires an IRIS Interoperability workflow.
+a follow-up."_ Claude calls the SDoH tools — 17 in the ToolSet, 10 core and 7 behind
+`--profile ivg` — scores 6 USDHHS SDoH domains, drafts a care plan, and fires an IRIS
+Interoperability workflow.
 
 **Primary teaching goal:** Show that an LLM agent can _observe and control_ an IRIS
 Interoperability production — not just query data. The `TriggerFollowUp` tool calls
@@ -42,15 +44,15 @@ Interoperability production — not just query data. The `TriggerFollowUp` tool 
 
 ### Key ObjectScript Classes
 
-| Class                              | Role                                                              |
-| ---------------------------------- | ----------------------------------------------------------------- |
-| `CareConnect.Tools.SDoHToolSet`    | `%AI.ToolSet` — 9 tools, 6-domain keyword scorer, care plan logic |
-| `CareConnect.MCP.Service`          | `%AI.MCP.Service` — exposes tools at `/mcp/careconnect`           |
-| `CareConnect.Agent.SDoHAssessment` | `%AI.Agent` — optional; tools work via MCP directly               |
-| `CareConnect.Production`           | `Ens.Production` — BS → BP → BO wiring                            |
-| `CareConnect.Patient`              | `%Persistent` demo patient table (3 seeded patients)              |
-| `CareConnect.Setup.DemoData`       | Idempotent seed: 3 demo patients                                  |
-| `CareConnect.Setup.MCPSetup`       | Registers CSP app + starts production                             |
+| Class                              | Role                                                               |
+| ---------------------------------- | ------------------------------------------------------------------ |
+| `CareConnect.Tools.SDoHToolSet`    | `%AI.ToolSet` — 17 tools, 6-domain keyword scorer, care plan logic |
+| `CareConnect.MCP.Service`          | `%AI.MCP.Service` — exposes tools at `/mcp/careconnect`            |
+| `CareConnect.Agent.SDoHAssessment` | `%AI.Agent` — optional; tools work via MCP directly                |
+| `CareConnect.Production`           | `Ens.Production` — BS → BP → BO wiring                             |
+| `CareConnect.Patient`              | `%Persistent` demo patient table (3 seeded patients)               |
+| `CareConnect.Setup.DemoData`       | Idempotent seed: 3 demo patients                                   |
+| `CareConnect.Setup.MCPSetup`       | Registers CSP app + starts production                              |
 
 ### SDoH Domains Scored (6)
 
@@ -61,13 +63,26 @@ Environment · Social & Community Context · **Transportation Access** (added af
 ### How to Run
 
 ```bash
-cd careconnect-sdoh/docker
-docker compose up -d
+cd careconnect-sdoh
+make up          # docker compose up -d --wait, from the example root
 # Wait ~90s, then connect MCP client per README
 ```
 
-Container: `careconnect-iris` (port 1972 superserver, 52773 web)
+Containers: `careconnect-sdoh-iris-hub` (1973 superserver, 8888 MCP) and `careconnect-sdoh-iris-fhir`
+(1974 superserver, 52774 web)
 MCP endpoint: `/mcp/careconnect`
+
+Container names carry the `careconnect-sdoh-` prefix because container names are global to the
+Docker daemon; the compose file keeps `careconnect-iris-hub` and `careconnect-iris-fhir`
+as network aliases, so those remain the correct **hostnames** from inside the stack.
+Prefix for `docker exec`, alias for anything that talks over the network.
+
+`careconnect-sdoh/docker-compose.yml` at the example root is the only compose file for the
+full stack; `docker-compose.test.yml` adds the IVG profile. An older second build tree
+under `careconnect-sdoh/docker/` — a minimal 2-service variant with no FHIR server, no
+seeded patients, and no production — was deleted: nothing referenced it, it could not run
+alongside the full stack (both published MCP on 8888), and it drifted from the toolset it
+was supposed to compile.
 
 ### Eval Suite (no API key needed)
 
@@ -157,7 +172,7 @@ docker compose up -d
 # Wait ~2 min, then connect MCP client per README
 ```
 
-Container: `kgtickets-iris` (port 1972 superserver, 52773 web)
+Container: `kg-ticket-resolver-iris` (port 1972 superserver, 52773 web)
 MCP endpoint: `/mcp/kgtickets`
 
 ### KG — iad Tools
@@ -218,7 +233,7 @@ Container: `careconnect-python-iris` (port 1972 superserver)
 
 4. Seed embeddings from Python (iris-devtester attach pattern):
    from iris_devtester import IRISContainer
-   c = IRISContainer.attach("kgtickets-iris")
+   c = IRISContainer.attach("kg-ticket-resolver-iris")
    c.execute_sql("UPDATE ... SET SummaryVec = TO_VECTOR(?, DOUBLE)", [embedding])
 
 5. Validate retrieval: iad iris_query
@@ -234,7 +249,7 @@ Container: `careconnect-python-iris` (port 1972 superserver)
 from iris_devtester import IRISContainer
 
 # Attach to running container by name
-c = IRISContainer.attach("careconnect-iris")
+c = IRISContainer.attach("careconnect-sdoh-iris-hub")
 
 # Run a query
 rows = c.execute_sql("SELECT * FROM CareConnect.Patient")
@@ -243,7 +258,9 @@ rows = c.execute_sql("SELECT * FROM CareConnect.Patient")
 c.execute("Do ##class(CareConnect.Setup.DemoData).Populate()")
 ```
 
-Container names come from `docker-compose.yml` in each example's `docker/` directory.
+Container names come from each example's compose file — `docker-compose.yml` at the
+example root for `careconnect-sdoh/`, `docker/docker-compose.yml` for the other two.
+Use the `container_name:` value, not the service key: they differ in `careconnect-sdoh/`.
 
 ### Fix a Production/Interop Issue
 
@@ -263,20 +280,20 @@ Container names come from `docker-compose.yml` in each example's `docker/` direc
 
 ## Where to Look
 
-| Question                                                   | File                                                                                  |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| How are MCP tools defined in ObjectScript?                 | `*/src/*/Tools/*.cls` — `XData ToolDefinitions` block                                 |
-| How is the MCP endpoint registered?                        | `*/src/*/MCP/Service.cls` — extends `%AI.MCP.Service`                                 |
-| How is the agent defined?                                  | `careconnect-sdoh/src/CareConnect/Agent/SDoHAssessment.cls`                           |
-| How does `%AI.Agent` run inside IRIS?                      | `kg-ticket-resolver/src/KGTicketResolver/Tools/ToolSet.cls` — `DraftKBArticle` method |
-| How is IRIS Interoperability triggered from an agent tool? | `careconnect-sdoh/src/CareConnect/Tools/SDoHToolSet.cls` — `TriggerFollowUp` method   |
-| How are demo patients seeded?                              | `careconnect-sdoh/src/CareConnect/Setup/DemoData.cls`                                 |
-| How are 276 tickets loaded from JSON?                      | `kg-ticket-resolver/src/KGTicketResolver/Setup/DemoData.cls`                          |
-| How is the IRIS MCP server configured?                     | `*/docker/config.toml` or `*/docker/mcp-config.toml`                                  |
-| How does the container start up?                           | `*/docker/iris.script` — compiles classes, seeds data, starts production              |
-| Eval suite for CareConnect                                 | `careconnect-sdoh/evals/run_evals.py`                                                 |
-| Demo talk track                                            | `careconnect-sdoh/evals/PRESENTATION.md`                                              |
-| Python-first agent pattern                                 | `careconnect-python/src/agent.py`                                                     |
+| Question                                                   | File                                                                                           |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| How are MCP tools defined in ObjectScript?                 | `*/src/*/Tools/*.cls` — `XData ToolDefinitions` block                                          |
+| How is the MCP endpoint registered?                        | `*/src/*/MCP/Service.cls` — extends `%AI.MCP.Service`                                          |
+| How is the agent defined?                                  | `careconnect-sdoh/src/CareConnect/Agent/SDoHAssessment.cls`                                    |
+| How does `%AI.Agent` run inside IRIS?                      | `kg-ticket-resolver/src/KGTicketResolver/Tools/ToolSet.cls` — `DraftKBArticle` method          |
+| How is IRIS Interoperability triggered from an agent tool? | `careconnect-sdoh/src/CareConnect/Tools/SDoHToolSet.cls` — `TriggerFollowUp` method            |
+| How are demo patients seeded?                              | `careconnect-sdoh/src/CareConnect/Setup/DemoData.cls`                                          |
+| How are 276 tickets loaded from JSON?                      | `kg-ticket-resolver/src/KGTicketResolver/Setup/DemoData.cls`                                   |
+| How is the IRIS MCP server configured?                     | `careconnect-sdoh/services/iris-mcp-sidecar/config.toml`; `*/docker/mcp-config.toml` elsewhere |
+| How does the container start up?                           | `careconnect-sdoh/services/iris-ai-hub/iris.script`; `*/docker/iris.script` elsewhere          |
+| Eval suite for CareConnect                                 | `careconnect-sdoh/evals/run_evals.py`                                                          |
+| Demo talk track                                            | `careconnect-sdoh/evals/PRESENTATION.md`                                                       |
+| Python-first agent pattern                                 | `careconnect-python/src/agent.py`                                                              |
 
 ---
 
@@ -303,19 +320,25 @@ skills add iris-devtester
 
 ## Container and Port Reference
 
-| Container name            | Port (superserver) | Port (web) | Example               |
-| ------------------------- | ------------------ | ---------- | --------------------- |
-| `careconnect-iris`        | 1972               | 52773      | `careconnect-sdoh/`   |
-| `kgtickets-iris`          | 1972               | 52773      | `kg-ticket-resolver/` |
-| `careconnect-python-iris` | 1972               | 52773      | `careconnect-python/` |
+| Container name               | Port (superserver) | Other published | Example               |
+| ---------------------------- | ------------------ | --------------- | --------------------- |
+| `careconnect-sdoh-iris-hub`  | 1973               | 8888 (MCP)      | `careconnect-sdoh/`   |
+| `careconnect-sdoh-iris-fhir` | 1974               | 52774 (web)     | `careconnect-sdoh/`   |
+| `kg-ticket-resolver-iris`    | 1972               | 52773, 8888     | `kg-ticket-resolver/` |
+| `careconnect-python-iris`    | 31972              | 31773 (web)     | `careconnect-python/` |
 
-Each example is self-contained — containers do not share resources. Run only the
-one you're working on.
+`careconnect-sdoh/` also starts `careconnect-sdoh-mcp-sidecar`, `careconnect-sdoh-app`, `careconnect-sdoh-jupyter`,
+and — behind profiles — `careconnect-sdoh-ollama` and three `careconnect-sdoh-ivg-*` containers. `ai-hub/`
+starts nothing.
 
-**Container isolation rule:** These containers are scoped to `iris-ai-examples` only.
-Never reference them from other repos, and never start another project's container
-(`los-iris`, `opsreview-iris`, `aihub-iris-116`, `careconnect-iris-hub`) from here.
-Full registry: `~/ws/productivity-framework/tools/lab_manager/config/iris-container-registry.yaml`.
+Each example is self-contained — containers do not share resources. Names cannot collide
+any more, but ports still can: `kg-ticket-resolver-iris` and `careconnect-sdoh-iris-hub` both publish MCP
+on 8888, so run one example at a time unless you remap.
+
+**Container isolation rule:** The four containers above are the only ones this repo owns.
+Container names are global to the Docker daemon, so a name that is not in that table may
+belong to an unrelated stack on the same machine. Never start, stop, or `docker rm` one
+from here — find out what owns it first.
 
 ---
 
@@ -327,3 +350,75 @@ Full registry: `~/ws/productivity-framework/tools/lab_manager/config/iris-contai
 - MCP client: Claude Desktop, VS Code with Claude Code, or Claude CLI
 - `OPENAI_API_KEY` — required only for `DraftKBArticle` in `kg-ticket-resolver/` and for
   `careconnect-python/`; all other tools in both examples work without it
+
+---
+
+## Known rough edges
+
+The repo grew example by example. These are the seams that have not been cleaned up yet,
+recorded so nobody spends an afternoon rediscovering them.
+
+**One build tree in `careconnect-sdoh/`, now that the second is gone.**
+`docker-compose.yml` at the example root is canonical — the Makefile, README, `DEMO.md`,
+and `docs/eap-setup.md` all drive it. There used to be a self-contained
+`careconnect-sdoh/docker/` tree with its own Dockerfile, `entrypoint.sh`, `iris.script`,
+two MCP configs, and a 2-service compose file. Nothing outside that directory referenced
+it, it could not run alongside the full stack (both published MCP on 8888), and it kept
+drifting — its `iris.script` was missing the MCP bit in the web-app `Type`, the defect that
+makes an endpoint serve one tool instead of 17. It is deleted. A single-instance variant is
+worth having, but as a profile on the canonical compose file rather than a parallel tree.
+
+**The eval mirror is back in parity, and a test that runs keeps it there.**
+`careconnect-sdoh/evals/careconnect_evals/tools_local.py` is a hand-written Python mirror of
+`SDoHToolSet`, and the whole offline eval suite runs against it. It had drifted three ways at
+once — five domains against the ObjectScript's six, transportation folded into Health Care
+Access, and URGENT ≥4 / HIGH ≥2 instead of ≥5 / ≥3 — because the only parity check,
+`evals/tests/test_parity.py`, skips without a live IRIS, which is exactly the machine where
+the mirror gets edited. `evals/tests/test_parity_static.py` now reads `SDoHToolSet.cls` off
+disk and asserts the same rule, so it runs everywhere and never skips. Numbers from
+`run_evals.py` are quotable about the shipped tool again. See `evals/EVALS.md`, "Keeping the
+mirror honest."
+
+**Container names are prefixed, hostnames are not.** `careconnect-sdoh/` publishes
+containers as `careconnect-sdoh-*` because container names are global to the Docker daemon
+and a bare `careconnect-iris-hub` is generic enough to collide with an unrelated stack on
+the same machine. Its compose file keeps
+`careconnect-iris-fhir` and `careconnect-iris-hub` as network aliases, which is what
+`CareConnect.Tools.SDoHToolSet` falls back to when `FHIR_HOST`/`IVG_HOST` are unset. So
+`docker exec` wants the prefix and anything speaking over the network wants the alias.
+
+**Ports can still collide even though names cannot.** `kg-ticket-resolver-iris` and
+`careconnect-sdoh-iris-hub` both publish MCP on 8888. Run one example at a time, or remap.
+
+**EAP image tags are written as `<registry>/…`, deliberately.** Four places used to name
+the internal ISC registry host outright — `careconnect-sdoh/.env.example`,
+`careconnect-sdoh/docs/eap-setup.md`, the header comment of
+`careconnect-sdoh/docker-compose.yml`, and `ai-hub/scripts/setup_oauth_test_container.py`.
+No external reader can pull from it, so all four now show a `<registry>` placeholder and
+say the real prefix comes out of the tarball `docker load` prints. The script no longer
+carries a default image at all: it reads `IRIS_IMAGE` and exits with instructions if
+that is unset. Keep it that way — a real registry hostname in this repo is public.
+
+**`ai-hub/` is fully checked in now.** `Sample/AI/OAuth/` (six classes plus its own
+README), `scripts/`, `tests/unit/`, `tests/integration/test_oauth_rbac.py`, and
+`python/rlm/store.py` were all untracked for a while; they are tracked, and
+`ai-hub/README.md` documents each one — pattern-table rows, a `scripts/` table, and a test
+inventory saying what each suite needs. The OAuth README used to say catalog filtering
+needs build 148+; that was measured and retracted (the two-argument `%CanList` and
+`%AI.Policy.Discovery` are both present on 139), and the same pass found a real defect it
+now records: `RoleDiscovery` declares `Resolve`, but the superclass hook is `%Resolve`, so
+it overrides nothing. The OAuth suite runs offline against mocks: 29 passed, no skips.
+
+**SpecKit artifacts do not ship.** `careconnect-sdoh/specs/` used to carry the spec
+documents for features 015 and 016 into this public repo. They leak nothing, but they are
+internal planning documents rather than example material, so they are no longer tracked
+here — they live with the private planning repo that produced them.
+
+**Build numbers look inconsistent but are not, quite.** The root README and `AGENTS.md`
+pin the community floor at 2026.2.0AI.162, and the root README says outright that a higher
+build named in an example is calling out a later feature, not raising the floor.
+`careconnect-sdoh` names 2026.3.0AI.139 in three places — `README.md`, `docs/eap-setup.md`,
+`.env.example` — and all three are illustrative: every one is prefixed `e.g.` or followed
+by "replace the tag with whatever your tarball produced". So the only real pin in the repo
+is 162. Read those 139s as sample output from `docker load`, and do not treat them as a
+requirement.

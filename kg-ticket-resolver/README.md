@@ -2,7 +2,7 @@
 
 A support ticket knowledge mining agent built on InterSystems IRIS AI Hub.
 
-Ask Claude: *"How complete is ticket PC-00145? Find similar billing tickets and draft a KB article."*
+Ask Claude: _"How complete is ticket PC-00145? Find similar billing tickets and draft a KB article."_
 
 Claude calls 6 MCP tools backed by IRIS — scoring ticket quality, finding related tickets via vector search, generating a KB article using a `%AI.Agent` running inside IRIS, and publishing it to a wiki with full provenance in the knowledge graph.
 
@@ -11,7 +11,7 @@ Claude calls 6 MCP tools backed by IRIS — scoring ticket quality, finding rela
 ### 1. Get the AI Hub image
 
 Download `irishealth-community-2026.2.0AI.162.0-docker.tar.gz` from:
-https://evaluation.intersystems.com/Eval/early-access/AIHub
+<https://evaluation.intersystems.com/Eval/early-access/AIHub>
 
 ```bash
 docker load < irishealth-community-2026.2.0AI.162.0-docker.tar.gz
@@ -51,6 +51,7 @@ output = "stderr"
 Add to your MCP client config:
 
 **Claude CLI** — `~/.claude.json`:
+
 ```json
 {
   "mcpServers": {
@@ -63,6 +64,7 @@ Add to your MCP client config:
 ```
 
 **VS Code with Claude Code** — `.vscode/mcp.json`:
+
 ```json
 {
   "servers": {
@@ -79,13 +81,11 @@ Add to your MCP client config:
 
 Full configuration reference: [MCP Server Guide](https://github.com/intersystems-community/ai-hub-eap/blob/master/MCP_Server_Guide.md)
 
-
-
 ### 4. Demo script
 
 **Step through with Claude:**
 
-```
+```text
 "What's the MDS completeness score for ticket PC-00001?"
 
 "Find tickets similar to 'invoice amount mismatch after system upgrade'"
@@ -100,20 +100,21 @@ Full configuration reference: [MCP Server Guide](https://github.com/intersystems
 ```
 
 **Or ask Claude to run the full pipeline:**
-```
+
+```text
 "Score PC-00145, find similar pharmacy tickets, and draft and publish a KB article for PHARMACY"
 ```
 
 ## Tools
 
-| Tool | What it does |
-|------|-------------|
-| `ScoreTicketCompleteness` | MDS score (0–100) and tier (HIGH/MEDIUM/LOW) for a ticket — has it enough data to generate KB content? |
-| `FindSimilarTickets` | Semantic vector search (IRIS `VECTOR_COSINE`) across 276 tickets. Falls back to keyword if embeddings not seeded. |
-| `GetClusterSummary` | Resolution statistics and anchor tickets for a category — shows what the agent knows about a problem space |
-| `DraftKBArticle` | Calls a `%AI.Agent` inside IRIS to synthesize a structured KB article from resolved tickets (**requires OPENAI_API_KEY**) |
-| `GetWikiStatus` | Lists existing wiki files and shows resolution coverage by category |
-| `PublishKBArticle` | Writes approved article to `data/planetcare_wiki/` and records `AUTHORED_KB` / `SOURCED_KB` edges in Graph_KG |
+| Tool                      | What it does                                                                                                              |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `ScoreTicketCompleteness` | MDS score (0–100) and tier (HIGH/MEDIUM/LOW) for a ticket — has it enough data to generate KB content?                    |
+| `FindSimilarTickets`      | Semantic vector search (IRIS `VECTOR_COSINE`) across 276 tickets. Falls back to keyword if embeddings not seeded.         |
+| `GetClusterSummary`       | Resolution statistics and anchor tickets for a category — shows what the agent knows about a problem space                |
+| `DraftKBArticle`          | Calls a `%AI.Agent` inside IRIS to synthesize a structured KB article from resolved tickets (**requires OPENAI_API_KEY**) |
+| `GetWikiStatus`           | Lists existing wiki files and shows resolution coverage by category                                                       |
+| `PublishKBArticle`        | Writes approved article to `data/planetcare_wiki/` and records `AUTHORED_KB` / `SOURCED_KB` edges in Graph_KG             |
 
 ## What it demonstrates
 
@@ -127,12 +128,12 @@ Full configuration reference: [MCP Server Guide](https://github.com/intersystems
 
 ## Architecture
 
-```
+```text
 Claude Desktop / VS Code
     │
     │  MCP (stdio via docker exec)
     ▼
-iris-mcp-server  (kgtickets-mcp container, shares network with iris)
+iris-mcp-server  (kg-ticket-resolver-mcp container, shares network with iris)
     │
     │  HTTP to IRIS web server :52773
     ▼
@@ -150,13 +151,15 @@ KGTicketResolver.Tools.ToolSet  (%AI.ToolSet)
 
 ## Demo data
 
-All data is synthetic — no real patient data, no real hospital names.
+All data here is generated. PlanetCare is a fictional EMR vendor and every customer,
+ticket, and site name is invented — no real patient data, no real hospital names, no real
+ticket identifiers.
 
-| File | Contents |
-|------|----------|
-| `data/planetcare_demo_tickets.json` | 276 synthetic PlanetCare EMR tickets · 7 categories · ~42% resolved |
-| `data/planetcare_wiki/` | 3 pre-existing KB stubs with documented gaps (billing, laboratory, pharmacy) |
-| `data/questionnaire_clusters_anon.csv` | 295 anonymized questionnaire tickets with HDBSCAN cluster labels (for notebooks) |
+| File                                       | Contents                                                                     |
+| ------------------------------------------ | ---------------------------------------------------------------------------- |
+| `data/planetcare_demo_tickets.json`        | 276 synthetic PlanetCare EMR tickets · 7 categories · ~42% resolved          |
+| `data/planetcare_wiki/`                    | 3 pre-existing KB stubs with documented gaps (billing, laboratory, pharmacy) |
+| `data/questionnaire_kb_articles_anon.json` | Small set of KB article stubs used by the clustering walkthrough             |
 
 **Ticket categories:** BILLING, LABORATORY, PHARMACY, PRINTING, INTERFACING, WAITING_LISTS, QUESTIONNAIRES
 
@@ -197,18 +200,18 @@ For data science exploration of the same pipeline:
 
 ```bash
 pip install -r requirements.txt
-export IRIS_CONTAINER=kgtickets-iris   # matches docker-compose container name
+export IRIS_CONTAINER=kg-ticket-resolver-iris   # matches docker-compose container name
 jupyter notebook notebooks/
 ```
 
-| Notebook | What it shows |
-|----------|--------------|
+| Notebook                           | What it shows                                                                                                          |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `planetcare_clustering_demo.ipynb` | MDS gap analysis → HDBSCAN clustering → MDS agent gates pipeline → AI Hub KB synthesis (Writer → Reviewer → Publisher) |
-| `planetcare_system_demo.ipynb` | IRIS vector search API, `VECTOR_COSINE`, SQL and graph queries |
+| `planetcare_system_demo.ipynb`     | IRIS vector search API, `VECTOR_COSINE`, SQL and graph queries                                                         |
 
 ## Source layout
 
-```
+```text
 kg-ticket-resolver/
 ├── docker/
 │   ├── docker-compose.yml    Two services: iris (full stack) + mcp (sidecar)
@@ -224,7 +227,7 @@ kg-ticket-resolver/
 ├── data/
 │   ├── planetcare_demo_tickets.json
 │   ├── planetcare_wiki/      Pre-existing KB stubs
-│   └── questionnaire_clusters_anon.csv
+│   └── questionnaire_kb_articles_anon.json
 ├── notebooks/
 │   ├── planetcare_clustering_demo.ipynb
 │   └── planetcare_system_demo.ipynb

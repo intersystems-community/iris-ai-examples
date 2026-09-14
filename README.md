@@ -2,22 +2,27 @@
 
 Working AI Hub applications built on InterSystems IRIS — ready to run, domain-specific, and built for demonstration.
 
-Each example ships with a Docker stack, seeded demo data, and a set of MCP tools you can drive from Claude Desktop, VS Code, or any MCP client. No configuration required beyond an API key.
+Three of the four examples ship a Docker stack, seeded demo data, and a set of MCP tools you can drive from Claude Desktop, VS Code, or any MCP client. The fourth (`ai-hub/`) is a pattern library you read and copy from rather than a stack you start.
 
 ## Examples
 
-| Example | Domain | Tools | AI Hub APIs | Interop |
-|---------|--------|-------|-------------|---------|
-| [careconnect-sdoh](./careconnect-sdoh/) | Healthcare / SDoH | 9 | `%AI.ToolSet`, `%AI.MCP.Service` | BS → BP → BO production |
-| [kg-ticket-resolver](./kg-ticket-resolver/) | Support / Knowledge Mining | 6 | `%AI.ToolSet`, `%AI.MCP.Service`, `%AI.Agent`, `%AI.Provider` | — |
+| Example                                     | Domain                     | Language            | Tools | AI Hub APIs                                                       | Interop                 |
+| ------------------------------------------- | -------------------------- | ------------------- | ----- | ----------------------------------------------------------------- | ----------------------- |
+| [careconnect-sdoh](./careconnect-sdoh/)     | Healthcare / SDoH          | ObjectScript        | 17    | `%AI.ToolSet`, `%AI.MCP.Service`                                  | BS → BP → BO production |
+| [careconnect-python](./careconnect-python/) | Healthcare / SDoH          | Python (`iris_llm`) | 4     | `iris_llm.Agent`, `@tool`                                         | —                       |
+| [kg-ticket-resolver](./kg-ticket-resolver/) | Support / Knowledge Mining | ObjectScript        | 6     | `%AI.ToolSet`, `%AI.MCP.Service`, `%AI.Agent`, `%AI.Provider`     | —                       |
+| [ai-hub](./ai-hub/)                         | Patterns library           | Both                | —     | OTel, ConfigStore, Bridge, Jira MCP, Interop+OTel, Python `@tool` | OTel Interop spans      |
+
+The two CareConnect examples solve the same problem in the two supported languages. Read
+them side by side to see what the ObjectScript and Python SDKs each cost you.
 
 ### [`careconnect-sdoh/`](./careconnect-sdoh/)
 
-**Healthcare SDoH Assessment Agent**
+#### Healthcare SDoH Assessment Agent
 
 A community health worker assistant that assesses Social Determinants of Health for patients and triggers follow-up workflows through IRIS Interoperability.
 
-- 9 MCP tools: patient lookup, SDoH risk scoring across 5 USDHHS domains, care plan generation, follow-up workflow trigger, interop message tracing
+- 17 MCP tools: 10 core (patient lookup, SDoH risk scoring across 6 USDHHS domains, care plan generation, follow-up workflow trigger, interop message tracing, clinical-note search) and 7 knowledge-graph tools that need the `--profile ivg` stack
 - IRIS Interoperability production wired end-to-end (BusinessService → BusinessProcess → BusinessOperation)
 - 3 pre-seeded demo patients covering diabetes/hypertension, CHF/depression, and prenatal care
 - Shows how an agent can observe and trigger production workflows — not just query data
@@ -26,9 +31,27 @@ A community health worker assistant that assesses Social Determinants of Health 
 
 ---
 
+### [`careconnect-python/`](./careconnect-python/)
+
+#### The same SDoH agent, written in Python
+
+`careconnect-sdoh` in Python, using the `iris_llm` SDK instead of `%AI.ToolSet`. Tools are
+plain functions with an `@tool` decorator; the agent loop is `iris_llm.Agent`. No
+ObjectScript.
+
+- 4 tools: patient roster, SDoH risk assessment, community-resource lookup, findings summary
+- `iris_llm.Agent` drives the loop; `iris.connect()` (DBAPI) reads the same demo tables
+- The wheel ships inside the IRIS image at `/usr/irissys/dev/python/` — nothing to publish
+- Runs as an ordinary Python process against IRIS, so it fits existing Python codebases
+
+**Best for demonstrating:** the Python SDK, the `@tool` decorator, and what a team gives up
+(Interoperability, in-database execution) by staying outside ObjectScript
+
+---
+
 ### [`kg-ticket-resolver/`](./kg-ticket-resolver/)
 
-**Support Ticket Knowledge Mining Agent**
+#### Support Ticket Knowledge Mining Agent
 
 A support engineer assistant that mines a backlog of 276 synthetic EMR support tickets, scores data completeness, finds similar tickets via vector search, and drafts KB articles using a `%AI.Agent` running inside IRIS.
 
@@ -42,39 +65,89 @@ A support engineer assistant that mines a backlog of 276 synthetic EMR support t
 
 ---
 
+### [`ai-hub/`](./ai-hub/)
+
+#### AI Hub Pattern Library
+
+Reference patterns covering production concerns not in the core EAP sample library:
+OTel observability, ConfigStore governance, Python bridge governance, external MCP
+servers (Atlassian Rovo), and IRIS Interoperability + OTel integration.
+
+- **OTel observability**: gen_ai.\* semantic convention spans, W3C traceparent
+  propagation, pre-generated chat span IDs so tool-call spans are children
+- **ConfigStore governance**: provider credentials + model via IRIS RBAC — no
+  hardcoded env-var secrets
+- **Python bridge governance**: `@tool` functions governed by deny/allow-list
+  `%AI.Policy`, exposed as `%AI.MCP.Service` endpoint
+- **Jira / Atlassian MCP**: `%AI.ToolSet` pointing at the official Atlassian
+  Rovo MCP Server with bearer auth
+- **Interop + OTel**: BS/BP/BO all emitting gen_ai.\* spans into a shared trace
+
+**Best for demonstrating:** production governance patterns, OTel observability,
+embedded Python (`irispython`), `iris_tool_bridge`, IRIS Interoperability + AI tracing
+
+---
+
 ## Requirements
 
-- InterSystems IRIS AI Hub community build 162+
+- InterSystems IRIS AI Hub, community image `irishealth-community:2026.2.0AI.162.0` or later
   - Download: [evaluation.intersystems.com/Eval/early-access/AIHub](https://evaluation.intersystems.com/Eval/early-access/AIHub)
+  - This is the one version number that matters. Where an example's own README names a
+    higher build, it is calling out a feature added later — the example still runs on 162.
 - Docker + Docker Compose
 - An MCP client: Claude Desktop, VS Code with Copilot, or any MCP-compatible tool
-- OpenAI API key (for `DraftKBArticle` and `%AI.Agent` tools — other tools work without one)
+- An OpenAI API key, but only for the tools that call a model — `DraftKBArticle` in
+  `kg-ticket-resolver/`, the `%AI.Agent` samples in `ai-hub/`, and `careconnect-python/`.
+  Every other tool in every example is rule-based and runs without one.
+
+### One API-key idiom
+
+Each example reads the key from `OPENAI_API_KEY` in the process environment, seeded from
+its own `.env`. That is the quickstart path, and it is the only one the examples require.
+
+For anything past a demo, put the key in the IRIS ConfigStore instead and let the provider
+resolve it: an `%AI.Provider` config holds `"api_key": "@{env:OPENAI_API_KEY}"` or a
+`@{wallet:...}` reference, so the secret is governed by IRIS RBAC rather than readable in
+`docker inspect`. The worked pattern is
+`ai-hub/objectscript/cls/Sample/AI/Examples/ConfigStoreSetup.cls` plus
+`ConfigStoreAgent.cls`: `%ConfigStore.Configuration.Create` for the entry, then a provider
+that reads it by name. Use the environment variable to get running; move to ConfigStore
+before anyone else can read the container.
 
 ## AI Hub Concepts Covered
 
-| Concept | Where demonstrated |
-|---------|-------------------|
-| `%AI.ToolSet` — define tools in ObjectScript XData | Both examples |
-| `%AI.MCP.Service` — expose a ToolSet via MCP endpoint | Both examples |
-| `iris-mcp-server` — connect any MCP client to IRIS | Both examples |
-| `%AI.Agent` — run an LLM agent loop inside IRIS | kg-ticket-resolver: `DraftKBArticle` |
-| `%AI.Provider` — configure LLM backends | kg-ticket-resolver: `DraftKBArticle` |
-| IRIS Interoperability + AI — trigger BS/BP/BO from an agent tool | careconnect-sdoh |
-| IRIS native vector search — `VECTOR` type + `VECTOR_COSINE` | kg-ticket-resolver: `FindSimilarTickets` |
-| Graph_KG provenance — record agent actions as graph edges | kg-ticket-resolver: `PublishKBArticle` |
-| Demo data seeding — idempotent `%Persistent` table population | Both examples |
-| MCP sidecar pattern — `iris-mcp-server` alongside IRIS in Docker Compose | Both examples |
+| Concept                                                                  | Where demonstrated                                       |
+| ------------------------------------------------------------------------ | -------------------------------------------------------- |
+| `%AI.ToolSet` — define tools in ObjectScript XData                       | careconnect-sdoh, kg-ticket-resolver, ai-hub             |
+| `%AI.MCP.Service` — expose a ToolSet via MCP endpoint                    | careconnect-sdoh, kg-ticket-resolver, ai-hub             |
+| `iris-mcp-server` — connect any MCP client to IRIS                       | careconnect-sdoh, kg-ticket-resolver                     |
+| `%AI.Agent` — run an LLM agent loop inside IRIS                          | kg-ticket-resolver: `DraftKBArticle`                     |
+| `%AI.Provider` — configure LLM backends                                  | kg-ticket-resolver: `DraftKBArticle`                     |
+| `iris_llm.Agent` + `@tool` — the Python SDK                              | careconnect-python; ai-hub bridge pattern                |
+| IRIS Interoperability + AI — trigger BS/BP/BO from an agent tool         | careconnect-sdoh                                         |
+| IRIS native vector search — `VECTOR` type + `VECTOR_COSINE`              | kg-ticket-resolver: `FindSimilarTickets`                 |
+| Graph_KG provenance — record agent actions as graph edges                | kg-ticket-resolver: `PublishKBArticle`                   |
+| Knowledge-graph tools + contradiction gating                             | careconnect-sdoh (`--profile ivg`)                       |
+| OTel observability — `gen_ai.*` spans, W3C traceparent                   | ai-hub                                                   |
+| ConfigStore governance — credentials via IRIS RBAC, not env vars         | ai-hub                                                   |
+| OAuth 2.0 + role-filtered tool catalogs                                  | ai-hub: `Sample.AI.OAuth`                                |
+| Demo data seeding — idempotent `%Persistent` table population            | careconnect-sdoh, careconnect-python, kg-ticket-resolver |
+| MCP sidecar pattern — `iris-mcp-server` alongside IRIS in Docker Compose | careconnect-sdoh, kg-ticket-resolver                     |
 
 ## Running an Example
 
-Each example is self-contained. From any example directory:
+Each example is self-contained, but they do not all start the same way. Start from the
+example's own README; the table below is the short version.
 
-```bash
-cd <example>/docker
-docker compose up -d
-```
+| Example              | How to start it                                                                               |
+| -------------------- | --------------------------------------------------------------------------------------------- |
+| `careconnect-sdoh`   | `make up` (or `docker compose up -d --wait`) from the example root                            |
+| `careconnect-python` | `cd docker && docker compose up -d iris`, then `docker compose run agent python agent.py "…"` |
+| `kg-ticket-resolver` | `cd docker && docker compose up -d`                                                           |
+| `ai-hub`             | No stack. Load the classes you want into an existing AI Hub instance.                         |
 
-Then connect your MCP client to the running server. See each example's README for the exact client config.
+For the three Docker examples, connect your MCP client to the running server afterwards —
+each README carries the exact client config.
 
 ## Related
 

@@ -1,3 +1,23 @@
+# SpecKit working directory
 .speckit/
+
+# Secrets and local config
 .env
 docker/.env
+*.key
+*.lic
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Test and coverage artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+
+# OS
+.DS_Store

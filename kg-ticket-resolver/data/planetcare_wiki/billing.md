@@ -1,10 +1,10 @@
 # Billing — PlanetCare Knowledge Base
 
-*Last updated: 2025-11-12 | Maintainer: Support Team*
+_Last updated: 2025-11-12 | Maintainer: Support Team_
 
 ## Overview
 
-PC-Finance handles all billing operations including claim generation, insurance submission, 
+PC-Finance handles all billing operations including claim generation, insurance submission,
 invoice management, and revenue cycle workflows.
 
 ---
@@ -17,6 +17,7 @@ invoice management, and revenue cycle workflows.
 **Problem:** Insurance claim rejected with error code CO-4 or CO-97.
 
 **Resolution:**
+
 1. Navigate to PC-Finance > Claims > Rejected Queue
 2. Open the rejected claim and review the rejection reason
 3. Correct the identified field (diagnosis code, CPT code, or patient eligibility)
@@ -35,6 +36,7 @@ invoice management, and revenue cycle workflows.
 **Problem:** Batch billing run completes but invoices do not appear in the print queue.
 
 **Resolution:**
+
 1. Check PC-PrintService status in System > Services
 2. Verify the invoice template is assigned to the correct billing group
 3. Re-run the billing batch with "Force Print" option enabled
@@ -45,8 +47,8 @@ invoice management, and revenue cycle workflows.
 
 The following issue types have been reported but do not yet have KB articles:
 
-- Discount amount mismatches across billing documents *(recurring — see tickets PC-00013 through PC-00040)*
-- Batch billing errors causing payment delays *(multiple hospitals affected)*
+- Discount amount mismatches across billing documents _(recurring — see tickets PC-00013 through PC-00040)_
+- Batch billing errors causing payment delays _(multiple hospitals affected)_
 - Insurance payment delays for specific payer codes
 
-*These gaps will be filled automatically by the KB Mining pipeline.*
+_These gaps will be filled automatically by the KB Mining pipeline._

@@ -1,0 +1,23 @@
+do ##class(Security.Services).Get("%Service_Bindings",.p)
+set p("Enabled")=1
+do ##class(Security.Services).Modify("%Service_Bindings",.p)
+
+zpm "repo -n registry -url https://pm.community.intersystems.com"
+
+zpm "install hs-fhirserver-r4"
+
+do ##class(HS.Util.Installer.Foundation).Install("demo")
+
+set $NAMESPACE = "demo"
+set appKey = "/csp/healthshare/demo/fhir/r4"
+set strategyClass = "HS.FHIRServer.Storage.Json.InteractionsStrategy"
+set metadataPackages = $LISTBUILD("hl7.fhir.r4.core@4.0.1","hl7.fhir.us.core@3.1.0")
+do ##class(HS.FHIRServer.Installer).InstallInstance(appKey, strategyClass, metadataPackages)
+set strategy = ##class(HS.FHIRServer.API.InteractionsStrategy).GetStrategyForEndpoint(appKey)
+set configData = strategy.GetServiceConfigData()
+set configData.DefaultSearchPageSize = 1000
+set configData.MaxSearchPageSize = 10000
+set configData.MaxSearchResults = 10000
+do strategy.SaveServiceConfigData(configData)
+
+halt

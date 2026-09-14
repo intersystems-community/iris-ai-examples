@@ -5,8 +5,15 @@ CareConnect.Tools.SDoHToolSet. A mirror that drifts from the real thing makes
 the whole eval a lie — so this test calls the actual ObjectScript classmethods
 in a running IRIS and asserts byte-identical output for the deterministic tools.
 
-SKIPPED automatically unless a reachable IRIS is configured. Bring the stack up
-(`cd ../docker && docker compose up -d`), then:
+SKIPPED automatically unless a reachable IRIS is configured — which is the catch.
+It skipped for months while the mirror drifted three ways at once (a sixth domain,
+different Health Care Access keywords, both priority thresholds moved), because the
+machine where the mirror gets edited is the machine with no IRIS on it.
+`test_parity_static.py` is the answer to that: it compares the same two rules by
+reading `SDoHToolSet.cls` off disk, so it runs everywhere. Keep both — this one is
+the only check that proves the bytes match.
+
+Bring the stack up (`make up` from the example root), then:
 
     IRIS_HOST=localhost IRIS_PORT=1972 IRIS_NAMESPACE=USER \
     IRIS_USER=_SYSTEM IRIS_PASSWORD=SYS  python -m pytest tests/test_parity.py

@@ -1,0 +1,53 @@
+# Keycloak fixture for the Sample.AI.OAuth example.
+#
+# Brings up the exact IdP configuration the OAuth README's measured results came
+# from: realm `aihub`, three confidential client-credentials clients, one scope per
+# tier, and an audience mapper putting `mcp-api` in the token's `aud` claim.
+#
+#   docker compose up -d
+#   ./get-token.sh read
+#
+# KC_HOSTNAME decides the `iss` claim, and IRIS compares `iss` against the stored
+# OAuth2.ServerDefinition.IssuerEndpoint byte for byte. It is set to the container
+# name here so IRIS — which reaches Keycloak over the Docker network, not over the
+# published port — sees an issuer it can also fetch JWKS from. Tokens fetched from
+# the host through KEYCLOAK_PORT still carry that container-name issuer, which is
+# what makes the same token work from both sides.
+#
+# Attach your IRIS container to this network, or set `name:` below to a network
+# IRIS already sits on.
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    container_name: ${KEYCLOAK_CONTAINER:-ai-hub-keycloak}
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HOSTNAME: http://${KEYCLOAK_CONTAINER:-ai-hub-keycloak}:8080
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "${KEYCLOAK_PORT:-55880}:8080"
+    volumes:
+      - ./aihub-realm.json:/opt/keycloak/data/import/aihub-realm.json:ro
+    healthcheck:
+      # The image ships no curl and no wget. /dev/tcp on the management port is
+      # the cheapest readiness signal available inside it.
+      test:
+        [
+          "CMD-SHELL",
+          "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /health/ready HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q UP <&3",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    networks:
+      - oauth-demo
+
+networks:
+  oauth-demo:
+    name: ${KEYCLOAK_NETWORK:-aihub-oauth-demo}

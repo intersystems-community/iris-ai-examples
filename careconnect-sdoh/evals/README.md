@@ -19,12 +19,12 @@ The default `mock` provider runs a scripted agent against an in-process port of
 the tools, so the whole suite — including the failure-detection demos — runs
 instantly and deterministically. Expected headline:
 
-```
+```text
 L1_rule_regression     3/4      ← adversarial paraphrase flips URGENT→ROUTINE
 L2_trajectory          4/4
 L3_outcome             4/4
 L5 differentiation     FAIL     ← every patient gets an identical care plan
-clinician recall       0.75     ← rule misses 1-in-4 genuine needs (precision 1.0)
+clinician recall       0.714    ← rule misses 4 of 14 genuine needs (precision 1.0)
 ```
 
 `run_evals.py` exits non-zero when a regression-style layer (L1/L2/L3) fails, so
@@ -61,19 +61,25 @@ pytest                          # offline; pins the suite's findings
 IRIS_HOST=localhost pytest tests/test_parity.py   # port vs live IRIS (needs stack)
 ```
 
+`tests/test_parity_static.py` runs in the offline pass and is the one to watch if
+you edit either the mirror or `SDoHToolSet.cls`: it reads the `.cls` off disk and
+asserts the two encode the same rule. `test_parity.py` is the stronger check — it
+compares actual bytes — but it skips without a stack, which is how the mirror
+drifted for months in the first place.
+
 ## Layout
 
-```
+```text
 evals/
 ├── EVALS.md                       the lessons / speaker notes (start here)
 ├── golden_cases.json              4-case golden set, two ground truths each
 ├── run_evals.py                   CLI + CI gate
 ├── careconnect_evals/
-│   ├── tools_local.py             faithful offline port of the 9 tools
+│   ├── tools_local.py             faithful offline port of the shipped tools
 │   ├── providers.py               mock / Claude / OpenAI agent loop + judge
 │   ├── scorers.py                 the five evaluation layers
 │   ├── harness.py                 load → run → score → report
 │   └── improved.py                the fixes the evals justify
 ├── notebooks/careconnect_evals_demo.ipynb
-└── tests/                         test_harness.py, test_parity.py
+└── tests/                         test_harness.py, test_parity.py, test_parity_static.py
 ```

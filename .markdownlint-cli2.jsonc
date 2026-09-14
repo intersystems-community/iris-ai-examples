@@ -1,0 +1,24 @@
+{
+  // Local markdownlint config for iris-ai-examples.
+  //
+  // Mirrors the usual house rules, with one deliberate difference: MD049 expects
+  // underscore, not asterisk. Prettier normalizes emphasis to `_foo_` and offers no
+  // option to change that, so an asterisk-expecting MD049 makes `markdownlint --fix`
+  // and `prettier --write` undo each other on every run. Underscore is the style that
+  // survives both.
+  "config": {
+    "default": true,
+    "MD003": { "style": "atx" },
+    "MD007": { "indent": 2 },
+    "MD013": false,
+    "MD024": { "siblings_only": true },
+    "MD033": false,
+    "MD041": false,
+    "MD049": { "style": "underscore" },
+    "MD050": { "style": "asterisk" },
+    "MD060": false
+  },
+  // kg-ticket-resolver/data holds the RAG corpus the demo indexes, not documentation.
+  // Reformatting it to satisfy prose rules would change what the vector search sees.
+  "ignores": ["kg-ticket-resolver/data/**", "**/.pytest_cache/**", ".speckit/**"]
+}

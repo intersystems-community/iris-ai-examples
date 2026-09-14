@@ -4,8 +4,8 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
       args:
-        IMAGE: irishealth-community:2026.2.0AI.162.0
-    container_name: kgtickets-iris
+        IMAGE: ${IRIS_IMAGE:-intersystemsdc/irishealth-community:2026.2}
+    container_name: kg-ticket-resolver-iris
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - WIKI_DIR=/app/wiki/
@@ -25,8 +25,8 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
       args:
-        IMAGE: irishealth-community:2026.2.0AI.162.0
-    container_name: kgtickets-mcp
+        IMAGE: ${IRIS_IMAGE:-intersystemsdc/irishealth-community:2026.2}
+    container_name: kg-ticket-resolver-mcp
     entrypoint: ["/usr/irissys/bin/iris-mcp-server"]
     command: ["--config", "/etc/iris-mcp/mcp-config.toml", "run"]
     network_mode: "service:iris"

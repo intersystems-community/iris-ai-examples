@@ -1,0 +1,12 @@
+[Actions]
+; Create FHIRSERVER namespace resources and databases
+CreateResource:Name=%DB_FHIRSERVER_DATA,Description="FHIRSERVER_DATA database"
+CreateDatabase:Name=FHIRSERVER_DATA,Directory=/usr/irissys/mgr/FHIRSERVER_DATA
+CreateResource:Name=%DB_FHIRSERVER_CODE,Description="FHIRSERVER_CODE database"
+CreateDatabase:Name=FHIRSERVER_CODE,Directory=/usr/irissys/mgr/FHIRSERVER_CODE
+CreateNamespace:Name=FHIRSERVER,Globals=FHIRSERVER_DATA,Routines=FHIRSERVER_CODE,Interop=1
+
+[config]
+; Memory and caching settings
+globals=0,0,200,0,0,0
+gmheap=262144

@@ -1,0 +1,227 @@
+###############################################################################
+# CareConnect SDoH Demo Stack
+#
+# Requires IRIS AI Hub (EAP). EAP participants override the IMAGE arg:
+#   IRIS_IMAGE=<registry>/intersystems/irishealth:<ai-tag> docker compose up -d
+#
+# Default IMAGE falls back to irishealth-community (no AI Hub features).
+# Full AI Hub build: https://openexchange.intersystems.com
+#
+# Container names are prefixed with this example's directory name, because
+# container names are global to the Docker daemon: an unprefixed
+# `careconnect-iris-hub` collides with any other stack on the same machine that
+# happens to pick the same name, and `docker rm -f` on the loser takes down
+# someone else's demo. Every example in this repo uses its own directory name as
+# the prefix. Network aliases below keep the in-network hostnames
+# (`careconnect-iris-fhir`, `careconnect-iris-hub`) stable, because aliases are
+# scoped to this project's network and cannot collide. Those are the hostnames
+# the ObjectScript tools fall back to, so they must not move.
+#
+# Every published host port is `${VAR:-default}`, so a reader who already runs
+# something on 8501 can move it without editing this file.
+###############################################################################
+
+name: careconnect-sdoh
+
+services:
+
+  iris-fhir:
+    build:
+      context: ./services/iris-fhir
+      dockerfile: Dockerfile
+    container_name: careconnect-sdoh-iris-fhir
+    networks:
+      default:
+        aliases:
+          - careconnect-iris-fhir
+    ports:
+      - "${FHIR_WEB_PORT:-52774}:52773"
+      - "${FHIR_PORT:-1974}:1972"
+    healthcheck:
+      test: ["CMD", "bash", "-c", "cat < /dev/null > /dev/tcp/localhost/1972"]
+      interval: 15s
+      timeout: 10s
+      retries: 8
+      start_period: 60s
+    environment:
+      - FHIR_ADMIN_PASSWORD=${FHIR_ADMIN_PASSWORD:-SYS}
+
+  iris-ai-hub:
+    build:
+      context: .
+      dockerfile: services/iris-ai-hub/Dockerfile
+      args:
+        - IMAGE=${IRIS_IMAGE:-intersystemsdc/irishealth-community:2026.2}
+    container_name: careconnect-sdoh-iris-hub
+    networks:
+      default:
+        aliases:
+          - careconnect-iris-hub
+    ports:
+      - "${IRIS_PORT:-1973}:1972"
+      - "${MCP_PORT:-8888}:8888"
+    volumes:
+      - ./src:/src:ro
+    healthcheck:
+      test: ["CMD", "bash", "-c", "test -f /tmp/.careconnect-setup-done"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 90s
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      # CareConnect.Agent.SDoHAssessment resolves both of these through PROVIDERCONFIG.
+      # The trailing slash on the base URL is load-bearing — see that class.
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.openai.com/v1/}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+      - OLLAMA_HOST=${OLLAMA_HOST:-http://ollama:11434}
+      - IRIS_HUB_PASSWORD=${IRIS_HUB_PASSWORD:-SYS}
+      - IVG_API_KEY=${IVG_API_KEY:-changeme}
+      - IVG_HOST=careconnect-ivg-bolt
+    depends_on:
+      iris-fhir:
+        condition: service_healthy
+
+  iris-mcp-sidecar:
+    build:
+      context: ./services/iris-mcp-sidecar
+      dockerfile: Dockerfile
+      args:
+        - IMAGE=${IRIS_IMAGE:-intersystemsdc/irishealth-community:2026.2}
+    container_name: careconnect-sdoh-mcp-sidecar
+    network_mode: "service:iris-ai-hub"
+    restart: on-failure
+    command: ["--config", "/etc/iris-mcp/config.toml", "run"]
+    volumes:
+      - ./services/iris-mcp-sidecar:/etc/iris-mcp:ro
+    depends_on:
+      iris-ai-hub:
+        condition: service_healthy
+
+  careconnect:
+    build:
+      context: ./services/careconnect
+      dockerfile: Dockerfile
+    container_name: careconnect-sdoh-app
+    ports:
+      - "${APP_PORT:-8000}:8000"
+      - "${STREAMLIT_PORT:-8501}:8501"
+    environment:
+      - FHIR_BASE_URL=http://careconnect-iris-fhir:52773/csp/healthshare/demo/fhir/r4
+      - IRIS_HUB_HOST=careconnect-iris-hub
+      - IRIS_HUB_PORT=1972
+      - IRIS_HUB_NAMESPACE=USER
+      - IRIS_HUB_USERNAME=_SYSTEM
+      - IRIS_HUB_PASSWORD=${IRIS_HUB_PASSWORD:-SYS}
+      - MCP_URL=http://careconnect-iris-hub:8888/mcp/careconnect
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.openai.com/v1/}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+      - OLLAMA_HOST=${OLLAMA_HOST:-http://ollama:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2:3b}
+    depends_on:
+      iris-ai-hub:
+        condition: service_healthy
+
+  jupyter:
+    build:
+      context: ./services/jupyter
+      dockerfile: Dockerfile
+    container_name: careconnect-sdoh-jupyter
+    ports:
+      - "${JUPYTER_PORT:-8889}:8888"
+    environment:
+      - FHIR_BASE_URL=http://careconnect-iris-fhir:52773/csp/healthshare/demo/fhir/r4
+      - HUB_HOST=careconnect-iris-hub
+      - HUB_PORT=1972
+      - JUPYTER_ENABLE_LAB=yes
+    depends_on:
+      iris-ai-hub:
+        condition: service_healthy
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: careconnect-sdoh-ollama
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    profiles:
+      - ollama
+
+  # IVG knowledge graph stack — contradiction gate + persistent knowledge layer
+  careconnect-ivg-iris:
+    image: ${IRIS_IMAGE:-intersystemsdc/irishealth-community:2026.2}
+    container_name: careconnect-sdoh-ivg-iris
+    ports:
+      - "${IVG_IRIS_PORT:-19720}:1972"
+      - "${IVG_IRIS_WEB_PORT:-19773}:52773"
+    healthcheck:
+      test: ["CMD", "bash", "-c", "cat < /dev/null > /dev/tcp/localhost/1972"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 90s
+    restart: unless-stopped
+    profiles:
+      - ivg
+
+  careconnect-ivg-mcp:
+    image: ${IRIS_IMAGE:-intersystemsdc/irishealth-community:2026.2}
+    container_name: careconnect-sdoh-ivg-mcp
+    entrypoint: ["/usr/irissys/bin/iris-mcp-server"]
+    command: ["--config", "/etc/iris-mcp/config.toml", "run"]
+    network_mode: "service:careconnect-ivg-iris"
+    volumes:
+      - ./services/careconnect-ivg/mcp-config:/etc/iris-mcp:ro
+    depends_on:
+      careconnect-ivg-iris:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles:
+      - ivg
+
+  careconnect-ivg-bolt:
+    image: python:3.11-slim
+    container_name: careconnect-sdoh-ivg-bolt
+    ports:
+      - "${IVG_BOLT_PORT:-19800}:8000"
+    environment:
+      - IRIS_HOST=careconnect-ivg-iris
+      - IRIS_PORT=1972
+      - IRIS_NAMESPACE=CARECONNECT
+      - IRIS_USERNAME=_SYSTEM
+      - IRIS_PASSWORD=${IRIS_PASSWORD:-SYS}
+      - IVG_API_KEY=${IVG_API_KEY:-changeme}
+      - FHIR_BASE_URL=http://careconnect-iris-fhir:52773/csp/healthshare/demo/fhir/r4
+      - PYTHONPATH=/app
+      # The Obsidian sync writes here. Bind OBSIDIAN_VAULT_HOST_PATH to your own
+      # vault to inspect the knowledge graph in Obsidian; the default keeps
+      # everything inside a named volume.
+      - OBSIDIAN_VAULT_PATH=/vault
+    volumes:
+      - ./services/careconnect-ivg/load_graph_on_start.py:/app/load_graph_on_start.py:ro
+      - ./services/careconnect-ivg/careconnect_api.py:/app/careconnect_api.py:ro
+      - ./services/careconnect-ivg/obsidian_sync.py:/app/obsidian_sync.py:ro
+      - ./services/careconnect-ivg/requirements.txt:/app/requirements.txt:ro
+      - ${OBSIDIAN_VAULT_HOST_PATH:-obsidian-vault}:/vault
+    command: >-
+      bash -c "pip install -r /app/requirements.txt --quiet &&
+               python3 /app/load_graph_on_start.py &&
+               python3 -m uvicorn careconnect_api:app --host 0.0.0.0 --port 8000"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 120s
+    depends_on:
+      careconnect-ivg-iris:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles:
+      - ivg
+
+volumes:
+  ollama-data:
+  obsidian-vault:

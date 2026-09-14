@@ -11,9 +11,10 @@ ClassMethod Run() As %Status
     Kill props
     Set props("DispatchClass") = "CareConnect.MCP.Service"
     Set props("AutheEnabled")  = 64
+    // Type 18 = CSP (2) + MCP (16). Build 139+ requires the MCP bit for wgproto connections.
     Set props("Type")          = 18
     Set props("NameSpace")     = "IRISAPP"
-    Set props("MatchRoles")    = ":%All"
+    Set props("MatchRoles")    = ":%DB_IRISAPP"
     Set props("Recurse")       = 1
     Set props("Enabled")       = 1
     Set sc = ##class(Security.Applications).Create("/mcp/careconnect", .props)

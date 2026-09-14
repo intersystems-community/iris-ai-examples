@@ -1,0 +1,23 @@
+[run]
+omit =
+    src/CareConnect/phi_guardian/tests/*
+    src/CareConnect/agents/sdoh_agent.py
+
+[report]
+exclude_lines =
+    # ImportError fallbacks
+    except ImportError:
+    PRESIDIO_AVAILABLE = False
+    AnalyzerEngine = None
+    RecognizerRegistry = None
+    PatternRecognizer = None
+    Pattern = None
+    # Config-not-found fallback
+    print\(f"⚠️ Security config not found
+    "global_threshold": 0.35,
+    "safe_fields": \[\],
+    "blocked_fields": \[\],
+    "patterns": {},
+    "sources": {}
+    # pragma: no cover
+    if TYPE_CHECKING:

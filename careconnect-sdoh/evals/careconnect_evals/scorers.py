@@ -11,16 +11,21 @@ from __future__ import annotations
 import re
 
 # Domains that DraftCarePlan can actually act on (it has no education step).
-# Care-plan differentiation is judged on these, not the raw 5-domain profile.
-PLAN_DOMAINS = ("economic", "health_care", "neighborhood", "social")
+# Care-plan differentiation is judged on these, not the raw 6-domain profile.
+PLAN_DOMAINS = ("economic", "health_care", "neighborhood", "social", "transportation")
 
-# Map the human/rule domain keys to the labels AssessSDoHRisk prints.
+# Map the human/rule domain keys to the labels AssessSDoHRisk prints. The keys are
+# short by design — they are the field names in golden_cases.json — so this map
+# cannot be derived from tools_local.DOMAIN_RULES. tests/test_parity_static.py
+# asserts the label side matches the ObjectScript exactly, which is the half that
+# drifts.
 _DOMAIN_LABELS = {
     "economic": "Economic Stability",
     "education": "Education Access",
     "health_care": "Health Care Access",
     "neighborhood": "Neighborhood/Built Env",
     "social": "Social Context",
+    "transportation": "Transportation Access",
 }
 
 

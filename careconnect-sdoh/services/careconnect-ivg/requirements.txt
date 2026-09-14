@@ -1,0 +1,11 @@
+iris-vector-graph==1.92.0
+intersystems-iris
+intersystems-irispython
+fastapi
+uvicorn[standard]
+numpy
+networkx
+httpx
+requests
+parseltongue-dsl>=0.7.4
+sentence-transformers

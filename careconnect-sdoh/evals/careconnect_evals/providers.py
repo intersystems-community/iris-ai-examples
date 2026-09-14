@@ -29,7 +29,7 @@ AssessSDoHRisk -> DraftCarePlan -> (StartProduction if needed) -> TriggerFollowU
 -> GetInteropTraces.
 
 Rules:
-- Always assess ALL five SDoH domains before drafting a care plan.
+- Always assess ALL six SDoH domains before drafting a care plan.
 - Call StartProduction before TriggerFollowUp.
 - Only trigger a follow-up when the request asks for one or the case is URGENT.
 - Respect patient privacy — do not repeat sensitive clinical details unnecessarily."""

@@ -1,0 +1,25 @@
+; FHIR Server Setup - NO ZPM, NO NETWORK
+; Uses HS.FHIRServer classes already present in irishealth-community image
+; Confirmed working: Foundation.Install + InstallInstance (build-time, offline)
+
+; 1. Bootstrap the "demo" Foundation namespace from HSLIB
+set $NAMESPACE = "HSLIB"
+do:'##class(%SYS.Namespace).Exists("demo") ##class(HS.Util.Installer.Foundation).Install("demo")
+
+; 2. Install the FHIR R4 endpoint in demo namespace
+set $NAMESPACE = "demo"
+set appKey = "/csp/healthshare/demo/fhir/r4"
+set strategyClass = "HS.FHIRServer.Storage.Json.InteractionsStrategy"
+set metadataPackages = $LISTBUILD("hl7.fhir.r4.core@4.0.1","hl7.fhir.us.core@3.1.0")
+do ##class(HS.FHIRServer.Installer).InstallInstance(appKey, strategyClass, metadataPackages)
+
+; 3. Tune search page sizes for demo use
+set strategy = ##class(HS.FHIRServer.API.InteractionsStrategy).GetStrategyForEndpoint(appKey)
+set configData = strategy.GetServiceConfigData()
+set configData.DefaultSearchPageSize = 1000
+set configData.MaxSearchPageSize = 10000
+set configData.MaxSearchResults = 10000
+do strategy.SaveServiceConfigData(configData)
+
+write "FHIR endpoint installed: ",appKey,!
+halt

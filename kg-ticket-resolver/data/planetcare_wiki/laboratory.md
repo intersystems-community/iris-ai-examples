@@ -1,10 +1,10 @@
 # Laboratory — PlanetCare Knowledge Base
 
-*Last updated: 2025-10-08 | Maintainer: Lab Informatics Team*
+_Last updated: 2025-10-08 | Maintainer: Lab Informatics Team_
 
 ## Overview
 
-PC-Lab manages laboratory order entry, result routing, specimen tracking, 
+PC-Lab manages laboratory order entry, result routing, specimen tracking,
 and instrument interfaces for clinical laboratory workflows.
 
 ---
@@ -17,6 +17,7 @@ and instrument interfaces for clinical laboratory workflows.
 **Problem:** Critical lab values are not generating alerts to clinical staff.
 
 **Resolution:**
+
 1. Verify critical value thresholds in PC-Lab > Configuration > Critical Values
 2. Check that the notifying role is assigned to active users
 3. Confirm the notification rule is enabled for the affected test type
@@ -26,7 +27,7 @@ and instrument interfaces for clinical laboratory workflows.
 
 ## Knowledge Gaps
 
-- Result routing failures when instrument interface disconnects *(frequent — no documented fix)*
-- Specimen tracking gaps for STAT orders *(reported by 3 hospitals, unresolved)*
+- Result routing failures when instrument interface disconnects _(frequent — no documented fix)_
+- Specimen tracking gaps for STAT orders _(reported by 3 hospitals, unresolved)_
 
-*Run the KB Mining notebook to auto-generate articles for these gaps.*
+_Run the KB Mining notebook to auto-generate articles for these gaps._

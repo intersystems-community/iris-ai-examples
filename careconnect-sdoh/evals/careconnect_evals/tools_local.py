@@ -57,13 +57,71 @@ PATIENTS = {
     },
 }
 
-DOMAIN_ORDER = [
-    "Economic Stability",
-    "Education Access",
-    "Health Care Access",
-    "Neighborhood/Built Env",
-    "Social Context",
-]
+# --- The SDoH rule (mirror of AssessSDoHRisk) --------------------------------
+# One table rather than six inline conditionals, so `tests/test_parity_static.py`
+# can compare it against the ObjectScript without a running IRIS. That test is
+# the reason this is data: the live parity test skips whenever IRIS is absent,
+# which is precisely when the mirror drifts.
+#
+# Keyword order matters only for the parity test; the rule is an OR.
+DOMAIN_RULES = {
+    "Economic Stability": {
+        "keywords": ("unemploy", "job", "income", "afford"),
+        "hit": "HIGH",
+        "miss": "LOW",
+    },
+    "Education Access": {
+        "keywords": ("english", "language", "literacy"),
+        "hit": "HIGH",
+        "miss": "LOW",
+    },
+    # The only domain that floors at MEDIUM: absence of evidence is not scored as
+    # low risk for access to care.
+    "Health Care Access": {
+        "keywords": ("uninsur", "no doctor", "clinic"),
+        "hit": "HIGH",
+        "miss": "MEDIUM",
+    },
+    "Neighborhood/Built Env": {
+        "keywords": ("housing", "mold", "unsafe", "food bank"),
+        "hit": "HIGH",
+        "miss": "LOW",
+    },
+    "Social Context": {
+        "keywords": ("alone", "isolat", "no family", "no support"),
+        "hit": "HIGH",
+        "miss": "LOW",
+    },
+    "Transportation Access": {
+        "keywords": (
+            "no car",
+            "no ride",
+            "no bus",
+            "transport",
+            "transit",
+            "missed appointment",
+            "can't get to",
+            "cannot get to",
+        ),
+        "hit": "HIGH",
+        "miss": "LOW",
+    },
+}
+
+DOMAIN_ORDER = list(DOMAIN_RULES)
+
+# Evaluated in order; first threshold met wins. Six domains, so URGENT needs five.
+PRIORITY_THRESHOLDS = (("URGENT", 5), ("HIGH", 3))
+
+# The ObjectScript pads every label to the same column. One formula reproduces
+# all six literals, and keeps doing so when a seventh domain arrives.
+_LABEL_WIDTH = 25
+
+
+def assessment_line(label: str, value: str) -> str:
+    """One line of the printed assessment block, byte-identical to the
+    ObjectScript's hand-written literal."""
+    return f"  {label + ':':<{_LABEL_WIDTH}}{value}"
 
 
 # --- Tool schemas (provider-neutral) -----------------------------------------
@@ -102,8 +160,8 @@ TOOL_SCHEMAS = [
     },
     {
         "name": "AssessSDoHRisk",
-        "description": "Score a patient on all five USDHHS SDoH domains using "
-        "clinical summary and matched protocols.",
+        "description": "Score a patient on six SDoH domains (five USDHHS plus "
+        "transportation access) using clinical summary and matched protocols.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -160,7 +218,30 @@ TOOL_SCHEMAS = [
             "properties": {"maxRows": {"type": "string"}},
         },
     },
+    {
+        "name": "SearchClinicalNotes",
+        "description": "Search FHIR DocumentReference clinical notes for a "
+        "patient. Returns matching note summaries. Requires the FHIR server to "
+        "be running.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "patientId": {"type": "string"},
+                "query": {"type": "string"},
+            },
+            "required": ["patientId"],
+        },
+    },
 ]
+
+# One DocumentReference per demo patient, standing in for what the FHIR server
+# holds. Fixed dates, because an eval that moves with the calendar is not a
+# regression test.
+CLINICAL_NOTE_DATES = {
+    "maria-gonzalez-001": "2026-02-14",
+    "james-okafor-002": "2026-01-30",
+    "sarah-kim-003": "2026-03-02",
+}
 
 
 # --- Tool client (faithful port + offline interop simulator) -----------------
@@ -168,7 +249,7 @@ TOOL_SCHEMAS = [
 
 @dataclass
 class LocalToolClient:
-    """Executes the 9 tools in-process. Holds its own interop state so each
+    """Executes the ported tools in-process. Holds its own interop state so each
     eval run starts from a clean production (matching a fresh container)."""
 
     production_running: bool = False
@@ -245,20 +326,16 @@ class LocalToolClient:
         if not patientId:
             return "ERROR: patientId is required"
         s = clinicalSummary.lower()
-        econ = "HIGH" if any(k in s for k in ("unemploy", "job", "income", "afford")) else "LOW"
-        edu = "HIGH" if any(k in s for k in ("english", "language", "literacy")) else "LOW"
-        health = "HIGH" if any(k in s for k in ("uninsur", "transport", "no doctor", "clinic")) else "MEDIUM"
-        nbhd = "HIGH" if any(k in s for k in ("housing", "mold", "unsafe", "food bank")) else "LOW"
-        social = "HIGH" if any(k in s for k in ("alone", "isolat", "no family", "no support")) else "LOW"
+        scores = {
+            label: rule["hit"] if any(k in s for k in rule["keywords"]) else rule["miss"]
+            for label, rule in DOMAIN_RULES.items()
+        }
         out = f"SDoH Risk Assessment for {patientId}:\n"
-        out += f"  Economic Stability:      {econ}\n"
-        out += f"  Education Access:        {edu}\n"
-        out += f"  Health Care Access:      {health}\n"
-        out += f"  Neighborhood/Built Env:  {nbhd}\n"
-        out += f"  Social Context:          {social}\n"
-        high = sum(1 for d in (econ, edu, health, nbhd, social) if d == "HIGH")
-        priority = "URGENT" if high >= 4 else "HIGH" if high >= 2 else "ROUTINE"
-        out += f"Overall Priority: {priority} ({high}/5 domains elevated)"
+        for label in DOMAIN_ORDER:
+            out += assessment_line(label, scores[label]) + "\n"
+        high = sum(1 for v in scores.values() if v == "HIGH")
+        priority = next((name for name, floor in PRIORITY_THRESHOLDS if high >= floor), "ROUTINE")
+        out += f"Overall Priority: {priority} ({high}/{len(DOMAIN_RULES)} domains elevated)"
         return out
 
     def DraftCarePlan(self, patientId: str, sdohScores: str) -> str:
@@ -268,22 +345,46 @@ class LocalToolClient:
         out = f"Care Plan for {patientId}:\n\n"
         step = 1
         if "economic" in s:
-            out += f"{step}. Connect with financial assistance programs — SNAP, Medicaid, emergency rental assistance\n"
+            out += f"{step}. Connect with financial assistance programs - SNAP, Medicaid, emergency rental assistance\n"
             step += 1
         if "health care" in s or "transport" in s:
-            out += f"{step}. Schedule CHW home visit within 5 days — assess transportation barriers\n"
+            out += f"{step}. Schedule CHW home visit within 5 days - assess transportation barriers\n"
             step += 1
             out += f"{step}. Enroll in patient transport program or telehealth if available\n"
             step += 1
         if "neighborhood" in s:
-            out += f"{step}. Report housing issues to housing authority — document mold/safety concerns\n"
+            out += f"{step}. Report housing issues to housing authority - document mold/safety concerns\n"
             step += 1
         if "social" in s or "isolat" in s:
-            out += f"{step}. Refer to community social connection program — senior center, peer support group\n"
+            out += f"{step}. Refer to community social connection program - senior center, peer support group\n"
             step += 1
         out += f"{step}. Schedule 30-day follow-up call to assess progress on care plan goals\n"
-        out += "\nPriority: Urgent if 4+ domains HIGH — escalate to supervising CHW"
+        out += "\nPriority: Urgent if 5+ domains HIGH - escalate to supervising CHW"
         return out
+
+    # -- FHIR tool (offline simulator of a DocumentReference search) --
+
+    def SearchClinicalNotes(self, patientId: str, query: str = "") -> str:
+        """Offline stand-in for the ObjectScript tool's FHIR round trip.
+
+        The shipped tool GETs `DocumentReference?patient=<id>` off the demo FHIR
+        server and prints `[status] date - description` per entry. There is no
+        FHIR server here, so the demo patient's note is served as the single
+        DocumentReference the server would return. Output shape matches the
+        ObjectScript byte for byte; the transport does not, which is why
+        `tests/test_parity.py` does not compare this one against a live IRIS —
+        `tests/test_harness.py` pins it to a golden string instead.
+        """
+        if not patientId:
+            return "ERROR: patientId is required"
+        patient = PATIENTS.get(patientId)
+        if patient is None:
+            return f"No clinical notes found for patient {patientId}"
+        note = patient["Notes"]
+        if query and query.lower() not in note.lower():
+            return f"No clinical notes found for patient {patientId}"
+        date = CLINICAL_NOTE_DATES.get(patientId, "")
+        return f"Clinical notes for {patientId}:\n  [current] {date} - {note}\n"
 
     # -- interop tools (offline simulator of Ens.Director + MessageHeader) --
 

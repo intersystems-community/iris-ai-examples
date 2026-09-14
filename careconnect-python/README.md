@@ -3,6 +3,7 @@
 Python-native SDoH risk assessment agent built with **`iris_llm`** — the InterSystems AI Hub Python SDK.
 
 This example demonstrates the Python-first developer experience on IRIS AI Hub:
+
 - Tools defined as Python class methods with the `@tool` decorator
 - Agent orchestration via `iris_llm.Agent` — no ObjectScript required
 - IRIS data access via `intersystems-irispython` (`iris.connect()`)
@@ -24,7 +25,7 @@ This example demonstrates the Python-first developer experience on IRIS AI Hub:
 cd careconnect-python/docker
 
 cp ../.env.example .env
-# Edit .env — set IMAGE tag and API key
+# Edit .env — set IRIS_IMAGE and OPENAI_API_KEY
 
 docker compose build
 docker compose up -d iris
@@ -33,14 +34,20 @@ docker compose run agent python agent.py "List all patients"
 
 ## Architecture
 
-```
+```text
 agent.py (iris_llm — pure Python)
 │
 └── SDoHPythonTools (@tool methods)
-    ├── assess_sdoh_risk        — Python keyword scoring, IRIS data via iris.connect()
+    ├── list_patients            — patient roster, optional name/id search
+    ├── assess_sdoh_risk         — Python keyword scoring, IRIS data via iris.connect()
     ├── fetch_community_resources — community resource lookup by zip code
-    └── summarize_sdoh_findings — CHW action brief synthesis
+    └── summarize_sdoh_findings  — CHW action brief synthesis
 ```
+
+Only two ObjectScript classes ship with this example: `CareConnect.Patient`, the
+persistent table, and `CareConnect.Setup.DemoData`, its idempotent loader. The tools
+read that table over SQL. Everything else — the toolset, the MCP service, the
+Interoperability production — belongs to `careconnect-sdoh`.
 
 The `iris_llm` wheel and `intersystems-irispython` are both copied from the IRIS
 image at build time via a multi-stage Dockerfile — no bundled wheels in this repo.
@@ -76,7 +83,7 @@ that the LLM uses for tool calling.
 docker compose run agent
 ```
 
-```
+```text
 CareConnect SDoH Agent (iris_llm Python)
 CHW> List all patients
 CHW> Assess patient P001 for SDoH risk
@@ -86,15 +93,17 @@ CHW> Give me a full CHW action brief for Maria Santos
 
 ## Relation to careconnect-sdoh
 
-| Aspect | careconnect-sdoh | careconnect-python |
-|---|---|---|
-| Tools | ObjectScript `%AI.ToolSet` | Python `iris_llm.ToolSet` |
-| Entry point | Claude Desktop / VS Code MCP | `python agent.py` |
-| Data access | FHIR SQL in ObjectScript | `iris.connect()` in Python |
-| IRIS required | Yes (MCP server) | Yes (iris.connect() for patient data) |
-| Target audience | ObjectScript devs, IRIS experts | Python/AI developers |
+| Aspect          | careconnect-sdoh                | careconnect-python                    |
+| --------------- | ------------------------------- | ------------------------------------- |
+| Tools           | ObjectScript `%AI.ToolSet`      | Python `iris_llm.ToolSet`             |
+| Entry point     | Claude Desktop / VS Code MCP    | `python agent.py`                     |
+| Data access     | FHIR SQL in ObjectScript        | `iris.connect()` in Python            |
+| IRIS required   | Yes (MCP server)                | Yes (iris.connect() for patient data) |
+| Target audience | ObjectScript devs, IRIS experts | Python/AI developers                  |
 
-Both examples use the same IRIS container and the same demo patient data.
+Each example brings up its own IRIS container — `careconnect-python-iris` here,
+`careconnect-sdoh-iris-hub` there — from the same demo patient data, so you can run
+both side by side without a port or name collision.
 
 ## Development Notes
 
@@ -104,7 +113,6 @@ Both examples use the same IRIS container and the same demo patient data.
 image build time adds a network dependency and complexity without improving the
 developer experience for a Docker-based demo.
 
-The IRIS setup (`iris.script` + `entrypoint.sh`) is intentionally kept as
-plain ObjectScript executed at build time — deterministic, no network required,
-runs in 30 seconds. ZPM becomes relevant when distributing to existing IRIS
+The IRIS setup (`docker/iris.script`) is intentionally kept as plain ObjectScript
+executed at build time — deterministic, no network required, runs in 30 seconds. ZPM becomes relevant when distributing to existing IRIS
 installations via Open Exchange, which is a future step for this example.

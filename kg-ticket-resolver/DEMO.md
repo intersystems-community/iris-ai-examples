@@ -13,24 +13,28 @@ The agent scores ticket quality, finds patterns, drafts structured KB articles u
 ## Step 1 — Score a ticket for KB readiness
 
 **Prompt:**
-```
+
+```text
 What's the MDS completeness score for ticket PC-00001?
 ```
 
 **What happens:** Claude calls `ScoreTicketCompleteness` with ticketId="PC-00001".
 
 **Expected output:**
-```
+
+```text
 MDS Score for PC-00001: 100/100 | Tier: HIGH | Category: BILLING | Status: Resolved
 ```
 
 **Now try a lower-scoring ticket:**
-```
+
+```text
 Score ticket PC-00145
 ```
 
 **Expected output:**
-```
+
+```text
 MDS Score for PC-00145: 65/100 | Tier: MEDIUM | Category: PHARMACY | Status: OPEN
 ```
 
@@ -41,14 +45,16 @@ MDS Score for PC-00145: 65/100 | Tier: MEDIUM | Category: PHARMACY | Status: OPE
 ## Step 2 — Find similar tickets (vector search)
 
 **Prompt:**
-```
+
+```text
 Find tickets similar to "invoice amount mismatch after system upgrade"
 ```
 
 **What happens:** Claude calls `FindSimilarTickets`. Uses IRIS native `VECTOR_COSINE` search if embeddings are seeded, keyword fallback otherwise.
 
 **Expected output (with embeddings):**
-```
+
+```text
 Similar tickets (vector search):
   PC-00001 [BILLING, sim=0.89]: Claim Rejection due to Incorrect CPT Codes
   PC-00018 [BILLING, sim=0.84]: Incorrect Patient Invoice Amount
@@ -56,7 +62,8 @@ Similar tickets (vector search):
 ```
 
 **Expected output (without embeddings — keyword fallback):**
-```
+
+```text
 No similar tickets found (embeddings not seeded). Run setup/embedder.py to enable vector search.
 ```
 
@@ -67,14 +74,16 @@ No similar tickets found (embeddings not seeded). Run setup/embedder.py to enabl
 ## Step 3 — Understand a cluster
 
 **Prompt:**
-```
+
+```text
 Show me the BILLING cluster summary — how many tickets, how many resolved?
 ```
 
 **What happens:** Claude calls `GetClusterSummary` with category="BILLING".
 
 **Expected output:**
-```
+
+```text
 Cluster: BILLING | Total: 73 | Resolved: 41 (56%)
 Anchor tickets (resolved):
   PC-00001: Claim Rejection due to Incorrect CPT Codes
@@ -83,12 +92,14 @@ Anchor tickets (resolved):
 ```
 
 **Follow up:**
-```
+
+```text
 What about PHARMACY?
 ```
 
 **Expected output:**
-```
+
+```text
 Cluster: PHARMACY | Total: 35 | Resolved: 14 (40%)
 Anchor tickets (resolved):
   PC-00115: Issue with medication dispensing
@@ -102,14 +113,16 @@ Anchor tickets (resolved):
 ## Step 4 — Check the existing wiki
 
 **Prompt:**
-```
+
+```text
 What's the current wiki status? Which categories have coverage gaps?
 ```
 
 **What happens:** Claude calls `GetWikiStatus`.
 
 **Expected output:**
-```
+
+```text
 PlanetCare KB Wiki
   billing.md
   laboratory.md
@@ -132,14 +145,16 @@ Coverage:
 ## Step 5 — Draft a KB article (requires OPENAI_API_KEY)
 
 **Prompt:**
-```
+
+```text
 Draft a KB article for the BILLING cluster
 ```
 
 **What happens:** Claude calls `DraftKBArticle` with category="BILLING". This calls a `%AI.Agent` running **inside IRIS** — not a Python call to OpenAI, but ObjectScript creating an `%AI.Provider`, `%AI.Agent`, and calling `agent.Chat()`.
 
 **Expected output:**
-```
+
+```text
 KB ARTICLE -- BILLING
 ---
 # Article: Common Billing Issues and Resolutions
@@ -165,7 +180,8 @@ Use PublishKBArticle() to publish after review.
 ```
 
 **Without OPENAI_API_KEY:**
-```
+
+```text
 OPENAI_API_KEY not set. Cannot draft KB article.
 ```
 
@@ -176,14 +192,16 @@ OPENAI_API_KEY not set. Cannot draft KB article.
 ## Step 6 — Publish to the wiki
 
 **Prompt:**
-```
+
+```text
 Publish that article to the wiki
 ```
 
 **What happens:** Claude calls `PublishKBArticle` with the article content and category. Writes to `data/planetcare_wiki/billing.md` and records `AUTHORED_KB` and `SOURCED_KB` edges in `Graph_KG.rdf_edges`.
 
 **Expected output:**
-```
+
+```text
 Wiki updated: billing.md (BILLING)
 Article ID: kb_article_BILLING_20260520_143201
 Provenance in Graph_KG.
@@ -191,6 +209,7 @@ Sources: 5 tickets
 ```
 
 **Query the provenance:**
+
 ```sql
 SELECT s, p, o_id FROM Graph_KG.rdf_edges
 WHERE s LIKE 'kb_article:%'
@@ -202,7 +221,7 @@ WHERE s LIKE 'kb_article:%'
 
 ## Step 7 — Full pipeline in one prompt
 
-```
+```text
 Score PC-00145, find similar pharmacy tickets, check the wiki status,
 and draft and publish a KB article for PHARMACY.
 ```
@@ -214,16 +233,19 @@ Claude will chain all the tools autonomously. Watch the tool calls in the Claude
 ## What to highlight
 
 **For a technical audience:**
+
 - `DraftKBArticle` creates `%AI.Provider` and `%AI.Agent` in ObjectScript — the LLM runs inside IRIS, not a Python wrapper
 - `FindSimilarTickets` uses `VECTOR_COSINE(SummaryVec, TO_VECTOR(?, DOUBLE))` — native IRIS vector search, same database
 - `PublishKBArticle` writes `Graph_KG.rdf_edges` rows — the provenance is a graph relationship, queryable with SQL or Cypher
 
 **For a business audience:**
+
 - The analyst doesn't know which tickets exist — she just asks Claude
 - KB articles are grounded in real resolved cases, not LLM improvisation
 - The audit trail is permanent: who asked, which tickets were used, when it was published
 
 **For an AI-skeptical audience:**
+
 - `ScoreTicketCompleteness` and `GetClusterSummary` are pure SQL — no LLM involved
 - `DraftKBArticle` only runs if HIGH-tier tickets exist — the scoring gate prevents hallucination from sparse data
 - Everything is logged in Graph_KG — no black box
@@ -233,27 +255,36 @@ Claude will chain all the tools autonomously. Watch the tool calls in the Claude
 ## Troubleshooting
 
 **`DraftKBArticle` returns "OPENAI_API_KEY not set"**
+
 ```bash
 export OPENAI_API_KEY=sk-...
 cd docker
 docker compose up -d
 ```
+
 All other tools work without an API key.
 
 **`FindSimilarTickets` returns keyword results only**
 Embeddings are not seeded by default. To enable vector search:
+
 ```bash
 cd kg-ticket-resolver
 pip install -r requirements.txt
-export IRIS_CONTAINER=kgtickets-iris
+export IRIS_CONTAINER=kg-ticket-resolver-iris
 python3 setup/embedder.py
 ```
+
 This embeds all 276 tickets using local `all-MiniLM-L6-v2` — no API key needed.
 
 **Port conflict on startup**
+This stack publishes 1972, 52773 and 8888 by default, and all three are read from the
+environment. 8888 is the one that actually collides in practice — `careconnect-sdoh` serves
+MCP on it too, so the two examples cannot run at the same time unless you remap:
+
 ```bash
 IRIS_PORT=22972 IRIS_WEB_PORT=22773 MCP_PORT=22888 docker compose up -d
 ```
+
 Update the Claude Desktop config `--iris-port` to match.
 
 **Tools don't appear in Claude Desktop**
