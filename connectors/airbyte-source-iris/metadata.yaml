@@ -1,0 +1,58 @@
+data:
+  # NOTE: this file follows the schema and conventions Airbyte documents at
+  # https://docs.airbyte.com/platform/connector-development/connector-metadata-file
+  # ("Connector Metadata.yaml File") and mirrors an existing Python-CDK database
+  # connector (source-firebolt) for shape/field choices not obvious from the docs
+  # alone. It has NOT been validated by Airbyte's own `metadata_service` CLI/CI
+  # (that tooling lives inside the airbytehq/airbyte monorepo's CI and was not run
+  # here) — see STATUS.md.
+  connectorSubtype: database
+  connectorType: source
+  # Placeholder — a real definitionId must be minted by whoever actually opens the
+  # airbytehq/airbyte PR (see PUBLISHING.md); this one was generated locally with
+  # `uuid.uuid4()` purely so the file is well-formed, not registered anywhere.
+  definitionId: 6060cbe5-b083-48e6-b0c7-fd17c71a6a09
+  dockerImageTag: 0.1.0
+  dockerRepository: airbyte/source-iris
+  documentationUrl: https://docs.airbyte.com/integrations/sources/iris
+  githubIssueLabel: source-iris
+  icon: iris.svg
+  license: ELv2
+  name: InterSystems IRIS
+  releaseDate: "2026-09-16"
+  releaseStage: alpha
+  supportLevel: community
+  # allowedHosts is REQUIRED for GA/Beta connectors per the metadata docs; this
+  # connector is "alpha" so it's optional, but declared anyway since it's known and
+  # cheap to get right: the connector only ever talks to the configured IRIS host.
+  allowedHosts:
+    hosts:
+      - "${host}"
+  connectorBuildOptions:
+    # Airbyte's current build convention (see PUBLISHING.md "Build convention" note)
+    # builds the image from this base + pyproject.toml via airbyte-ci, rather than
+    # from a repo-local Dockerfile. Pin format (digest) matches every other Python
+    # connector's metadata.yaml fetched from the monorepo during this build; the
+    # actual current digest must be re-resolved at contribution time.
+    baseImage: docker.io/airbyte/python-connector-base:4.0.2@sha256:9fdb1888c4264cf6fee473649ecb593f56f58e5d0096a87ee0b231777e2e3e73
+  registryOverrides:
+    cloud:
+      enabled: false
+    oss:
+      enabled: true
+  tags:
+    - language:python
+    - cdk:python
+  ab_internal:
+    ql: 100
+    sl: 100
+  connectorTestSuitesOptions:
+    - suite: unitTests
+    - suite: acceptanceTests
+      testSecrets:
+        - name: SECRET_SOURCE-IRIS_CREDS
+          fileName: config.json
+          secretStore:
+            type: GSM
+            alias: airbyte-connector-testing-secret-store
+metadataSpecVersion: "1.0"

@@ -1,0 +1,39 @@
+# See "Connector Acceptance Tests" (CAT) reference:
+# https://docs.airbyte.com/platform/connector-development/testing-connectors/connector-acceptance-tests-reference
+#
+# NOT RUN in this environment: CAT is a Docker-based test harness (it builds and runs
+# the connector's own Docker image against real secrets). There is no Docker daemon
+# and no live IRIS instance here — see STATUS.md. This file is a best-effort,
+# convention-correct config for whoever runs CAT against a real IRIS instance; the
+# config/catalog paths below are illustrative and need real secrets + a live database
+# to actually exercise (see integration_tests/README.md).
+connector_image: airbyte/source-iris:dev
+test_strictness_level: low
+acceptance_tests:
+  spec:
+    tests:
+      - spec_path: "source_iris/spec.yaml"
+  connection:
+    tests:
+      - config_path: "secrets/config.json"
+        status: "succeed"
+      - config_path: "integration_tests/invalid_config.json"
+        status: "failed"
+  discovery:
+    tests:
+      - config_path: "secrets/config.json"
+  basic_read:
+    tests:
+      - config_path: "secrets/config.json"
+        configured_catalog_path: "integration_tests/configured_catalog.json"
+        empty_streams: []
+  full_refresh:
+    tests:
+      - config_path: "secrets/config.json"
+        configured_catalog_path: "integration_tests/configured_catalog.json"
+  incremental:
+    tests:
+      - config_path: "secrets/config.json"
+        configured_catalog_path: "integration_tests/configured_catalog.json"
+        future_state:
+          bypass_reason: "No live IRIS instance was available to generate a real future-state fixture; see STATUS.md."

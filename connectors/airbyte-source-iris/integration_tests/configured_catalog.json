@@ -1,0 +1,43 @@
+{
+  "streams": [
+    {
+      "stream": {
+        "name": "SQLUser_Patient",
+        "namespace": "SQLUser",
+        "json_schema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "ID": { "type": "integer" },
+            "NAME": { "type": ["string", "null"] },
+            "UPDATED_AT": { "type": ["string", "null"], "format": "date-time" }
+          }
+        },
+        "supported_sync_modes": ["full_refresh", "incremental"],
+        "source_defined_cursor": true,
+        "default_cursor_field": ["ID"],
+        "source_defined_primary_key": [["ID"]]
+      },
+      "sync_mode": "incremental",
+      "destination_sync_mode": "append",
+      "cursor_field": ["ID"]
+    },
+    {
+      "stream": {
+        "name": "SQLUser_Note",
+        "namespace": "SQLUser",
+        "json_schema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "NOTE_ID": { "type": "integer" },
+            "BODY": { "type": ["string", "null"] }
+          }
+        },
+        "supported_sync_modes": ["full_refresh"]
+      },
+      "sync_mode": "full_refresh",
+      "destination_sync_mode": "append"
+    }
+  ]
+}
