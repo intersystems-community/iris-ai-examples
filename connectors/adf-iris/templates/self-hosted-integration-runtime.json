@@ -1,0 +1,39 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "description": "Registers a self-hosted integration runtime (SHIR) on an existing Data Factory. This is a required prerequisite for the IRIS ODBC linked service: IRIS/Cache has no Azure-IR path (no public network endpoint an Azure-managed IR can reach without a driver install), so every IRIS<->ADF pipeline needs a SHIR running on a host where the InterSystems ODBC driver is installed. See ../README.md 'Self-hosted IR is mandatory' and ../PUBLISHING.md for why. This template only *registers* the SHIR resource in ADF; it does NOT install the SHIR agent or the ODBC driver -- that is a manual step on the host (see README 'Setting up the self-hosted IR host')."
+  },
+  "parameters": {
+    "factoryName": {
+      "type": "string",
+      "metadata": { "description": "Name of the existing Data Factory to attach this integration runtime to." }
+    },
+    "integrationRuntimeName": {
+      "type": "string",
+      "defaultValue": "IrisSelfHostedIR",
+      "metadata": { "description": "Name for the self-hosted IR resource." }
+    },
+    "description": {
+      "type": "string",
+      "defaultValue": "Self-hosted IR with the InterSystems ODBC driver installed. Register the actual agent by running the key from 'az datafactory integration-runtime list-auth-key' on the host, then install the InterSystems ODBC driver on that same host."
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.DataFactory/factories/integrationRuntimes",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/', parameters('integrationRuntimeName'))]",
+      "properties": {
+        "type": "SelfHosted",
+        "description": "[parameters('description')]"
+      }
+    }
+  ],
+  "outputs": {
+    "integrationRuntimeResourceId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.DataFactory/factories/integrationRuntimes', parameters('factoryName'), parameters('integrationRuntimeName'))]"
+    }
+  }
+}

@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <!--
+    Reference implementation, not a released artifact. See STATUS.md before
+    trusting any claim about this connector's readiness. Nothing in this
+    directory has been run against a live InterSystems IRIS instance; there
+    is no IRIS container available in the environment this was built in.
+  -->
+  <groupId>com.intersystems.kafka.connect</groupId>
+  <artifactId>kafka-connect-iris</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
+  <packaging>jar</packaging>
+
+  <name>Kafka Connect connector for InterSystems IRIS</name>
+  <description>
+    Source and sink connectors for the Kafka Connect framework, targeting
+    InterSystems IRIS over JDBC. Reference/example quality; see STATUS.md.
+  </description>
+
+  <properties>
+    <maven.compiler.release>17</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+    <!-- org.apache.kafka:connect-api is provided by the Kafka Connect runtime
+         at deploy time, never bundled into the plugin's own jar. -->
+    <kafka.version>3.7.1</kafka.version>
+
+    <!-- InterSystems' own published JDBC driver coordinates on Maven Central.
+         Verified reachable via repo1.maven.org during this build; see
+         STATUS.md for the exact command output. This one IS bundled with the
+         plugin, since Kafka Connect's runtime has no reason to already have
+         it on its classpath. -->
+    <iris.jdbc.version>3.10.5</iris.jdbc.version>
+
+    <slf4j.version>2.0.13</slf4j.version>
+    <junit.version>5.10.2</junit.version>
+    <mockito.version>5.11.0</mockito.version>
+    <h2.version>2.2.224</h2.version>
+  </properties>
+
+  <dependencies>
+    <!-- Kafka Connect framework API. Scope "provided": the Connect worker's
+         own classpath supplies this at runtime; bundling it would risk
+         classloader clashes with the worker's own copy. -->
+    <dependency>
+      <groupId>org.apache.kafka</groupId>
+      <artifactId>connect-api</artifactId>
+      <version>${kafka.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <version>${slf4j.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- InterSystems' official IRIS JDBC driver. Bundled (compile scope):
+         this is the one runtime dependency the Connect worker does NOT
+         already have. -->
+    <dependency>
+      <groupId>com.intersystems</groupId>
+      <artifactId>intersystems-jdbc</artifactId>
+      <version>${iris.jdbc.version}</version>
+    </dependency>
+
+    <!-- Test-only. -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>${junit.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <version>${mockito.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-junit-jupiter</artifactId>
+      <version>${mockito.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <!--
+      H2 is a STAND-IN FOR IRIS, NOT IRIS. It is an in-memory ANSI-SQL
+      database used only so the JDBC-facing connector logic (query building,
+      offset tracking, batching, upsert fallback) can be exercised without a
+      network or a real IRIS instance. Its SQL dialect, locking, and type
+      system differ from IRIS's in ways that matter (see STATUS.md). Tests
+      that use it prove the connector's Java logic, not IRIS compatibility.
+    -->
+    <dependency>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
+      <version>${h2.version}</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <finalName>${project.artifactId}-${project.version}</finalName>
+    <resources>
+      <!-- Filtered so Version.java can read the real build version at
+           runtime instead of a hardcoded string: this is what version()
+           on both connectors reports to the Connect framework. -->
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>true</filtering>
+      </resource>
+    </resources>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <version>3.13.0</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <version>3.2.5</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-jar-plugin</artifactId>
+          <version>3.4.1</version>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <configuration>
+          <archive>
+            <manifestEntries>
+              <Implementation-Version>${project.version}</Implementation-Version>
+              <Implementation-Title>${project.artifactId}</Implementation-Title>
+            </manifestEntries>
+          </archive>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

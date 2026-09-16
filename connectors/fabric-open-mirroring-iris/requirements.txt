@@ -1,0 +1,9 @@
+# Runtime
+pyarrow>=14.0.0
+
+# Production IRIS connectivity (not required to run the test suite, which
+# uses FakeIrisSource only)
+intersystems-irispython>=3.2.0
+
+# Test
+pytest>=7.4.0

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--
+  Schema: validation/connector_plugin_metadata.xsd in
+  tableau/connector-plugin-sdk. Structure and values copied as-is from
+  samples/plugins/postgres_jdbc/connectionMetadata.xml. IRIS does expose
+  SQL schemas (INFORMATION_SCHEMA.SCHEMATA) within a namespace, so
+  <schema enabled='true'/> is plausible, but this was not exercised
+  against a live instance in this session — kept disabled (`false`) to
+  match the SDK's own reference sample's conservative choice rather than
+  guess at Tableau's schema-browsing behavior against IRIS specifically.
+  See STATUS.md UNVERIFIED.
+-->
+<connection-metadata>
+  <database enabled='true'>
+    <field />
+  </database>
+  <schema enabled='false' />
+</connection-metadata>

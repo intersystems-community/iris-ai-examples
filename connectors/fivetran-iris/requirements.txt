@@ -1,0 +1,10 @@
+# Runtime dependency of the deployed connector (bundled by `fivetran deploy`).
+fivetran-connector-sdk==2.12.1
+
+# Real IRIS DB-API driver. Only imported by iris_connector/db.py's connect(),
+# and only when actually talking to a live IRIS instance -- NOT required to
+# run the test suite (tests/) or `fivetran debug` against the bundled fake
+# connection (configuration.json's "driver": "fake"). Listed here because it
+# IS required for a real deployment, and `fivetran deploy` installs exactly
+# this file into the connector's runtime environment.
+intersystems-irispython==5.4.0

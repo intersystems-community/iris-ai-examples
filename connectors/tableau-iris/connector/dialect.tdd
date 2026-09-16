@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--
+  InterSystems IRIS Tableau Connector — dialect.tdd
+
+  Schema: validation/tdd_latest.xsd in tableau/connector-plugin-sdk — see
+  STATUS.md for the real xmllint validation output.
+
+  Scope note (read before extending this file): every <function> and
+  <sql-format> entry below carries a citation comment. This is
+  deliberately a SMALL dialect, not a full port of
+  samples/plugins/postgres_jdbc/dialect.tdd. That file's ~150 function
+  overrides are Postgres-specific (STRPOS, REGEXP_MATCHES with array
+  indexing, EXTRACT(EPOCH FROM ...), INTERVAL arithmetic) and would
+  produce invalid SQL if copied onto IRIS wholesale — which is exactly
+  the failure mode the task that produced this file was designed to
+  avoid. Where a function isn't overridden here, Tableau falls back to
+  its generic `jdbc` superclass behavior; that fallback has NOT been
+  confirmed correct for IRIS and needs live-instance testing (see
+  STATUS.md UNVERIFIED). Only functions this session could actually
+  ground in docs.intersystems.com or a real shipped IRIS SQL dialect
+  implementation (sqlalchemy-iris, MIT/community, inspected via `pip
+  download` in this session) are included.
+-->
+<dialect name='IRISJDBCDialect' class='iris_jdbc' version='18.1'>
+  <function-map>
+
+    <!-- CONFIRMED (docs.intersystems.com "CONCAT (SQL)" reference page,
+         via WebSearch, 2026-09-16): "The CONCAT function syntax is
+         equivalent to using the concatenate operator (||)... When the
+         CONCAT function or the concatenate operator (||) concatenate a
+         string and a NULL, the result is NULL." Matches Tableau's own
+         NULL-propagation expectation for the `+` string operator, so no
+         COALESCE/guard formula is needed. -->
+    <function group='operator' name='+' return-type='str'>
+      <formula>(%1 || %2)</formula>
+      <argument type='str' />
+      <argument type='str' />
+    </function>
+
+    <!-- INFERRED, not executed against a live instance: IRIS represents
+         SQL booleans as bit (0/1), confirmed via the real sqlalchemy-iris
+         driver source (base.py IRISCompiler.visit_true/visit_false
+         return the literal strings "1" and "0"). CASE-based (%1=%2)
+         comparisons are ANSI-portable regardless, so this is low-risk
+         even if the bit-representation detail turns out to need
+         adjustment. -->
+    <function group='operator' name='==' return-type='bool'>
+      <formula>(%1 = %2)</formula>
+      <argument type='bool' />
+      <argument type='bool' />
+    </function>
+
+    <!-- CONFIRMED shape (docs.intersystems.com "DATEADD (SQL)" / "DATEDIFF
+         (SQL)" / "DATEPART (SQL)" reference pages, via WebSearch,
+         2026-09-16): IRIS SQL has native DATEADD(datePart, numUnits,
+         date), DATEDIFF(datePart, startDate, endDate), and
+         DATEPART(datePart, date) — a T-SQL-shaped, function-call syntax
+         (not Postgres's INTERVAL arithmetic), which happens to line up
+         argument-for-argument with Tableau's own DATEADD/DATEDIFF/DATEPART
+         date-function signatures below.
+
+         UNVERIFIED: the exact spelling IRIS expects for each `datePart`
+         keyword (e.g. whether it wants the full word "year"/"quarter" or
+         a T-SQL-style abbreviation like "yy"/"qq") was not confirmed
+         against docs.intersystems.com in this session — the <date-parts>
+         block below uses full English words as a starting guess. This
+         MUST be checked against a live instance before relying on
+         DATEADD/DATEDIFF/DATEPART pushdown in production; until then,
+         Tableau computing these client-side is the safe fallback. -->
+    <date-function name='DATEADD' return-type='datetime'>
+      <formula>DATEADD(%1, %2, %3)</formula>
+      <argument type='localstr' />
+      <argument type='int' />
+      <argument type='datetime' />
+    </date-function>
+
+    <date-function name='DATEDIFF' return-type='int'>
+      <formula>DATEDIFF(%1, %2, %3)</formula>
+      <argument type='localstr' />
+      <argument type='datetime' />
+      <argument type='datetime' />
+    </date-function>
+
+    <date-function name='DATEPART' return-type='int'>
+      <formula>DATEPART(%1, %2)</formula>
+      <argument type='localstr' />
+      <argument type='datetime' />
+    </date-function>
+
+  </function-map>
+
+  <!--
+    sql-format's child elements are an xs:sequence in tdd_latest.xsd —
+    order is significant and validated below in this exact sequence
+    (format-false, format-select, format-true, id-quotes), not the order
+    the elements are documented in.
+  -->
+  <sql-format>
+    <!-- INFERRED from IRIS's bit-based boolean representation (same
+         citation as the `==` function above). (1=1)/(1=0) are ANSI-legal
+         predicates on every SQL engine, so this is safe even if IRIS
+         turns out to also accept literal TRUE/FALSE keywords. -->
+    <format-false value='(1=0)' />
+
+    <!-- CONFIRMED (docs.intersystems.com "TOP (SQL)" reference page, via
+         WebSearch, 2026-09-16). See the CAP_QUERY_TOPSTYLE_* citations in
+         manifest.xml for why TOP was chosen over LIMIT. -->
+    <format-select>
+      <part name='Select' value='SELECT %1' />
+      <part name='Top' value='TOP %1 ' />
+      <part name='From' value='FROM %1' />
+      <part name='Where' value='WHERE %1' />
+      <part name='Group' value='GROUP BY %1' />
+      <part name='Having' value='HAVING %1' />
+      <part name='OrderBy' value='ORDER BY %1' />
+    </format-select>
+
+    <format-true value='(1=1)' />
+
+    <!-- CONFIRMED (docs.intersystems.com "Reserved words (SQL)" / "Using
+         SQL — Identifiers" reference pages, via WebSearch, 2026-09-16):
+         double-quote-delimited identifiers are supported for ANSI SQL
+         compatibility. Independently confirmed via the real
+         sqlalchemy-iris driver source: IRISIdentifierPreparer does not
+         override the base SQLAlchemy IdentifierPreparer's quote
+         character, which defaults to `"`. -->
+    <id-quotes value='"' />
+
+    <!-- Deliberately NOT set: date-literal-escape, format-column-definition,
+         format-create-table, format-date-literal/format-datetime-literal,
+         icu-date-token-map, date-parts for DATENAME/DATETRUNC (which this
+         session found no IRIS documentation for at all — see STATUS.md),
+         and every capability not listed in manifest.xml's customizations.
+         These fall back to Tableau's generic `jdbc`-superclass behavior,
+         which has not been confirmed correct for IRIS. -->
+  </sql-format>
+</dialect>

@@ -1,0 +1,110 @@
+<?xml version='1.0' encoding='utf-8' ?>
+
+<!--
+  InterSystems IRIS Tableau Connector — manifest.xml
+
+  Schema: validated against connector-plugin-sdk's
+  validation/connector_plugin_manifest_latest.xsd (see STATUS.md for the
+  real xmllint output). Structure modeled directly on the SDK's own
+  current JDBC reference sample, samples/plugins/postgres_jdbc/manifest.xml,
+  from https://github.com/tableau/connector-plugin-sdk (MIT licensed).
+
+  IMPORTANT: the manifest XSD makes <connection-fields> and
+  <connection-dialog> a mutually-exclusive <xs:choice> — a manifest cannot
+  reference both. This connector uses the modern, field-driven dialog
+  (connectionFields.xml), matching the SDK's own current JDBC sample. A
+  legacy .tcd dialog is kept under ../reference/ for documentation only
+  and is NOT wired in here — see README.md "Two dialog file formats".
+-->
+<connector-plugin
+    class='iris_jdbc'
+    superclass='jdbc'
+    plugin-version='0.1.0'
+    name='InterSystems IRIS'
+    version='18.1'
+    min-version-tableau='2020.4'>
+
+  <vendor-information>
+    <company name="InterSystems Corporation"/>
+    <support-link url="https://www.intersystems.com/support-learning/support/"/>
+    <!-- Real, current Maven Central coordinates for the official driver,
+         confirmed 2026-09-16 via WebSearch against docs.intersystems.com
+         and central.sonatype.com: com.intersystems:intersystems-jdbc.
+         Driver class: com.intersystems.jdbc.IRISDriver. -->
+    <driver-download-link url="https://central.sonatype.com/artifact/com.intersystems/intersystems-jdbc"/>
+  </vendor-information>
+
+  <!--
+    connection-customization / customizations
+    Every CAP_* below carries a citation comment. Anything this session
+    could not confirm (against docs.intersystems.com or a real IRIS SQL
+    dialect implementation) is deliberately left UNSET rather than guessed
+    — see STATUS.md UNVERIFIED for the full list of capabilities Tableau
+    will apply generic jdbc-superclass defaults for until someone confirms
+    IRIS's real behavior against a live instance.
+  -->
+  <connection-customization class="iris_jdbc" enabled="true" version="10.0">
+    <vendor name="vendor"/>
+    <driver name="driver"/>
+    <customizations>
+
+      <!-- CONFIRMED (docs.intersystems.com, "TOP (SQL)" reference page,
+           RSQL_top): TOP limits rows in Dynamic SQL — the only SQL
+           dialect a JDBC client can issue — on every currently shipping
+           IRIS version. -->
+      <customization name="CAP_QUERY_TOPSTYLE_TOP" value="yes"/>
+      <customization name="CAP_QUERY_TOPSTYLE_ROWNUM" value="no"/>
+
+      <!-- IRIS 2025.1+ also supports a LIMIT/OFFSET clause (confirmed:
+           docs.intersystems.com "LIMIT (SQL Clause)", and independently
+           via the real sqlalchemy-iris driver source, which gates its own
+           `supports_modern_pagination` flag on server_version_info >=
+           (2025, 1)). Tableau's dialect capabilities are static per
+           connector version — they cannot branch on which IRIS version a
+           given connection turns out to be running. TOP is kept on and
+           LIMIT is kept off so this connector works unmodified against
+           every fielded IRIS version, including the pre-2025.x instances
+           this org runs today (see ../../CLAUDE.md's %AI.* version note).
+           If a future revision wants LIMIT/OFFSET pushdown on 2025.1+
+           only, that requires either a second connector build pinned via
+           min-version-tableau/dialect-version, or dropping pre-2025.1
+           support outright — there is no in-between. -->
+      <customization name="CAP_QUERY_TOPSTYLE_LIMIT" value="no"/>
+      <customization name="CAP_QUERY_TOP_N" value="yes"/>
+
+      <!-- CONFIRMED (docs.intersystems.com "INTO (SQL)" reference page,
+           RSQL_into): "The INTO clause and host variables are only used
+           in Embedded SQL. They are not used in Dynamic SQL." A JDBC
+           connection only ever issues Dynamic SQL, so the T-SQL/Sybase
+           "SELECT ... INTO new_table" pattern these two capabilities
+           describe is not available to this connector at all — this is
+           a hard "no", not a conservative default. -->
+      <customization name="CAP_SELECT_INTO" value="no"/>
+      <customization name="CAP_SELECT_TOP_INTO" value="no"/>
+
+      <!-- Conservative default, deliberately matching the SDK's own
+           postgres_jdbc reference sample's choice. IRIS does have a
+           GLOBAL TEMPORARY table type — confirmed indirectly via the real
+           sqlalchemy-iris driver source (base.py get_temp_table_names()
+           filters INFORMATION_SCHEMA.TABLES on table_type =
+           'GLOBAL TEMPORARY') — but that code only reflects existing temp
+           tables; it never issues the CREATE statement itself, so the
+           exact DDL Tableau's join-culling optimizer would need to emit
+           against IRIS is unconfirmed. Flip to "yes" only after that DDL
+           has been executed against a live instance. -->
+      <customization name="CAP_CREATE_TEMP_TABLES" value="no"/>
+
+      <!-- ANSI baseline, high confidence but not executed against a live
+           instance in this session. -->
+      <customization name="CAP_SUPPORTS_UNION" value="yes"/>
+      <customization name="CAP_QUERY_SUBQUERIES" value="yes"/>
+      <customization name="CAP_QUERY_SORT_BY" value="yes"/>
+
+    </customizations>
+  </connection-customization>
+
+  <connection-fields file='connectionFields.xml'/>
+  <connection-metadata file='connectionMetadata.xml'/>
+  <connection-resolver file="connectionResolver.tdr"/>
+  <dialect file='dialect.tdd'/>
+</connector-plugin>

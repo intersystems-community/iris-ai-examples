@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--
+  Field definitions for the Modern Connection Dialog (MCD). Schema:
+  validation/connection_fields.xsd in tableau/connector-plugin-sdk — see
+  STATUS.md for the real xmllint validation output.
+
+  Field set and category values are modeled on
+  samples/plugins/postgres_jdbc/connectionFields.xml, with names
+  adjusted to IRIS's own vocabulary (Namespace instead of Database) and
+  IRIS's actual JDBC connection property (`ssl`) instead of Postgres's
+  `sslmode`.
+-->
+<connection-fields>
+  <!-- Same hostname-validation regex as the SDK's postgres_jdbc sample;
+       generic RFC 1123 hostname pattern, not IRIS-specific. -->
+  <field name="server" label="Server" value-type="string" category="endpoint">
+    <validation-rule reg-exp="^(([a-zA-Z]|[a-zA-Z][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\-]*[A-Za-z0-9])$"/>
+  </field>
+
+  <!-- CONFIRMED default: connectors/README.md (this repo) and
+       docs.intersystems.com both give 1972 as the IRIS superserver port,
+       which is what JDBC connects to. -->
+  <field name="port" label="Port" value-type="string" category="endpoint" default-value="1972" />
+
+  <!-- IRIS's unit of connection is a "Namespace", not a "database" —
+       functionally it plays the same role JDBC URL role Tableau's
+       built-in `dbname` attribute expects (selects what you connect
+       into), so this connector keeps the canonical field name `dbname`
+       (see connectionResolver.tdr / connectionBuilder.js) and only
+       relabels it. Default "USER" is IRIS's out-of-the-box default
+       namespace (connectors/README.md, CLAUDE.md). -->
+  <field name="dbname" label="Namespace" value-type="string" category="endpoint" default-value="USER" />
+
+  <field name="authentication" label="Authentication" category="authentication" value-type="string" editable="false" default-value="auth-user-pass" />
+
+  <field name="username" label="Username" value-type="string" category="authentication" />
+
+  <field name="password" label="Password" value-type="string" category="authentication" secure="true" />
+
+  <!-- CONFIRMED (docs.intersystems.com JDBC quick reference, via
+       WebSearch, 2026-09-16): "The ssl parameter enables TLS for both
+       IRISDriver and IRISDataSource, with valid values being true and
+       false, and defaults to false if not set." This is a plain
+       true/false switch, unlike Postgres's three-state sslmode string —
+       modeled as a boolean field, not a string field with hand-rolled
+       true/false text. -->
+  <field name="ssl" label="Require SSL" value-type="boolean" category="ssl" default-value="false">
+    <boolean-options>
+      <false-value value="false" />
+      <true-value value="true" />
+    </boolean-options>
+  </field>
+
+</connection-fields>
