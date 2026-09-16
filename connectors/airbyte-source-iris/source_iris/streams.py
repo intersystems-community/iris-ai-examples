@@ -86,6 +86,20 @@ class IrisTableStream(Stream, CheckpointMixin):
     def cursor_field(self) -> Union[str, List[str]]:
         return self._configured_cursor_field or []
 
+    @property
+    def is_resumable(self) -> bool:
+        # The base Stream class would otherwise infer True here because this class
+        # always defines a `state` property (CheckpointMixin), even for tables with no
+        # cursor field. That inference is for the *legacy* case where a real cursor
+        # exists but was implemented via get_updated_state() instead of state/setter;
+        # it is wrong for us because "no cursor field" means our stream_slices()
+        # (the CDK default: exactly one, unchanging, empty slice) will never look
+        # "finished" to the CDK's resumable-full-refresh checkpoint reader, which
+        # otherwise spins forever re-requesting the same slice. Confirmed by
+        # reproducing exactly that hang against a real full-refresh-only stream before
+        # adding this override — see STATUS.md.
+        return self._configured_cursor_field is not None
+
     # -- CheckpointMixin --------------------------------------------------------------
 
     @property

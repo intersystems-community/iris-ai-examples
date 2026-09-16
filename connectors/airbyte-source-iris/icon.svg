@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Generic placeholder mark for this staged connector (a stylized eye/lens for
+       "IRIS"), not InterSystems' trademarked logo. Whoever contributes this upstream
+       should replace it with whatever icon InterSystems' own brand team approves —
+       see PUBLISHING.md "Human actions required". -->
+  <circle cx="32" cy="32" r="30" fill="#00274D"/>
+  <ellipse cx="32" cy="32" rx="20" ry="12" fill="none" stroke="#FFFFFF" stroke-width="3"/>
+  <circle cx="32" cy="32" r="7" fill="#FFFFFF"/>
+  <circle cx="32" cy="32" r="3" fill="#00274D"/>
+</svg>

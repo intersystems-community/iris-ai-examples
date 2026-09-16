@@ -133,7 +133,11 @@ class TestIncrementalRead:
         catalog_path.write_text(json.dumps(self._catalog_for_patient(patient_schema)))
 
         # Simulate a prior sync that got as far as ID=1, then a new row (ID=4) arrives.
-        fake_connection.table_data[("SQLUser", "Patient")].append({"ID": 4, "NAME": "Rosalind Franklin"})
+        # Must include every column of the Patient fixture (see conftest.py), since a
+        # real sync selects all of them, not just ID/NAME.
+        fake_connection.table_data[("SQLUser", "Patient")].append(
+            {"ID": 4, "NAME": "Rosalind Franklin", "UPDATED_AT": "2026-01-04 00:00:00.000000", "NOTES": "n4"}
+        )
         state_path = tmp_path / "state.json"
         state_path.write_text(
             json.dumps(
