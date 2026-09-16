@@ -1,0 +1,5 @@
+# Everything this directory's *tests* need. No Spark, no Snowpark, no
+# Databricks/Snowflake SDK, no network client -- the DDL/URL/partitioning
+# builders under test are pure Python stdlib. Following the
+# careconnect-sdoh/evals model: offline, no Docker, no API key.
+pytest>=8.0,<10
