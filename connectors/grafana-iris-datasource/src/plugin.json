@@ -1,0 +1,34 @@
+{
+  "$schema": "https://raw.githubusercontent.com/grafana/grafana/main/docs/sources/developers/plugins/plugin.schema.json",
+  "type": "datasource",
+  "name": "InterSystems IRIS",
+  "id": "intersystems-iris-datasource",
+  "metrics": true,
+  "backend": true,
+  "executable": "gpx_iris_datasource",
+  "info": {
+    "description": "Query InterSystems IRIS with SQL and stream its SAM/Prometheus metrics, over IRIS's built-in REST endpoints.",
+    "author": {
+      "name": "InterSystems",
+      "url": "https://www.intersystems.com"
+    },
+    "keywords": ["intersystems", "iris", "sql", "sam", "healthcare"],
+    "logos": {
+      "small": "img/logo.svg",
+      "large": "img/logo.svg"
+    },
+    "links": [
+      {
+        "name": "GitHub",
+        "url": "https://github.com/intersystems-community/iris-ai-examples"
+      }
+    ],
+    "screenshots": [],
+    "version": "%VERSION%",
+    "updated": "%TODAY%"
+  },
+  "dependencies": {
+    "grafanaDependency": ">=10.4.0",
+    "plugins": []
+  }
+}

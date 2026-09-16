@@ -1,0 +1,33 @@
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+version = "0.1.0"
+name = "source-iris"
+description = "Airbyte source connector for InterSystems IRIS."
+authors = ["InterSystems <community@intersystems.com>"]
+license = "MIT"
+readme = "README.md"
+documentation = "https://docs.airbyte.com/integrations/sources/iris"
+homepage = "https://github.com/intersystems-community/airbyte-source-iris"
+repository = "https://github.com/intersystems-community/airbyte-source-iris"
+
+[[tool.poetry.packages]]
+include = "source_iris"
+
+[tool.poetry.dependencies]
+python = "^3.10,<3.13"
+airbyte-cdk = "^7"
+intersystems-irispython = ">=5.0.0"
+
+[tool.poetry.scripts]
+source-iris = "source_iris.run:run"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+pytest-mock = "^3.6"
+jsonschema = "^4.20"
+
+[tool.pytest.ini_options]
+testpaths = ["unit_tests"]

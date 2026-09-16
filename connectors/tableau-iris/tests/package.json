@@ -1,0 +1,11 @@
+{
+  "name": "tableau-iris-connector-tests",
+  "private": true,
+  "description": "Offline unit/structural tests for the InterSystems IRIS Tableau connector. No dependencies — uses Node's built-in test runner (node:test) and the system xmllint binary.",
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

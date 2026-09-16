@@ -1,0 +1,106 @@
+{
+  "manifest_version": "0.4",
+  "name": "mcp-iris",
+  "display_name": "InterSystems IRIS (reference)",
+  "version": "0.1.0",
+  "description": "Explore IRIS schemas/tables and run read-only SQL and vector search against your own IRIS instance.",
+  "long_description": "A reference Model Context Protocol server for InterSystems IRIS.\n\nTools: list_schemas, list_tables, describe_table, run_query (read-only SQL only -- INSERT/UPDATE/DELETE/DROP/ALTER/TRUNCATE/CALL/GRANT and multi-statement payloads are rejected before they reach IRIS), and vector_search (IRIS native VECTOR_COSINE similarity search).\n\nConnects directly, over your own network, to an IRIS instance you already run and control -- no data passes through any third-party service. Provide the hostname/port/namespace/credentials for that instance below.\n\nThis is a community reference implementation, not an InterSystems product. See PUBLISHING.md in the source repository for why an InterSystems-owned submission would more likely ship AI Hub's own `iris-mcp-server` instead of this one.",
+  "author": {
+    "name": "InterSystems Community",
+    "url": "https://github.com/intersystems-community"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/intersystems-community/iris-ai-examples.git"
+  },
+  "homepage": "https://github.com/intersystems-community/iris-ai-examples/tree/main/connectors/mcp-iris",
+  "documentation": "https://github.com/intersystems-community/iris-ai-examples/tree/main/connectors/mcp-iris/README.md",
+  "support": "https://github.com/intersystems-community/iris-ai-examples/issues",
+  "keywords": ["intersystems", "iris", "sql", "database", "vector-search", "read-only"],
+  "license": "MIT",
+  "server": {
+    "type": "uv",
+    "entry_point": "src/mcp_iris/__main__.py",
+    "mcp_config": {
+      "command": "python",
+      "args": ["${__dirname}/src/mcp_iris/__main__.py"],
+      "env": {
+        "IRIS_HOSTNAME": "${user_config.iris_hostname}",
+        "IRIS_PORT": "${user_config.iris_port}",
+        "IRIS_NAMESPACE": "${user_config.iris_namespace}",
+        "IRIS_USERNAME": "${user_config.iris_username}",
+        "IRIS_PASSWORD": "${user_config.iris_password}",
+        "MCP_IRIS_ROW_CAP": "${user_config.row_cap}",
+        "MCP_IRIS_QUERY_TIMEOUT_SECONDS": "${user_config.query_timeout_seconds}"
+      }
+    }
+  },
+  "tools": [
+    { "name": "list_schemas", "description": "List every SQL schema visible in the connected IRIS namespace." },
+    { "name": "list_tables", "description": "List tables (and views), optionally filtered to one schema." },
+    { "name": "describe_table", "description": "List columns, types, and nullability for one table." },
+    { "name": "run_query", "description": "Execute a single read-only SQL statement (SELECT, or WITH ... SELECT)." },
+    { "name": "vector_search", "description": "Top-K cosine similarity search over a VECTOR column using IRIS's native VECTOR_COSINE/TO_VECTOR." }
+  ],
+  "tools_generated": false,
+  "compatibility": {
+    "claude_desktop": ">=1.0.0",
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": {
+      "python": ">=3.10"
+    }
+  },
+  "user_config": {
+    "iris_hostname": {
+      "type": "string",
+      "title": "IRIS Hostname",
+      "description": "Hostname or IP of your IRIS instance's superserver.",
+      "required": true
+    },
+    "iris_port": {
+      "type": "number",
+      "title": "IRIS Superserver Port",
+      "description": "IRIS superserver port (default 1972).",
+      "default": 1972,
+      "required": false
+    },
+    "iris_namespace": {
+      "type": "string",
+      "title": "IRIS Namespace",
+      "description": "Namespace to connect to (default USER).",
+      "default": "USER",
+      "required": false
+    },
+    "iris_username": {
+      "type": "string",
+      "title": "IRIS Username",
+      "description": "Use an account with read-only SQL privileges, not _SYSTEM, for anything beyond local testing.",
+      "required": true
+    },
+    "iris_password": {
+      "type": "string",
+      "title": "IRIS Password",
+      "description": "Password for the IRIS account above.",
+      "sensitive": true,
+      "required": true
+    },
+    "row_cap": {
+      "type": "number",
+      "title": "Row Cap",
+      "description": "Maximum rows returned per query.",
+      "default": 1000,
+      "min": 1,
+      "max": 100000,
+      "required": false
+    },
+    "query_timeout_seconds": {
+      "type": "number",
+      "title": "Query Timeout (seconds)",
+      "description": "Maximum wall-clock time to wait for a query to complete.",
+      "default": 30,
+      "min": 1,
+      "max": 600,
+      "required": false
+    }
+  }
+}

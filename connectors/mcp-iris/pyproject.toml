@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mcp-iris"
+version = "0.1.0"
+description = "Reference Model Context Protocol (MCP) server for InterSystems IRIS: schema/table catalog, describe-table, read-only SQL, and IRIS native vector search, over stdio."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "IRIS AI examples" }]
+dependencies = [
+    # PyPI's `mcp` 2.x renamed FastMCP -> MCPServer and changed several
+    # APIs from 1.x (see mcp.server.mcpserver's own ImportError message
+    # when the 1.x import path is used). Pin the major version so a
+    # future 3.x doesn't silently break this server.
+    "mcp>=2.0.0,<3.0.0",
+    # Used by sql_guard.py for quote/comment-aware statement splitting.
+    "sqlparse>=0.5.0,<0.6.0",
+]
+
+[project.optional-dependencies]
+# Only needed to actually connect to a real IRIS instance (IRISConnectionFactory
+# in db.py). The rest of the package, and its whole test suite, does not need
+# this at all -- see README.md.
+iris = ["intersystems-irispython>=5.0.0"]
+dev = ["pytest>=8.0.0", "anyio>=4.0.0", "jsonschema>=4.0.0"]
+
+[project.scripts]
+mcp-iris = "mcp_iris.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

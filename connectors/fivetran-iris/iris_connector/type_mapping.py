@@ -28,7 +28,8 @@ deliberately dropped -- see the module-level `DROPPED_TYPES` docstring and
 `README.md`'s type mapping table for the human-readable version.
 """
 
-from typing import Callable, Optional, Union
+import re
+from typing import Any, Callable, Optional, Union
 
 # DECIMAL precision/scale bounds. Fivetran's `DecimalParams` fields are
 # plain protobuf `int32`s with no bound enforced by the SDK itself, but 38
@@ -182,3 +183,39 @@ def _map_numeric(
         scale = precision
 
     return {"type": "DECIMAL", "precision": precision, "scale": scale}
+
+
+# Discovered by actually running `fivetran debug` against this connector
+# (see STATUS.md/README.md): `fivetran_connector_sdk`'s UTC_DATETIME parser
+# (`type_coercion._parse_utc_datetime_str`) *requires* a trailing UTC offset
+# or "Z" in the string ("...+00:00" / "...Z") and raises ValueError without
+# one. IRIS's DB-API driver formats `%Library.PosixTime` in ODBC mode as
+# `YYYY-MM-DD HH:MM:SS.FFFFFF` -- no offset at all -- even though the type
+# is *defined* as seconds-since-epoch (i.e. an unambiguous UTC instant). So
+# a raw driver value can never satisfy the SDK's own parser; this
+# connector must append the offset itself before upsert.
+_OFFSET_SUFFIX_RE = re.compile(r"(Z|[+-]\d{2}:?\d{2})$")
+
+
+def coerce_value_for_upsert(fivetran_type: Union[str, dict], value: Any) -> Any:
+    """Adjusts one already-fetched row value into the exact shape
+    `fivetran_connector_sdk.Operations.upsert()` requires for its mapped
+    Fivetran column type, given what a real `fivetran debug` run against
+    this connector actually accepted or rejected. Call this on every value
+    before `Operations.upsert()`, not only on values `map_iris_type` had to
+    think hard about -- e.g. BOOLEAN also needed a fix.
+
+    NULL passthrough: `None` is returned unchanged for every type; the SDK
+    encodes it as SQL NULL regardless of the column's declared type
+    (`operations._map_data_to_columns`), so there is nothing to coerce.
+    """
+    if value is None:
+        return value
+
+    if fivetran_type == "UTC_DATETIME" and isinstance(value, str):
+        v = value.strip()
+        if not _OFFSET_SUFFIX_RE.search(v):
+            v = f"{v}+00:00"
+        return v
+
+    return value

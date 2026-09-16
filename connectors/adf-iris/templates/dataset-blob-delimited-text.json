@@ -1,0 +1,39 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "description": "DelimitedText (CSV) sink dataset in Azure Blob Storage for one copied IRIS table."
+  },
+  "parameters": {
+    "factoryName": { "type": "string" },
+    "datasetName": { "type": "string" },
+    "linkedServiceName": { "type": "string", "defaultValue": "SinkBlobLinkedService" },
+    "containerName": { "type": "string" },
+    "folderPath": { "type": "string", "defaultValue": "iris-export" },
+    "fileName": { "type": "string" }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/', parameters('datasetName'))]",
+      "properties": {
+        "type": "DelimitedText",
+        "linkedServiceName": {
+          "referenceName": "[parameters('linkedServiceName')]",
+          "type": "LinkedServiceReference"
+        },
+        "typeProperties": {
+          "location": {
+            "type": "AzureBlobStorageLocation",
+            "container": "[parameters('containerName')]",
+            "folderPath": "[parameters('folderPath')]",
+            "fileName": "[parameters('fileName')]"
+          },
+          "columnDelimiter": ",",
+          "firstRowAsHeader": true
+        }
+      }
+    }
+  ]
+}

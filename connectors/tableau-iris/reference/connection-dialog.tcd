@@ -1,0 +1,40 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<!--
+  InterSystems IRIS Tableau Connector — LEGACY connection dialog (v1)
+
+  NOT wired into ../connector/manifest.xml, and not part of the packaged
+  connector. Kept for documentation only, per the task's explicit request
+  for a "connection dialog (.tcd)" deliverable.
+
+  Why it isn't used: validation/connector_plugin_manifest_latest.xsd
+  defines <connection-fields> and <connection-dialog> as a mutually
+  exclusive <xs:choice> inside <connector-plugin> — confirmed by reading
+  the XSD directly (tableau/connector-plugin-sdk). A manifest can
+  reference exactly one of them, never both. This connector uses the
+  modern, field-driven dialog (../connector/connectionFields.xml)
+  because that is what the SDK's own current JDBC reference sample
+  (samples/plugins/postgres_jdbc) uses, and because it is the
+  actively-maintained path (Connection Dialog v2 / MCD) rather than the
+  legacy v1 .tcd format this file demonstrates.
+
+  Schema: validation/tcd_latest.xsd. This file was validated against
+  that XSD in this session (see STATUS.md) — it is well-formed and
+  schema-valid on its own, it simply isn't referenced by manifest.xml.
+
+  Structure and attribute names copied from
+  samples/scenarios/vendor_attributes/postgres_vendor/connection-dialog.tcd
+  and connector-packager/tests/test_resources/valid_connector/connection-dialog.tcd,
+  adjusted to IRIS's port default and namespace terminology.
+-->
+<connection-dialog class='iris_jdbc'>
+  <connection-config>
+    <authentication-mode value='Basic' />
+    <authentication-options>
+      <option name="UsernameAndPassword" default="true" value="auth-user-pass" />
+    </authentication-options>
+    <db-name-prompt value="Namespace: " />
+    <has-pre-connect-database value="true" />
+    <port-prompt value="Port: " default="1972" />
+    <show-ssl-checkbox value="true" />
+  </connection-config>
+</connection-dialog>

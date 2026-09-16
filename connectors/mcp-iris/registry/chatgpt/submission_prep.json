@@ -1,0 +1,35 @@
+{
+  "_disclaimer": "This is NOT a schema-validated manifest -- no public JSON Schema for a ChatGPT/Apps SDK connector submission was found (see README.md in this directory). It is this session's own organization of the fields the OpenAI developer portal is documented to request, so a human with portal access has a starting point instead of a blank form. Every value below is a draft for that human to review, not a machine-checked artifact.",
+  "prerequisites_not_available_in_this_session": [
+    "An OpenAI developer organization with 'Apps Management: Write' permission",
+    "A publicly reachable HTTPS endpoint for the MCP server (this reference implementation is stdio-only; would need a Streamable HTTP deployment first)",
+    "Domain ownership / verification for whatever host serves that endpoint",
+    "A logo asset meeting the portal's image requirements"
+  ],
+  "listing": {
+    "name": "InterSystems IRIS (reference)",
+    "subtitle": "Read-only SQL, catalog, and vector search for IRIS",
+    "description": "Explore InterSystems IRIS schemas and tables, run read-only SQL, and run native vector similarity search, from a ChatGPT conversation.",
+    "category": "Databases / Developer Tools",
+    "server_url": "REPLACE_WITH_HOSTED_HTTPS_MCP_ENDPOINT (not applicable to the stdio server in this repo as-is)"
+  },
+  "connection": {
+    "transport_protocol": "Streamable HTTP (required; SSE and stdio are not accepted by this directory)",
+    "auth_type": "REPLACE -- this reference server has no auth layer; a hosted deployment would need OAuth or an API-key scheme in front of it before submission"
+  },
+  "tools": [
+    { "name": "list_schemas", "read_only": true, "justification": "Lists SQL schema names only; no data access." },
+    { "name": "list_tables", "read_only": true, "justification": "Lists table/view names and types only; no row data." },
+    { "name": "describe_table", "read_only": true, "justification": "Lists column metadata only; no row data." },
+    { "name": "run_query", "read_only": true, "justification": "SELECT/WITH only; INSERT/UPDATE/DELETE/DROP/ALTER/TRUNCATE/CALL/GRANT and multi-statement payloads are rejected before reaching IRIS (see sql_guard.py and its test suite)." },
+    { "name": "vector_search", "read_only": true, "justification": "Read-only VECTOR_COSINE similarity search; no write path." }
+  ],
+  "documentation": {
+    "public_docs_url": "https://github.com/intersystems-community/iris-ai-examples/tree/main/connectors/mcp-iris/README.md",
+    "example_prompts": [
+      "What schemas exist in this IRIS namespace?",
+      "Describe the columns on Sample.Person.",
+      "Find the 5 most similar support tickets to this one by embedding similarity."
+    ]
+  }
+}

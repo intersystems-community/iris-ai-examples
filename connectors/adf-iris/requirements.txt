@@ -1,0 +1,5 @@
+# Verified installable in this environment (see STATUS.md for the pasted
+# `pip install` output). No other runtime dependency exists -- the generator
+# itself (generator/generate_adf_templates.py) is stdlib-only.
+jsonschema>=4.20
+pytest>=8.0

@@ -1,0 +1,35 @@
+# Example configuration for IrisSourceConnector. Copy, edit the
+# connection.* values for your IRIS instance, and pass to
+# connect-standalone.sh / connect-distributed.sh or the Connect REST API.
+#
+# NEVER COMPILED AGAINST A LIVE IRIS INSTANCE -- see STATUS.md. This file
+# documents intended usage; it has not been run against a Kafka Connect
+# worker or a real IRIS server.
+
+name=iris-source
+connector.class=com.intersystems.kafka.connect.iris.source.IrisSourceConnector
+tasks.max=2
+
+connection.url=jdbc:IRIS://iris-host:1972/USER
+connection.user=_SYSTEM
+connection.password=changeme
+
+# Real partition support: each table below becomes an independently
+# offset-tracked unit distributed across up to tasks.max tasks.
+table.whitelist=Patient,Encounter,Observation
+
+mode=timestamp+incrementing
+incrementing.column.name=id
+timestamp.column.name=updated_at
+# Non-auto offset handling: on a table's first-ever run (no committed
+# offset yet), start from this explicit incrementing value instead of the
+# connector guessing a starting point.
+incrementing.initial=0
+timestamp.initial=0
+timestamp.delay.ms=5000
+
+poll.interval.ms=5000
+batch.max.rows=1000
+
+topic.prefix=iris.
+db.timezone=UTC

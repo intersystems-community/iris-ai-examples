@@ -1,0 +1,37 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "description": "Sink linked service: Azure Blob Storage. The storage connection string is a Key Vault reference, same as the IRIS password -- 'the sink is Azure so it's fine to inline' is exactly the shortcut this repo's secrets policy rules out (see ../tests/test_secrets.py)."
+  },
+  "parameters": {
+    "factoryName": { "type": "string" },
+    "linkedServiceName": { "type": "string", "defaultValue": "SinkBlobLinkedService" },
+    "keyVaultLinkedServiceName": { "type": "string", "defaultValue": "AzureKeyVaultLinkedService" },
+    "storageConnectionStringSecretName": {
+      "type": "string",
+      "metadata": { "description": "Name of the Key Vault secret holding the full storage account connection string." }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.DataFactory/factories/linkedservices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/', parameters('linkedServiceName'))]",
+      "properties": {
+        "type": "AzureBlobStorage",
+        "typeProperties": {
+          "connectionString": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "[parameters('keyVaultLinkedServiceName')]",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "[parameters('storageConnectionStringSecretName')]"
+          },
+          "accountKind": "StorageV2"
+        }
+      }
+    }
+  ]
+}

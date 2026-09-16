@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "description": "OdbcTable dataset pointing at one IRIS table/view. Deploy one of these per table -- or use generator/generate_adf_templates.py to emit one per entry in a table list instead of copy-pasting this file by hand."
+  },
+  "parameters": {
+    "factoryName": { "type": "string" },
+    "datasetName": { "type": "string" },
+    "linkedServiceName": { "type": "string", "defaultValue": "IrisOdbcLinkedService" },
+    "tableName": {
+      "type": "string",
+      "metadata": { "description": "IRIS table name as SQL sees it, e.g. 'SQLUser.Patient' or 'Epic.Encounter'. Must be a table/view that a %All-role or explicitly-granted SELECT-privileged user can read (see ../README.md, the -400 fatal-error section)." }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/', parameters('datasetName'))]",
+      "properties": {
+        "type": "OdbcTable",
+        "linkedServiceName": {
+          "referenceName": "[parameters('linkedServiceName')]",
+          "type": "LinkedServiceReference"
+        },
+        "typeProperties": {
+          "tableName": "[parameters('tableName')]"
+        }
+      }
+    }
+  ]
+}

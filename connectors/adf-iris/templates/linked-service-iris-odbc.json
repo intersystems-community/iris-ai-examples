@@ -1,0 +1,77 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "description": "IRIS/Cache linked service via the generic ODBC connector (see ../README.md for why ODBC, not JDBC, and what integration runtime this requires). Deploy self-hosted-integration-runtime.json and linked-service-keyvault.json first -- this template does not redeclare them, only references them by name via dependsOn/resourceId. The password is always an AzureKeyVaultSecret reference; there is no parameter that accepts it in plaintext (see ../tests/test_secrets.py, which encodes that policy as a test)."
+  },
+  "parameters": {
+    "factoryName": { "type": "string" },
+    "linkedServiceName": { "type": "string", "defaultValue": "IrisOdbcLinkedService" },
+    "integrationRuntimeName": { "type": "string", "defaultValue": "IrisSelfHostedIR" },
+    "keyVaultLinkedServiceName": { "type": "string", "defaultValue": "AzureKeyVaultLinkedService" },
+    "irisHost": {
+      "type": "string",
+      "metadata": { "description": "IRIS superserver hostname or IP, reachable from the self-hosted IR machine." }
+    },
+    "irisPort": {
+      "type": "int",
+      "defaultValue": 1972,
+      "metadata": { "description": "IRIS superserver port. Not the 52773 web/management port." }
+    },
+    "irisNamespace": {
+      "type": "string",
+      "defaultValue": "USER",
+      "metadata": { "description": "IRIS namespace to expose as the ODBC 'Database'." }
+    },
+    "irisUsername": { "type": "string" },
+    "odbcDriverName": {
+      "type": "string",
+      "defaultValue": "InterSystems ODBC35",
+      "metadata": {
+        "description": "Exact name the InterSystems ODBC driver is registered under in odbcinst.ini on the self-hosted IR host. This varies by IRIS version/platform -- verify with 'odbcinst -q -d' on that host before deploying (see ../README.md 'Verifying the driver name')."
+      }
+    },
+    "keyVaultSecretName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Key Vault secret holding the IRIS password for irisUsername. This static ARM template always uses the latest secret version; the Python generator (../generator/) supports pinning a specific secretVersion if you need that."
+      }
+    }
+  },
+  "variables": {
+    "connectionString": "[concat('Driver={', parameters('odbcDriverName'), '};Server=', parameters('irisHost'), ';Port=', string(parameters('irisPort')), ';Database=', parameters('irisNamespace'), ';UID=', parameters('irisUsername'), ';')]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.DataFactory/factories/linkedservices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/', parameters('linkedServiceName'))]",
+      "properties": {
+        "type": "Odbc",
+        "typeProperties": {
+          "connectionString": "[variables('connectionString')]",
+          "authenticationType": "Basic",
+          "userName": "[parameters('irisUsername')]",
+          "password": {
+            "type": "AzureKeyVaultSecret",
+            "store": {
+              "referenceName": "[parameters('keyVaultLinkedServiceName')]",
+              "type": "LinkedServiceReference"
+            },
+            "secretName": "[parameters('keyVaultSecretName')]"
+          }
+        },
+        "connectVia": {
+          "referenceName": "[parameters('integrationRuntimeName')]",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "linkedServiceName": {
+      "type": "string",
+      "value": "[parameters('linkedServiceName')]"
+    }
+  }
+}

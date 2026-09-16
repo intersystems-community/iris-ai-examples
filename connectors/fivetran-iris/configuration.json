@@ -1,0 +1,8 @@
+{
+  "host": "fake-iris-host.invalid",
+  "namespace": "USER",
+  "username": "demo",
+  "password": "demo",
+  "driver": "fake",
+  "cursor_fields": "{\"ENCOUNTER\": \"VISIT_AT\"}"
+}

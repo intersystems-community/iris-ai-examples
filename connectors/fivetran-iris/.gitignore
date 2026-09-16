@@ -1,0 +1,7 @@
+# `fivetran debug` local run artifacts (DuckDB warehouse + persisted state).
+files/
+
+__pycache__/
+*.pyc
+.pytest_cache/
+tmp_requirements.txt

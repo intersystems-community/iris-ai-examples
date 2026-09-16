@@ -1,0 +1,60 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "description": "One Copy activity: IRIS table (OdbcSource, a plain SELECT) -> Azure Blob Storage (DelimitedTextSink). Swap the sink dataset/linked service for a Synapse dedicated-pool or Fabric Lakehouse target and this pipeline shape is unchanged -- see ../README.md 'Does this carry over to Fabric?'."
+  },
+  "parameters": {
+    "factoryName": { "type": "string" },
+    "pipelineName": { "type": "string" },
+    "sourceDatasetName": { "type": "string" },
+    "sinkDatasetName": { "type": "string" },
+    "tableName": {
+      "type": "string",
+      "metadata": { "description": "Used only to build the default query; the dataset already knows the table." }
+    },
+    "query": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": { "description": "Override query. Empty string means 'SELECT * FROM <tableName>'." }
+    }
+  },
+  "variables": {
+    "effectiveQuery": "[if(equals(parameters('query'), ''), concat('SELECT * FROM ', parameters('tableName')), parameters('query'))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/', parameters('pipelineName'))]",
+      "properties": {
+        "activities": [
+          {
+            "name": "[concat('Copy_', parameters('tableName'))]",
+            "type": "Copy",
+            "inputs": [
+              { "referenceName": "[parameters('sourceDatasetName')]", "type": "DatasetReference" }
+            ],
+            "outputs": [
+              { "referenceName": "[parameters('sinkDatasetName')]", "type": "DatasetReference" }
+            ],
+            "typeProperties": {
+              "source": {
+                "type": "OdbcSource",
+                "query": "[variables('effectiveQuery')]"
+              },
+              "sink": {
+                "type": "DelimitedTextSink"
+              }
+            },
+            "policy": {
+              "retry": 1,
+              "retryIntervalInSeconds": 30,
+              "timeout": "0.00:30:00"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

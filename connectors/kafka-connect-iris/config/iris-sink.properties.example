@@ -1,0 +1,40 @@
+# Example configuration for IrisSinkConnector. Copy, edit the
+# connection.* values for your IRIS instance, and pass to
+# connect-standalone.sh / connect-distributed.sh or the Connect REST API.
+#
+# NEVER COMPILED AGAINST A LIVE IRIS INSTANCE -- see STATUS.md. This file
+# documents intended usage; it has not been run against a Kafka Connect
+# worker or a real IRIS server.
+
+name=iris-sink
+connector.class=com.intersystems.kafka.connect.iris.sink.IrisSinkConnector
+tasks.max=2
+topics=iris.Patient,iris.Encounter
+
+connection.url=jdbc:IRIS://iris-host:1972/USER
+connection.user=_SYSTEM
+connection.password=changeme
+
+# ${topic} is replaced per-record, so one connector can fan several topics
+# out to correspondingly-named tables, e.g. iris.Patient -> iris.Patient.
+table.name.format=${topic}
+
+pk.fields=ID
+# 'upsert' is an alias for upsert_portable (tested, ANSI-SQL try-UPDATE-
+# then-INSERT). 'upsert_native' uses IRIS's own INSERT OR UPDATE statement
+# and is NOT exercised by this project's test suite -- see STATUS.md before
+# using it.
+insert.mode=upsert
+
+batch.size=500
+max.retries=3
+retry.backoff.ms=1000
+
+# Dead-letter path: requires the Kafka Connect worker/connector to have
+# errors.tolerance and errors.deadletterqueue.topic.name configured (worker
+# or connector level, depending on your Connect version) so the framework's
+# ErrantRecordReporter is actually wired up. Without it, failed records are
+# only logged, not queued -- see DeadLetterHandler's javadoc.
+errors.tolerance=all
+errors.deadletterqueue.topic.name=iris-sink-dlq
+errors.deadletterqueue.topic.replication.factor=1

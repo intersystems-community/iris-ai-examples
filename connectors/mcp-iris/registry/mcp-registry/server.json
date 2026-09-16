@@ -1,0 +1,18 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.intersystems-community/mcp-iris",
+  "description": "Read-only SQL, schema catalog, and vector search for InterSystems IRIS over stdio MCP.",
+  "title": "InterSystems IRIS (reference)",
+  "websiteUrl": "https://github.com/intersystems-community/iris-ai-examples/tree/main/connectors/mcp-iris",
+  "version": "0.1.0",
+  "repository": {
+    "url": "https://github.com/intersystems-community/iris-ai-examples",
+    "source": "github",
+    "subfolder": "connectors/mcp-iris"
+  },
+  "_meta": {
+    "io.modelcontextprotocol.registry/publisher-provided": {
+      "notes": "Reference implementation, not yet published to any package registry (PyPI/npm/Docker/GHCR). Deliberately has no `packages` or `remotes` entry: this session's task rules forbid registering with or publishing to any package registry or the MCP registry itself, and a `packages` entry claiming a PyPI/Docker identifier this session does not own would fail the official registry's package-ownership verification anyway. See PUBLISHING.md 'MCP registry' section for the exact `packages` entry to add (registryType: pypi, identifier: mcp-iris, transport: stdio) once this is actually published to PyPI under a real owner, and for why the recommended path is to submit InterSystems's own AI Hub MCP server here instead of this reference implementation."
+    }
+  }
+}

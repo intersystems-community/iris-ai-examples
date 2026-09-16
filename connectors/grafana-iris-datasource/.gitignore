@@ -1,0 +1,12 @@
+# Frontend build/deps
+node_modules/
+dist/
+coverage/
+.eslintcache
+
+# Go build artifacts
+gpx_iris_datasource*
+*.exe
+
+# OS
+.DS_Store

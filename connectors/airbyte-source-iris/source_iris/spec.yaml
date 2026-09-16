@@ -1,0 +1,71 @@
+documentationUrl: https://docs.airbyte.com/integrations/sources/iris
+connectionSpecification:
+  $schema: http://json-schema.org/draft-07/schema#
+  title: InterSystems IRIS Source Spec
+  type: object
+  required:
+    - host
+    - port
+    - namespace
+    - username
+    - password
+  additionalProperties: true
+  properties:
+    host:
+      type: string
+      title: Host
+      description: Hostname or IP address of the InterSystems IRIS instance.
+      order: 0
+    port:
+      type: integer
+      title: Port
+      description: >-
+        Superserver port of the IRIS instance (the DB-API/JDBC port, not the web
+        management portal port). IRIS defaults this to 1972.
+      default: 1972
+      examples:
+        - "1972"
+      order: 1
+    namespace:
+      type: string
+      title: Namespace
+      description: IRIS namespace to connect to and discover tables from.
+      default: USER
+      examples:
+        - USER
+      order: 2
+    username:
+      type: string
+      title: Username
+      description: Username to use for the connection.
+      order: 3
+    password:
+      type: string
+      title: Password
+      description: Password associated with the username.
+      airbyte_secret: true
+      order: 4
+    schemas:
+      type: array
+      title: Schemas
+      description: >-
+        SQL schemas to discover tables from. Leave empty to discover every schema
+        that is not an IRIS-internal system schema (%SYS, Ens, HSLIB, Security, ...).
+      items:
+        type: string
+      order: 5
+    tables:
+      type: array
+      title: Tables
+      description: >-
+        Restrict discovery to these table names (or "Schema.Table" qualified names).
+        Leave empty to discover every table in the selected schema(s).
+      items:
+        type: string
+      order: 6
+    connection_timeout_seconds:
+      type: integer
+      title: Connection Timeout (seconds)
+      description: Number of seconds to wait when establishing the DB-API connection.
+      default: 20
+      order: 7

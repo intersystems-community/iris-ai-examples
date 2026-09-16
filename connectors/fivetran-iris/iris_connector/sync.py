@@ -57,6 +57,7 @@ from typing import Any, Callable, Iterable, Optional
 from iris_connector.catalog import TableColumns, discover_schema
 from iris_connector.config import IRISConfig
 from iris_connector.db import DBConnection
+from iris_connector.type_mapping import coerce_value_for_upsert
 
 
 class SyncOperations:
@@ -82,6 +83,19 @@ def _json_safe(value: Any) -> Any:
     if value is None or isinstance(value, (int, float, str, bool)):
         return value
     return str(value)
+
+
+def _build_upsert_data(table: TableColumns, row: tuple) -> dict:
+    """Zips one fetched row into an upsert-ready dict, applying
+    `coerce_value_for_upsert` per column so values reach
+    `Operations.upsert()` in the shape it actually requires (see that
+    function's docstring for what was discovered running `fivetran debug`
+    for real and why).
+    """
+    return {
+        name: coerce_value_for_upsert(table.fivetran_types[name], value)
+        for name, value in zip(table.column_names, row)
+    }
 
 
 def _select_sql(db_schema: str, table: TableColumns, where_clause: str = "", order_by: str = "") -> str:
@@ -138,7 +152,7 @@ def sync_table_incremental(
                 break
             max_cursor_value = cursor_value
             for row in rows:
-                ops.upsert(table=table.table_name, data=dict(zip(table.column_names, row)))
+                ops.upsert(table=table.table_name, data=_build_upsert_data(table, row))
                 max_cursor_value = row[cursor_idx]
             cursor_value = max_cursor_value
             table_state["cursor_value"] = _json_safe(cursor_value)
@@ -200,7 +214,7 @@ def sync_table_full_refresh(
             if not rows:
                 break
             for row in rows:
-                ops.upsert(table=table.table_name, data=dict(zip(table.column_names, row)))
+                ops.upsert(table=table.table_name, data=_build_upsert_data(table, row))
             if pk_idx is not None:
                 table_state["resume_after_pk"] = _json_safe(rows[-1][pk_idx])
             ops.checkpoint(state=state)
