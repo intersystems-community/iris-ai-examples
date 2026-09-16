@@ -40,6 +40,86 @@ under the InterSystems name.
 
 ---
 
+## Update — all ten were implemented, and four findings revise this analysis
+
+Working implementations of the top ten now live in
+[`../connectors/`](../connectors/), each with offline tests and a `STATUS.md`
+separating verified claims from unverified ones. Building them surfaced four
+things that change what is written below. The scores in the tables have been
+adjusted; this section records why.
+
+**1. Fabric mirroring is far cheaper than scored (effort 4 → 2).** Microsoft
+Fabric supports **Open Mirroring**, where any application pushes change data by
+writing Parquet into a OneLake landing zone Fabric hands out. No Microsoft-side
+build, no review, no partnership. The effort-4 score assumed a joint-engineering
+motion was the only route; it isn't. Also corrected: Oracle mirroring has reached
+**GA**, not preview as originally written. Caveat that shapes the sales motion —
+IRIS has no generic CDC feed, so production change tracking needs a watermark or
+soft-delete convention already present in the customer's schema.
+
+**2. Salesforce #6 is not the hard block it was scored (effort 5 → 3).**
+Admission to the branded Zero Copy Partner Network is indeed business
+development with no public spec. But Data Cloud (now "Data 360") separately
+ships a generic **OData connector** that Salesforce's own documentation labels
+beta for *Zero Copy (Query Federation) Data Federation* — protocol-based, usable
+by any OData v4 producer, no partnership required. That is a unilateral
+zero-copy path into Data Cloud. It is not the branded partner network, and it is
+beta on both its paths, so it does not deliver the co-marketing value that made
+impact a 5 — but it does deliver the capability.
+
+**3. The Fivetran recommendation below is wrong as written.** It says to pursue
+partner-built certification. **Fivetran's formal Partner-Built catalog program is
+currently closed to new partners.** The two routes open today are self-serve
+`fivetran deploy` and a pull request to `fivetran/community_connectors`. A
+working connector therefore no longer buys a branded catalog tile on its own,
+which weakens the discovery argument that put Fivetran at impact 5. The
+connector is still worth having — it is the flagship proof point and the
+`community_connectors` route is real — but the marketing payoff needs
+re-forecasting, and reopening the partner program is now itself a partnership
+ask.
+
+**4. ADF is ODBC-only, definitively.** ADF's `LinkedService` schema contains an
+`Odbc` type and **no `Jdbc` type at all** — verified against Microsoft's own ARM
+schema rather than inferred — and ODBC requires a self-hosted integration
+runtime, with Azure IR unsupported. Fabric Data Factory also has ODBC but uses a
+different gateway product and a Connections resource model, so ADF templates do
+**not** carry over to it.
+
+One recommendation also firmed up: for **#2**, the thing to submit to the agent
+directories is InterSystems' own AI Hub `iris-mcp-server`, not a reference
+implementation. Those directories require an HTTP-reachable endpoint and domain
+verification, which a stdio server cannot satisfy and an owner-less reference
+server cannot pass. Separately, ChatGPT's connector directory has **no public
+manifest schema** — portal submission and domain verification only.
+
+### Verification ceiling on all of it
+
+No implementation has touched a live IRIS instance: this work was done with no
+IRIS and no Docker daemon. Tests use fakes and mocks. Two consequences worth
+stating plainly:
+
+- **Some tests cannot detect the errors that matter most.** The Grafana plugin
+  parses a REST/SQL response shape sourced from community forum posts, and its
+  test server encodes the same assumption — so a green suite proves the plugin's
+  logic, not its compatibility with IRIS. The Kafka connector tests against H2 as
+  a stand-in, and its IRIS-native `INSERT OR UPDATE` path has no coverage at all.
+- **Vendor documentation could not be read directly.** The environment's egress
+  gateway denied `CONNECT` to `docs.intersystems.com`, `docs.databricks.com`,
+  `docs.snowflake.com`, `learn.microsoft.com`, `docs.confluent.io`,
+  `docs.airbyte.com` and `grafana.com`. Where a spec was available from a
+  docs-source repository on GitHub it was fetched verbatim (Fabric's Open
+  Mirroring layout from `MicrosoftDocs/fabric-docs`, Tableau's XSDs from
+  `tableau/connector-plugin-sdk`, Microsoft's ARM schema). Everything else rests
+  on search-result synthesis and needs re-verification against primary pages.
+
+Offsetting that, three integrations were validated against real external
+tooling: `fivetran debug` (which caught a genuine bug — Fivetran's
+`UTC_DATETIME` parser rejects IRIS's PosixTime format, which carries no timezone
+offset), Tableau's bundled XSDs via `xmllint`, and the MCP registry JSON Schema
+plus the official `mcpb` CLI.
+
+---
+
 ## Scoring method
 
 Each platform is scored 1–5 on two axes, then ranked by `Traffic + Impact`, with
@@ -69,15 +149,15 @@ themselves are sourced and are the durable part of this document.
 | 2 | **AI agent connector directories** (ChatGPT, Claude, MCP registries) | IRIS MCP server exists but is in no directory | 5 | 5 | **1–2** | 10 |
 | 3 | **Snowflake & Databricks' own source lists** (Lakehouse Federation, Lakeflow Connect, Openflow) | IRIS absent; Oracle, Teradata, SQL Server, Postgres present | 5 | 5 | 5 | 10 |
 | 4 | **Fivetran** | No connector; Fivetran Support confirmed no plans (Jan 2026) | 4 | 5 | 3 | 9 |
-| 5 | **Microsoft Fabric mirroring** | Snowflake, Azure Databricks, Oracle (preview) supported; IRIS absent | 4 | 5 | 4 | 9 |
-| 6 | **Salesforce Data Cloud Zero Copy Partner Network** | Snowflake, Databricks, BigQuery, Redshift, Microsoft; IRIS absent | 3 | 5 | 5 | 8 |
+| 5 | **Microsoft Fabric mirroring** | Snowflake, Azure Databricks, Oracle (GA) supported; IRIS absent — but **Open Mirroring** is a partner-buildable path needing nothing from Microsoft | 4 | 5 | **2** | 9 |
+| 6 | **Salesforce Data Cloud Zero Copy Partner Network** | Snowflake, Databricks, BigQuery, Redshift, Microsoft; IRIS absent — but Data Cloud's **OData connector** is a documented zero-copy query-federation path with no partnership gate | 3 | 5 | **3** | 8 |
 
 ### Tier 2 — Strong second wave
 
 | # | Platform | Gap | T | M | E | Total |
 | --- | --- | --- | --- | --- | --- | --- |
 | 7 | **Tableau Exchange / native connector list** | ODBC/JDBC only — no Exchange listing (asymmetric with Power BI, which is done) | 4 | 4 | 2 | 8 |
-| 8 | **Azure Data Factory / Fabric Data Factory** | No IRIS linked service; not on the on-prem gateway supported list | 4 | 4 | 4 | 8 |
+| 8 | **Azure Data Factory / Fabric Data Factory** | No IRIS linked service. ADF has **no `Jdbc` linked-service type at all** — ODBC only, self-hosted IR only | 4 | 4 | 4 | 8 |
 | 9 | **Airbyte** | "Community Opportunity" only | 4 | 3 | 2 | 7 |
 | 10 | **Confluent Hub** | No IRIS connector; community Kafka adapters only | 3 | 4 | 3 | 7 |
 | 11 | **Enterprise data catalogs** (Atlan, Collibra, Alation) | No native IRIS connector on any of the three | 3 | 4 | 3 | 7 |
@@ -182,9 +262,14 @@ declined.
 Fivetran does run a partner-built connector program with a public Connector SDK, so
 InterSystems can build and own this without waiting for Fivetran's roadmap.
 
-**Action:** build against the Fivetran Connector SDK and pursue partner-built
-certification. This is the flagship "IRIS is a first-class citizen of the modern data
-stack" proof point.
+**Action:** build against the Fivetran Connector SDK — done, see
+[`../connectors/fivetran-iris/`](../connectors/fivetran-iris/). But **not**
+partner-built certification: that program is closed to new partners (see the
+update section above). Ship via self-serve `fivetran deploy` for customers who
+need it now, pursue the `fivetran/community_connectors` pull request for
+visibility, and treat reopening the partner program as its own partnership ask.
+Still the flagship "IRIS is a first-class citizen of the modern data stack" proof
+point — just without a guaranteed catalog tile at the end of it.
 
 ### 5. Microsoft Fabric mirroring — where IRIS's install base is going
 
@@ -198,8 +283,12 @@ not means that in every one of those accounts, the path of least resistance is t
 clinical data out of IRIS into a mirrored competitor. Oracle reaching preview status
 shows Microsoft will onboard non-Microsoft OLTP sources when the partner pushes.
 
-**Action:** joint engineering ask into the Fabric mirroring team, with the Power BI
-certified connector as the precedent and relationship.
+**Action:** ship the **Open Mirroring** publisher — done, see
+[`../connectors/fabric-open-mirroring-iris/`](../connectors/fabric-open-mirroring-iris/).
+It needs nothing from Microsoft, so it unblocks accounts now. Run the joint
+engineering ask for native mirrored-source status in parallel, with the Power BI
+certified connector as precedent and relationship, because only that earns the
+branded tile in Fabric's source list.
 
 ### 6. Salesforce Data Cloud Zero Copy Partner Network — best co-marketing value
 
@@ -213,8 +302,14 @@ precisely the "don't move the clinical data" argument InterSystems already makes
 Second, this program comes with the most generous co-marketing machinery of anything
 on the list — press release inclusion, Dreamforce presence, a partner directory tile.
 
-**Action:** partnership-led. Lowest technical lift-to-visibility ratio if InterSystems
-can get admitted.
+**Action:** two tracks, and they are genuinely separate. For the *capability*,
+ship the OData v4 producer — done, see
+[`../connectors/salesforce-zero-copy-iris/`](../connectors/salesforce-zero-copy-iris/) —
+which reaches Data Cloud query federation with no partnership gate. For the
+*visibility*, the branded partner network stays partnership-led and remains the
+lowest technical-lift-to-visibility ratio on the list if InterSystems can get
+admitted. Do not conflate them in messaging: the OData path is not Zero Copy
+Partner Network membership.
 
 ---
 
@@ -285,13 +380,20 @@ feature, and quantify which of these 23 platforms it unblocks as-is.
 | 1 | Publish the Grafana plugin | Code exists, 35M-user surface, weeks of work |
 | 2 | Submit IRIS MCP server to agent directories | Code exists, fastest-moving surface, early-mover advantage |
 | 3 | Adopt the orphaned community integrations | `dbt-iris`, `superset-iris`, `airflow-provider-iris`, `n8n-nodes-iris` — put an InterSystems maintainer on each, clear the "Issue Detected" flags, get each into its host catalog |
-| 4 | Build the Fivetran partner connector | Flagship modern-data-stack proof point; both parties have formally declined, so nobody else will |
+| 4 | Ship the Fivetran connector via `fivetran deploy` + `community_connectors` | Flagship modern-data-stack proof point; both parties had formally declined, so nobody else will. Built — but the partner-built catalog program is closed, so route accordingly |
 | 5 | Ship IRIS+competitor content pages | Reclaims the SERP from Matillion and CData; zero engineering |
 | 6 | Open partnership motions on Fabric mirroring and Salesforce Zero Copy | Long lead times — start the clock now |
 | 7 | Evaluate productizing `iris-pgwire` | Potentially closes a dozen gaps at once as a stopgap |
 
 Items 1–3 are all "publish what exists." Nothing in the top three requires new
 engineering, which is the most actionable conclusion in this document.
+
+**Status:** implementations for all ten opportunities now exist in
+[`../connectors/`](../connectors/). That moves the blocker on every one of them
+from "write the code" to "get a live IRIS instance in front of it, then submit" —
+which is a scheduling and account-ownership problem, not an engineering one. The
+first concrete need is an IRIS instance to validate against; see the verification
+ceiling in the update section for why that is not optional.
 
 ---
 
