@@ -6,7 +6,7 @@ A 10-minute walkthrough showing an AI agent coordinating a Social Determinants o
 
 A community health worker at a clinic needs to assess a new patient's social situation and ensure she gets the right follow-up care. Instead of manually filling out forms and checking protocols, she asks Claude.
 
-The agent autonomously decides which tools to call, in what order, based on what it finds — this is not a scripted sequence. The tools are backed by IRIS AI Hub.
+The agent decides which tools to call and in what order, based on what each one returns. The tools are backed by IRIS AI Hub.
 
 ---
 
@@ -117,8 +117,9 @@ without a doctor — the keyword scorer only elevates that domain on `uninsur`, 
 or `clinic`. Five of six is enough for URGENT; the threshold is 5 for URGENT and 3 for HIGH.
 
 **Why it matters:** Five of six domains elevated on the strength of one free-text note. This
-patient needs immediate intervention. The USDHHS framework — the same one used by community
-health organizations nationwide.
+patient needs immediate intervention. Five of the six domains are the USDHHS Healthy People
+2030 SDoH framework; Transportation Access is this example's own split out of Health Care
+Access.
 
 ---
 
@@ -151,7 +152,7 @@ Priority: Urgent if 5+ domains HIGH - escalate to supervising CHW
 passing the whole `AssessSDoHRisk` block turns on every branch. Hand it a narrower string and
 you get a shorter plan.
 
-**Why it matters:** Actionable steps, not a narrative. The care plan is generated from the risk scores, not from the LLM making things up. A human CHW reviews and acts on it.
+**Why it matters:** Every step names an action and, where it has one, a timeframe. The care plan is generated from the risk scores, not from the LLM making things up. A human CHW reviews and acts on it.
 
 ---
 
@@ -181,7 +182,7 @@ Interoperability Traces (4):
 [1] 2026-05-20 14:23:11 | SDoHFollowUpBP -> SDoHFollowUpBS | FollowUpResponse | Completed
 ```
 
-**Why it matters:** The AI agent triggered a real IRIS Interoperability workflow. Business Service → Business Process → Business Operation — the same pattern used in healthcare data exchange for 20 years, now triggered by a conversational AI. The traces prove it ran.
+**Why it matters:** The AI agent triggered a real IRIS Interoperability workflow. Business Service → Business Process → Business Operation is the same pattern IRIS Interoperability already runs for healthcare data exchange, now triggered by a conversational AI. The traces prove it ran.
 
 ---
 

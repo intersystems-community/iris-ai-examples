@@ -2,7 +2,7 @@
 
 A community health worker types one sentence. The agent scores six SDoH domains, drafts a care plan, and fires an IRIS Interoperability production — all on IRIS, no external services required.
 
-Seventeen tools. Rule-based scoring. No API key needed to run the core workflow.
+Seventeen tools, rule-based scoring, and no API key needed to run the core workflow.
 
 ## Quickstart
 
@@ -83,6 +83,9 @@ Claude Desktop. Full reference:
 [MCP Server Guide](https://github.com/intersystems-community/ai-hub-eap/blob/master/MCP_Server_Guide.md)
 
 ### 5. Demo script
+
+[`DEMO.md`](./DEMO.md) is the full 10-minute version: the same prompts with the tool calls
+each one triggers and what to say between them. The short form:
 
 **Step through with Claude:**
 

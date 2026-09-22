@@ -149,6 +149,39 @@ example's own README; the table below is the short version.
 For the three Docker examples, connect your MCP client to the running server afterwards —
 each README carries the exact client config.
 
+## Documentation
+
+Start from the example's own README. Everything else is listed here, so no doc in this
+repo is reachable only by listing the files.
+
+| Doc                                                                         | What it covers                                                                          |
+| --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| **careconnect-sdoh**                                                        |                                                                                         |
+| [README](./careconnect-sdoh/README.md)                                      | Quickstart, the 17 tools, MCP client config, architecture                               |
+| [DEMO.md](./careconnect-sdoh/DEMO.md)                                       | 10-minute walkthrough: one health worker, one patient, tool call by tool call           |
+| [docs/eap-setup.md](./careconnect-sdoh/docs/eap-setup.md)                   | Getting the AI Hub EAP image, and what still runs without it                            |
+| [evals/README](./careconnect-sdoh/evals/README.md)                          | Running the eval suite — offline, no API key, under a second                            |
+| [evals/EVALS.md](./careconnect-sdoh/evals/EVALS.md)                         | The five evaluation layers, and the three defects the suite finds in the shipped tools  |
+| [evals/PRESENTATION.md](./careconnect-sdoh/evals/PRESENTATION.md)           | 15–20 minute talk track for presenting the eval suite                                   |
+| **careconnect-python**                                                      |                                                                                         |
+| [README](./careconnect-python/README.md)                                    | Quickstart, the `@tool` pattern, what Python costs you against the ObjectScript version |
+| [DEMO.md](./careconnect-python/DEMO.md)                                     | The same SDoH session, driven from an ordinary Python process                           |
+| **kg-ticket-resolver**                                                      |                                                                                         |
+| [README](./kg-ticket-resolver/README.md)                                    | Quickstart, the 6 tools, vector search and graph provenance                             |
+| [DEMO.md](./kg-ticket-resolver/DEMO.md)                                     | 15-minute walkthrough: 276 tickets to a published KB article                            |
+| [data/planetcare_wiki](./kg-ticket-resolver/data/planetcare_wiki/README.md) | The seeded wiki the agent mines, and the gaps it is meant to fill                       |
+| **ai-hub**                                                                  |                                                                                         |
+| [README](./ai-hub/README.md)                                                | The pattern library: OTel, ConfigStore, bridge governance, Jira MCP, Interop spans      |
+| [Sample.AI.OAuth](./ai-hub/objectscript/cls/Sample/AI/OAuth/README.md)      | Bearer token to IRIS roles to a role-filtered tool catalog, with the measured matrix    |
+| [fixtures/keycloak](./ai-hub/fixtures/keycloak/README.md)                   | The throwaway IdP those measurements came from                                          |
+| **Repo-wide**                                                               |                                                                                         |
+| [AGENTS.md](./AGENTS.md)                                                    | Project index and build commands, written for coding agents                             |
+| [CLAUDE.md](./CLAUDE.md)                                                    | Claude Code's instructions for this repo                                                |
+| [skills/iris-ai-examples](./skills/iris-ai-examples/SKILL.md)               | This repo packaged as a Claude skill                                                    |
+
+`pytest tests/` fails if a doc is added without a link here, or if a relative link in any
+doc stops resolving.
+
 ## Related
 
 - [ready-hackathon-dev-template](https://github.com/intersystems-community/ready-hackathon-dev-template) — minimal starter if you're building something new

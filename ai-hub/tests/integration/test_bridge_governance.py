@@ -2,21 +2,32 @@
 Integration tests for Bridge governance: Phase 4 (MCPService), Phase 5 (policies),
 Phase 6 (OTel on ConfigStore path).
 
-Must run inside irispython (embedded Python context) against aicore-iris-xdev.
-Uses the iris_ep module check to detect the embedded context.
+Must run inside irispython (embedded Python context) against a live IRIS 2026.3+
+instance. Detects the embedded context by probing the IRIS kernel, not by looking
+for a file the pip wheel also installs.
 """
 
 import os
 import sys
-import inspect
+
 import pytest
 
 
 def _is_embedded() -> bool:
+    """True only inside irispython, with a live IRIS kernel behind the facade.
+
+    Probe the runtime, not the install. The earlier check looked for `iris_ep.py`
+    beside the `iris` package — but the `intersystems-irispython` wheel ships
+    that file into plain site-packages, so on any laptop with the pip package the
+    check said "embedded", `iris.cls(...)` handed back a unittest.mock.MagicMock,
+    and every test below asserted about a MagicMock instead of skipping.
+    `%SYSTEM.Version.GetVersion()` returns a str under irispython and a MagicMock
+    anywhere else.
+    """
     try:
         import iris
-        site_pkg = os.path.dirname(os.path.dirname(inspect.getfile(iris)))
-        return os.path.exists(os.path.join(site_pkg, "iris_ep.py"))
+
+        return isinstance(iris.cls("%SYSTEM.Version").GetVersion(), str)
     except Exception:
         return False
 

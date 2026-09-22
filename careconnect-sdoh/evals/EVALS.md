@@ -9,8 +9,8 @@
 Memory, "dreaming," autonomous tool use — every technique for making an agent
 better is a form of **hill-climbing**. None of it is safe, or even meaningful,
 without an eval to tell you whether a change went up the hill or off a cliff.
-**The eval is the hill.** This is the lesson the ChatGPT-memory post gestures at
-and the one most healthcare AI demos skip.
+**The eval is the hill.** That is the lesson the ChatGPT-memory post gestures at
+without naming.
 
 CareConnect is an unusually good teaching case because it is a **hybrid** system,
 and evals earn their keep exactly at the seams between the parts:
@@ -44,8 +44,8 @@ Every golden case carries **`rule_expected`** (what the shipped tool _should_
 output for a given input — a regression target) **and** **`human_label`** (what's
 _actually_ true for the patient, per a clinician). The gap between them is the
 point: L1 can be green while the system is still wrong, because the spec itself
-under-calls risk. Conflating "matches spec" with "is correct" is the single most
-common evals mistake.
+under-calls risk. Conflating "matches spec" with "is correct" is the mistake this
+two-ground-truth design exists to prevent.
 
 ## What the evals actually found (these are real, in this repo)
 
@@ -106,10 +106,6 @@ ObjectScript can print reachable from the mirror. `tools_local.DOMAIN_RULES` is 
 table rather than six inline conditionals for exactly this reason — the rule has
 to be readable by a test, not just by a person.
 
-That is the whole lesson of this section in one line: **the parity test you own is
-the one that runs.** A stronger check that skips is weaker than a cruder one that
-cannot.
-
 ## Closing the loop — the "improve" half
 
 `careconnect_evals/improved.py` contains the fixes the evals justify, and the
@@ -131,32 +127,29 @@ clinician says URGENT. Recalibrating the priority thresholds is a separate chang
 with its own evidence, and bundling it here would make fix #1's effect on recall
 unreadable.
 
-That is the entire discipline in one picture: **define the metric → run it →
-read the failures → make the smallest change that moves the number → re-run.**
-Evals are the regression suite for behavior, and they gate every prompt or tool
-change in CI (`run_evals.py` exits non-zero on any L1/L2/L3 regression).
+The loop is **define the metric → run it → read the failures → make the smallest
+change that moves the number → re-run.** `run_evals.py` exits non-zero on any
+L1/L2/L3 regression, so it gates every prompt or tool change in CI.
 
 ## The "dreaming" connection
 
 The ChatGPT-memory post's "dreaming" is offline self-improvement: the model
-generates and reflects on synthetic experience between sessions. The
-prerequisite nobody headlines is an eval harness — _you cannot let a system
-rewrite its own behavior unless you can measure whether each rewrite helped._
+generates and reflects on synthetic experience between sessions. It needs an eval
+harness first: _you cannot let a system rewrite its own behavior unless you can
+measure whether each rewrite helped._
 
 L5 + the golden set are the seed of that loop here. The natural next step
 (sketched, not built) is **synthetic case generation**: prompt an LLM to invent
 new patients with known ground-truth SDoH flags — especially adversarial
 paraphrases and edge cases — to grow coverage beyond three hand-written
-patients and catch regressions a human would never think to write. The model
-helps build its own exam; the harness keeps it honest.
+patients and catch regressions a human would never think to write.
 
 ## Provider-agnostic by design
 
 The agent loop, tool schemas, and judge contract are identical across providers
 (`careconnect_evals/providers.py`). The suite runs against a deterministic
 **mock** (default — no key, instant, CI-friendly), or a real **Claude** or
-**OpenAI** agent and judge, selected by one env var. The eval outlives the model
-behind it — which is the point of writing it down.
+**OpenAI** agent and judge, selected by one env var.
 
 ```bash
 python run_evals.py                                   # offline mock (default)

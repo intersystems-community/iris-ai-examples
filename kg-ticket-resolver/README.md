@@ -83,6 +83,9 @@ Full configuration reference: [MCP Server Guide](https://github.com/intersystems
 
 ### 4. Demo script
 
+[`DEMO.md`](./DEMO.md) is the full 15-minute version, from scoring one ticket to publishing
+a KB article with provenance. The short form:
+
 **Step through with Claude:**
 
 ```text

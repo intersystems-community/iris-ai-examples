@@ -4,7 +4,8 @@ import time
 from datetime import datetime, timedelta
 from intersystems_pyprod import (
     BusinessService, BusinessProcess, BusinessOperation,
-    Production, Status, Message,
+    Production, Status, ProductionMessage,
+    ServiceItem, ProcessItem, OperationItem,
 )
 
 _FHIR_BASE  = os.environ.get("FHIR_BASE_URL", "http://iris-fhir:52773/csp/healthshare/demo/fhir/r4")
@@ -12,17 +13,17 @@ _POLL_SECS  = int(os.environ.get("FHIR_POLL_SECONDS", "30"))
 _INGEST_POOL = int(os.environ.get("FHIR_INGEST_POOL", "3"))
 
 
-class PatientPollRequest(Message):
+class PatientPollRequest(ProductionMessage):
     since:      str = ""
     batch_size: int = 10
 
-class PatientRecord(Message):
+class PatientRecord(ProductionMessage):
     patient_id:  str = ""
     fhir_bundle: str = ""
     ready:       bool = False
     issues:      str = ""
 
-class IngestResult(Message):
+class IngestResult(ProductionMessage):
     patient_id: str = ""
     kg_node_id: str = ""
     status:     str = ""
@@ -132,7 +133,15 @@ class PatientOnboardBP(BusinessProcess):
 
         return Status.OK()
 
-    def _readiness_check(self, patient: dict) -> tuple[bool, str]:
+    @staticmethod
+    def _readiness_check(patient: dict) -> tuple[bool, str]:
+        """Pure data rule — static so it can be tested without an IRIS host object.
+
+        `BusinessProcess.__init__` requires an `iris_host_object`, which only the
+        Interoperability framework can supply, so `PatientOnboardBP()` raises
+        TypeError outside a running production. The readiness rule reads nothing
+        off `self`, so there is no reason for a test of it to need a live host.
+        """
         issues = []
         if not patient.get("birthDate"):
             issues.append("missing birthDate")
@@ -226,34 +235,34 @@ class DataQueueBO(BusinessOperation):
 
 
 class PatientOnboardingProd(Production):
-    items = [
-        {
-            "ClassName": "patient_onboarding.FHIRPollingBS",
-            "Name": "FHIRPollingBS",
-            "PoolSize": 1,
-            "Enabled": True,
-            "Settings": [
-                {"Name": "CallInterval", "Value": str(_POLL_SECS)},
-            ],
-        },
-        {
-            "ClassName": "patient_onboarding.PatientOnboardBP",
-            "Name": "PatientOnboardBP",
-            "PoolSize": 2,
-            "Enabled": True,
-        },
-        {
-            "ClassName": "patient_onboarding.FHIRIngestBO",
-            "Name": "FHIRIngestBO",
-            "PoolSize": _INGEST_POOL,
-            "Enabled": True,
-        },
-        {
-            "ClassName": "patient_onboarding.DataQueueBO",
-            "Name": "DataQueueBO",
-            "PoolSize": 1,
-            "Enabled": True,
-        },
+    """Hosts are declared per kind. There is no `items` list on Production.
+
+    An earlier version set `items = [{"ClassName": ..., "PoolSize": ...}]`, which
+    intersystems_pyprod ignores — it warns "There is no attribute named items for
+    Production class" at import and then deploys a production with no hosts, so
+    the intentional FHIRIngestBO bottleneck never materializes.
+    """
+
+    services = [
+        ServiceItem(
+            "FHIRPollingBS",
+            "patient_onboarding.FHIRPollingBS",
+            pool_size=1,
+            host_settings={"CallInterval": str(_POLL_SECS)},
+        ),
+    ]
+
+    processes = [
+        ProcessItem("PatientOnboardBP", "patient_onboarding.PatientOnboardBP", pool_size=2),
+    ]
+
+    operations = [
+        # PoolSize 3 is deliberate: it is the CE saturation bottleneck this
+        # example exists to demonstrate (spec FR-003).
+        OperationItem(
+            "FHIRIngestBO", "patient_onboarding.FHIRIngestBO", pool_size=_INGEST_POOL
+        ),
+        OperationItem("DataQueueBO", "patient_onboarding.DataQueueBO", pool_size=1),
     ]
 
 

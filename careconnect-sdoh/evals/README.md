@@ -7,6 +7,8 @@ evaluating agentic AI in a digital-health setting.
 > **Read [`EVALS.md`](./EVALS.md) for the why** — the five evaluation layers,
 > the three real defects this suite finds in the shipped tools, and the
 > measure → fix → re-measure loop. This README is just how to run it.
+> [`PRESENTATION.md`](./PRESENTATION.md) is the 15–20 minute talk track if you are
+> presenting it.
 
 ## Quickstart (no API key, no Docker)
 

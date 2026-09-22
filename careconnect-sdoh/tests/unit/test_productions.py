@@ -10,6 +10,20 @@ pytestmark = pytest.mark.unit
 
 # ── patient_onboarding ────────────────────────────────────────────────────────
 
+def _pool_sizes(production) -> dict:
+    """{host name: pool_size} across every host a Production declares.
+
+    `services` / `processes` / `operations` are what intersystems_pyprod reads.
+    There is no `items` list on Production — declaring one gets a warning at
+    import and a production with no hosts in it.
+    """
+    return {
+        item.name: item.pool_size
+        for group in (production.services, production.processes, production.operations)
+        for item in group
+    }
+
+
 class TestPatientOnboardingMessages:
     def test_patient_poll_request_defaults(self):
         from productions.patient_onboarding import PatientPollRequest
@@ -37,28 +51,32 @@ class TestPatientOnboardingMessages:
 
     def test_production_has_four_items(self):
         from productions.patient_onboarding import PatientOnboardingProd
-        assert len(PatientOnboardingProd.items) >= 4
+        assert len(_pool_sizes(PatientOnboardingProd)) >= 4
 
     def test_fhir_polling_bs_pool_size_is_one(self):
         from productions.patient_onboarding import PatientOnboardingProd
-        items = {item["Name"]: item for item in PatientOnboardingProd.items}
-        assert items["FHIRPollingBS"]["PoolSize"] == 1
+        assert _pool_sizes(PatientOnboardingProd)["FHIRPollingBS"] == 1
 
     def test_fhir_ingest_bo_pool_size_is_three(self):
         from productions.patient_onboarding import PatientOnboardingProd
-        items = {item["Name"]: item for item in PatientOnboardingProd.items}
-        assert items["FHIRIngestBO"]["PoolSize"] == 3
+        assert _pool_sizes(PatientOnboardingProd)["FHIRIngestBO"] == 3
 
     def test_total_pool_exceeds_seven(self):
         from productions.patient_onboarding import PatientOnboardingProd
-        total = sum(item.get("PoolSize", 1) for item in PatientOnboardingProd.items)
-        assert total >= 7
+        assert sum(_pool_sizes(PatientOnboardingProd).values()) >= 7
 
 
 class TestReadinessCheck:
     def _bp(self):
+        """The class, not an instance.
+
+        `BusinessProcess.__init__` needs an `iris_host_object` only the
+        Interoperability framework can supply, so `PatientOnboardBP()` raises
+        TypeError outside a running production. `_readiness_check` is a
+        staticmethod for exactly this reason.
+        """
         from productions.patient_onboarding import PatientOnboardBP
-        return PatientOnboardBP()
+        return PatientOnboardBP
 
     def test_complete_patient_passes(self):
         bp = self._bp()
@@ -124,13 +142,22 @@ class TestSDoHFollowUpMessages:
 
 
 class TestSDoHFollowUpBP:
-    def _bp(self):
-        from productions.sdoh_followup import SDoHFollowUpBP
-        return SDoHFollowUpBP()
+    def test_bp_is_a_business_process(self):
+        """The class, not an instance.
 
-    def test_bp_instantiates(self):
-        bp = self._bp()
-        assert bp is not None
+        An earlier version asserted `SDoHFollowUpBP()` returns something, which it
+        cannot: `BusinessProcess.__init__` takes an `iris_host_object` that only
+        the Interoperability framework supplies, so constructing one outside a
+        running production raises TypeError. The test passed only against a
+        mocked `intersystems_pyprod` whose BusinessProcess was plain `object`.
+        """
+        from intersystems_pyprod import BusinessProcess
+        from productions.sdoh_followup import SDoHFollowUpBP
+
+        assert issubclass(SDoHFollowUpBP, BusinessProcess)
+        assert callable(getattr(SDoHFollowUpBP, "OnRequest", None)) or callable(
+            getattr(SDoHFollowUpBP, "OnMessage", None)
+        ), "a business process must implement OnRequest or OnMessage"
 
     def test_follow_up_request_default_priority(self):
         from productions.sdoh_followup import FollowUpRequest

@@ -9,6 +9,15 @@ from conftest import HUB_HOST, HUB_PORT, FHIR_BASE, USERS, requires_iris
 pytestmark = [pytest.mark.contract, pytest.mark.docker]
 
 
+def _pool_sizes(production) -> dict:
+    """{host name: pool_size} across every host a Production declares."""
+    return {
+        item.name: item.pool_size
+        for group in (production.services, production.processes, production.operations)
+        for item in group
+    }
+
+
 class TestProductionModuleLoad:
     @requires_iris
     def test_pyprod_classes_importable(self):
@@ -32,37 +41,69 @@ class TestProductionModuleLoad:
     def test_fhir_polling_bs_pool_size_is_one(self):
         from productions.patient_onboarding import PatientOnboardingProd
 
-        items_map = {item["Name"]: item for item in PatientOnboardingProd.items}
-        assert items_map["FHIRPollingBS"]["PoolSize"] == 1
+        assert _pool_sizes(PatientOnboardingProd)["FHIRPollingBS"] == 1
 
     @requires_iris
     def test_fhir_ingest_bo_pool_size_is_three(self):
         from productions.patient_onboarding import PatientOnboardingProd
 
-        items_map = {item["Name"]: item for item in PatientOnboardingProd.items}
-        assert items_map["FHIRIngestBO"]["PoolSize"] == 3, (
-            "FHIRIngestBO PoolSize MUST be 3 — intentional CE bottleneck (spec FR-003)"
+        assert _pool_sizes(PatientOnboardingProd)["FHIRIngestBO"] == 3, (
+            "FHIRIngestBO pool_size MUST be 3 — intentional CE bottleneck (spec FR-003)"
         )
 
     @requires_iris
     def test_total_pool_size_creates_saturation(self):
         from productions.patient_onboarding import PatientOnboardingProd
 
-        total = sum(item.get("PoolSize", 1) for item in PatientOnboardingProd.items)
+        total = sum(_pool_sizes(PatientOnboardingProd).values())
         assert total >= 7, (
-            f"Total PoolSize {total} must be ≥7 to create CE saturation when combined with other productions"
+            f"Total pool_size {total} must be ≥7 to create CE saturation when combined with other productions"
         )
+
+    @requires_iris
+    def test_production_declares_items_the_sdk_actually_reads(self):
+        """The SDK reads `services` / `processes` / `operations`, never `items`.
+
+        The first cut declared a class-level `items = [{"ClassName": ..., "PoolSize": ...}]`
+        list. intersystems_pyprod warns on import — "There is no attribute named
+        items for Production class" — and deploys a production with no hosts in it,
+        so the CE bottleneck this example is built to show never exists.
+        """
+        from productions.patient_onboarding import PatientOnboardingProd
+
+        assert not hasattr(PatientOnboardingProd, "items"), (
+            "`items` is not part of the Production API — declare services/processes/operations"
+        )
+        assert PatientOnboardingProd.services, "production declares no business services"
+        assert PatientOnboardingProd.processes, "production declares no business processes"
+        assert PatientOnboardingProd.operations, "production declares no business operations"
 
 
 class TestFHIRPollingLogic:
     @requires_iris
     def test_check_loaded_returns_true_when_patients_exist(self):
-        import sys
+        # By file path, not by dotted import: the directory is services/iris-fhir,
+        # and a hyphen cannot appear in a module path, so
+        # `from services.iris_fhir.init.check_loaded import ...` raised
+        # ModuleNotFoundError every run — which reads as a missing dependency
+        # rather than a path that was never importable.
+        import importlib.util
 
-        sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-        from services.iris_fhir.init.check_loaded import already_loaded
+        script = os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "..",
+            "services",
+            "iris-fhir",
+            "init",
+            "check_loaded.py",
+        )
+        assert os.path.exists(script), f"check_loaded.py not found at {script}"
+        spec = importlib.util.spec_from_file_location("check_loaded", script)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
 
-        result = already_loaded()
+        result = module.already_loaded()
         assert isinstance(result, bool)
 
     @requires_iris
@@ -81,9 +122,8 @@ class TestFHIRPollingLogic:
     def test_readiness_check_fails_without_birthdate(self):
         from productions.patient_onboarding import PatientOnboardBP
 
-        bp = PatientOnboardBP()
         patient = {"resourceType": "Patient", "id": "42", "gender": "male"}
-        ready, issues = bp._readiness_check(patient)
+        ready, issues = PatientOnboardBP._readiness_check(patient)
         assert not ready
         assert "birthDate" in issues
 
@@ -91,9 +131,8 @@ class TestFHIRPollingLogic:
     def test_readiness_check_fails_without_gender(self):
         from productions.patient_onboarding import PatientOnboardBP
 
-        bp = PatientOnboardBP()
         patient = {"resourceType": "Patient", "id": "42", "birthDate": "1980-01-01"}
-        ready, issues = bp._readiness_check(patient)
+        ready, issues = PatientOnboardBP._readiness_check(patient)
         assert not ready
         assert "gender" in issues
 
@@ -101,7 +140,6 @@ class TestFHIRPollingLogic:
     def test_readiness_check_passes_complete_patient(self):
         from productions.patient_onboarding import PatientOnboardBP
 
-        bp = PatientOnboardBP()
         patient = {
             "resourceType": "Patient",
             "id": "42",
@@ -109,7 +147,7 @@ class TestFHIRPollingLogic:
             "gender": "male",
             "telecom": [{"system": "phone", "value": "555-1234"}],
         }
-        ready, issues = bp._readiness_check(patient)
+        ready, issues = PatientOnboardBP._readiness_check(patient)
         assert ready
         assert issues == ""
 

@@ -79,6 +79,8 @@ that the LLM uses for tool calling.
 
 ## Running Interactively
 
+[`DEMO.md`](./DEMO.md) walks one patient end to end, with the output each prompt produces.
+
 ```bash
 docker compose run agent
 ```
@@ -88,7 +90,7 @@ CareConnect SDoH Agent (iris_llm Python)
 CHW> List all patients
 CHW> Assess patient P001 for SDoH risk
 CHW> Find community resources near zip code 02115 for housing
-CHW> Give me a full CHW action brief for Maria Santos
+CHW> Give me a full CHW action brief for Maria Gonzalez
 ```
 
 ## Relation to careconnect-sdoh

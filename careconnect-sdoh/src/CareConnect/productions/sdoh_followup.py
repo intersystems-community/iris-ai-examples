@@ -21,7 +21,7 @@ from intersystems_pyprod import (
     BusinessProcess,
     BusinessOperation,
     Status,
-    Message,
+    ProductionMessage,
 )
 
 _FHIR_BASE = os.environ.get(
@@ -29,7 +29,7 @@ _FHIR_BASE = os.environ.get(
 )
 
 
-class FollowUpRequest(Message):
+class FollowUpRequest(ProductionMessage):
     patient_id: str = ""
     priority: str = "routine"
     sdoh_flags: str = ""
@@ -37,7 +37,7 @@ class FollowUpRequest(Message):
     job_id: str = ""
 
 
-class FollowUpResponse(Message):
+class FollowUpResponse(ProductionMessage):
     job_id: str = ""
     status: str = ""
     care_plan_id: str = ""
@@ -167,25 +167,25 @@ class SDoHFHIRCarePlanBO(BusinessOperation):
         return Status.OK(), fhir_resp
 
 
-class ConsentRequest(Message):
+class ConsentRequest(ProductionMessage):
     patient_id: str = ""
 
 
-class ConsentResponse(Message):
+class ConsentResponse(ProductionMessage):
     approved: bool = True
 
 
-class ScheduleRequest(Message):
+class ScheduleRequest(ProductionMessage):
     patient_id: str = ""
     priority: str = "routine"
     sdoh_flags: str = ""
 
 
-class ScheduleResponse(Message):
+class ScheduleResponse(ProductionMessage):
     chw_id: str = ""
 
 
-class FHIRCarePlanRequest(Message):
+class FHIRCarePlanRequest(ProductionMessage):
     patient_id: str = ""
     chw_id: str = ""
     sdoh_flags: str = ""
@@ -193,7 +193,7 @@ class FHIRCarePlanRequest(Message):
     requested_by: str = ""
 
 
-class FHIRCarePlanResponse(Message):
+class FHIRCarePlanResponse(ProductionMessage):
     care_plan_id: str = ""
 
 

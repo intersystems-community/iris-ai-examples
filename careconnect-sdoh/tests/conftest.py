@@ -3,6 +3,7 @@ import os
 import socket
 import subprocess
 import time
+from urllib.parse import urlsplit
 
 import httpx
 import pytest
@@ -18,10 +19,19 @@ HUB_PORT = int(os.environ.get("HUB_PORT", "1973"))
 HUB_NS = os.environ.get("HUB_NS", "USER")
 MCP_URL = os.environ.get("MCP_URL", "http://localhost:8888/mcp/careconnect")
 JUPYTER_URL = os.environ.get("JUPYTER_URL", "http://localhost:8889")
+STREAMLIT_URL = os.environ.get("STREAMLIT_URL", "http://localhost:8501")
 IVG_BASE = os.environ.get("IVG_BASE", "http://localhost:19800")
 IVG_API_KEY = os.environ.get("IVG_API_KEY", "changeme")
 
 SKIP_IRIS = os.environ.get("SKIP_IRIS_TESTS", "false").lower() == "true"
+
+# The FHIR server answers 401 on every resource path; only /metadata is open.
+# So every client that reads a resource needs these, and the `fhir` fixture is
+# the only supported way to get one.
+FHIR_AUTH = (
+    os.environ.get("FHIR_USERNAME", "_SYSTEM"),
+    os.environ.get("FHIR_PASSWORD", "SYS"),
+)
 
 USERS = {
     "chw": ("chw_user", "chw_pass"),
@@ -31,16 +41,27 @@ USERS = {
     "case_manager": ("cm_user", "cm_pass"),
 }
 
+def host_port(url: str):
+    """(host, port) for a base URL above, so no test repeats a port literal.
+
+    The first cut of the smoke tests hardcoded 55773/55501/55888 — the private
+    planning repo's test-stack ports — against a compose file that publishes
+    52774/8501/8889, so they could not pass on any machine running this stack.
+    """
+    parts = urlsplit(url)
+    return parts.hostname, parts.port or (443 if parts.scheme == "https" else 80)
+
+
 requires_iris = pytest.mark.skipif(
     SKIP_IRIS,
     reason="SKIP_IRIS_TESTS=true — set to false to run against live test stack",
 )
 
 
-def _iris_connect(username: str, password: str):
+def _iris_connect(username: str, password: str, namespace: str = None):
     import iris
 
-    return iris.connect(HUB_HOST, HUB_PORT, HUB_NS, username, password)
+    return iris.connect(HUB_HOST, HUB_PORT, namespace or HUB_NS, username, password)
 
 
 def _get_user_roles(conn) -> str:
@@ -66,7 +87,7 @@ def _basic_auth(username: str, password: str) -> str:
 
 
 def _fhir_client() -> httpx.Client:
-    return httpx.Client(base_url=FHIR_BASE, timeout=15)
+    return httpx.Client(base_url=FHIR_BASE, timeout=15, auth=FHIR_AUTH)
 
 
 def _port_open(host: str, port: int, timeout: float = 2.0) -> bool:
@@ -81,6 +102,19 @@ def _port_open(host: str, port: int, timeout: float = 2.0) -> bool:
 @pytest.fixture(scope="function")
 def iris_conn_admin():
     conn = _iris_connect(*USERS["admin"])
+    yield conn
+    conn.close()
+
+
+@pytest.fixture(scope="function")
+def iris_conn_sys():
+    """Admin connection to %SYS, for the security tables.
+
+    Security.Roles and its neighbours are mapped into %SYS only, so the same query
+    from a USER cursor answers SQLCODE -30 "Table or view not found" — which reads
+    as a missing role rather than a missing mapping.
+    """
+    conn = _iris_connect(*USERS["admin"], namespace="%SYS")
     yield conn
     conn.close()
 
@@ -107,8 +141,14 @@ def fhir():
 
 @pytest.fixture(scope="session", autouse=True)
 def docker_test_stack(request):
-    # Unit tests never need Docker — skip fixture entirely for unit-only runs
-    markers = {m.name for item in request.session.items for m in item.own_markers}
+    # Unit tests never need Docker — skip fixture entirely for unit-only runs.
+    # iter_markers(), not own_markers: every e2e module here declares `docker` and
+    # its phase marker through module-level `pytestmark`, which own_markers does
+    # not contain. Measured for tests/e2e/test_stack_smoke.py — own_markers is
+    # ['skipif'], iter_markers() is ['docker', 'skipif', 'smoke'] — so the
+    # own_markers version concluded no Docker was needed for every test in the
+    # suite and never brought the stack up.
+    markers = {m.name for item in request.session.items for m in item.iter_markers()}
     if not markers.intersection({"docker", "smoke", "contract", "e2e", "ivg"}):
         yield
         return

@@ -2,7 +2,7 @@
 
 ## Story
 
-Maria Santos is a 58-year-old patient with Type 2 diabetes and hypertension.
+Maria Gonzalez is a 42-year-old patient with Type 2 diabetes and hypertension.
 Her CHW, using a Python-native AI agent backed by IRIS AI Hub, assesses her
 social risk factors and generates an action plan — all without writing ObjectScript.
 

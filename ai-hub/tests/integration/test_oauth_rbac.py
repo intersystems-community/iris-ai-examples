@@ -12,7 +12,6 @@ Skips automatically when run outside irispython or when SKIP_IRIS_TESTS=true.
 
 import os
 import sys
-import inspect
 
 import pytest
 
@@ -20,10 +19,20 @@ SKIP_IRIS_TESTS = os.environ.get("SKIP_IRIS_TESTS", "false").lower() == "true"
 
 
 def _is_embedded() -> bool:
+    """True only inside irispython, with a live IRIS kernel behind the facade.
+
+    Probe the runtime, not the install. The earlier check looked for `iris_ep.py`
+    beside the `iris` package — but the `intersystems-irispython` wheel ships
+    that file into plain site-packages, so on any laptop with the pip package the
+    check said "embedded", `iris.cls(...)` handed back a unittest.mock.MagicMock,
+    and every test below asserted about a MagicMock instead of skipping.
+    `%SYSTEM.Version.GetVersion()` returns a str under irispython and a MagicMock
+    anywhere else.
+    """
     try:
-        import iris  # noqa: F401
-        site_pkg = os.path.dirname(os.path.dirname(inspect.getfile(iris)))
-        return os.path.exists(os.path.join(site_pkg, "iris_ep.py"))
+        import iris
+
+        return isinstance(iris.cls("%SYSTEM.Version").GetVersion(), str)
     except Exception:
         return False
 

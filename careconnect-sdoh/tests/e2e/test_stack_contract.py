@@ -90,14 +90,16 @@ class TestIRISHubRBAC:
             iris.connect(HUB_HOST, HUB_PORT, "USER", "nobody", "wrongpassword")
 
     @requires_iris
-    def test_chw_role_exists_in_iris(self, iris_conn_admin):
-        cur = iris_conn_admin.cursor()
-        cur.execute("SELECT Name FROM Security_Roles WHERE Name = 'chw_role'")
+    def test_chw_role_exists_in_iris(self, iris_conn_sys):
+        # Security.Roles, not Security_Roles, and only from %SYS — see the
+        # iris_conn_sys fixture.
+        cur = iris_conn_sys.cursor()
+        cur.execute("SELECT Name FROM Security.Roles WHERE Name = 'chw_role'")
         row = cur.fetchone()
         assert row is not None, "chw_role not found in Security.Roles"
 
     @requires_iris
-    def test_all_required_roles_exist(self, iris_conn_admin):
+    def test_all_required_roles_exist(self, iris_conn_sys):
         required = {
             "chw_role",
             "chw_senior_role",
@@ -105,9 +107,9 @@ class TestIRISHubRBAC:
             "readonly_role",
             "case_manager_role",
         }
-        cur = iris_conn_admin.cursor()
+        cur = iris_conn_sys.cursor()
         cur.execute(
-            "SELECT Name FROM Security_Roles WHERE Name %INLIST $LISTFROMSTRING(?)",
+            "SELECT Name FROM Security.Roles WHERE Name %INLIST $LISTFROMSTRING(?)",
             [",".join(required)],
         )
         found = {row[0] for row in cur.fetchall()}
@@ -119,7 +121,9 @@ class TestMCPEndpoint:
     def test_mcp_server_responds(self):
         try:
             r = httpx.get(MCP_URL, timeout=5)
-            assert r.status_code in (200, 404, 405, 422), (
+            # 401 included: the MCP web application is authenticated, so an
+            # unauthenticated GET answering 401 still proves it is listening.
+            assert r.status_code in (200, 400, 401, 404, 405, 422), (
                 f"MCP returned unexpected status {r.status_code}"
             )
         except httpx.ConnectError:

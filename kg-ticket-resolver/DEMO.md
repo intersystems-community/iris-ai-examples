@@ -6,7 +6,7 @@ A 15-minute walkthrough showing an AI agent mining support ticket patterns to ge
 
 A support operations team has 276 PlanetCare EMR tickets — billing errors, pharmacy issues, lab problems. Most tickets are unresolved or resolved but undocumented. The team wants to turn the resolved ones into a searchable KB. Instead of reading tickets manually, they ask Claude.
 
-The agent scores ticket quality, finds patterns, drafts structured KB articles using a `%AI.Agent` running **inside IRIS** (not called from Python), and publishes them with full provenance recorded in a knowledge graph.
+The agent scores ticket quality, finds patterns, drafts structured KB articles using a `%AI.Agent` running **inside IRIS**, and publishes them with full provenance recorded in a knowledge graph.
 
 ---
 
@@ -150,7 +150,7 @@ Coverage:
 Draft a KB article for the BILLING cluster
 ```
 
-**What happens:** Claude calls `DraftKBArticle` with category="BILLING". This calls a `%AI.Agent` running **inside IRIS** — not a Python call to OpenAI, but ObjectScript creating an `%AI.Provider`, `%AI.Agent`, and calling `agent.Chat()`.
+**What happens:** Claude calls `DraftKBArticle` with category="BILLING". This calls a `%AI.Agent` running **inside IRIS**: ObjectScript creates an `%AI.Provider` and an `%AI.Agent`, then calls `agent.Chat()`.
 
 **Expected output:**
 

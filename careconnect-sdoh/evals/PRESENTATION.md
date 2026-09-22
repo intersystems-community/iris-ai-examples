@@ -122,8 +122,8 @@ the seam. A deterministic scorer is only as deterministic as its inputs."
 
 ### Defect 2: The rule has blind spots (recall 0.714)
 
-**Say:** "The L1 regression is green for most cases. But green against _what_?
-Against the spec. The spec might be wrong."
+**Say:** "The L1 regression is green for most cases. But it is green against the
+spec, and the spec itself might be wrong."
 
 Show the recall column: James scores 0.5, Sarah 0.75.
 
@@ -154,9 +154,8 @@ That's not a bug you'd ever find by eyeballing the demo."
 
 ### Defect 3: The care plans aren't personalized (L5 FAIL)
 
-**Say:** "This one is my favorite. The demo looks beautifully personalized.
-Maria gets a care plan. James gets a care plan. Sarah gets a care plan.
-Are they different?"
+**Say:** "This one is my favorite. The demo looks beautifully personalized: Maria,
+James and Sarah each get a care plan. Are they different?"
 
 ```python
 from careconnect_evals import scorers
@@ -243,7 +242,7 @@ James priority:    ROUTINE -> HIGH
 'skipping meds' — and score medication affordability under Health Care Access, now that
 transportation is its own domain. Recall goes from 0.714 to 1.0, and James corrects from
 ROUTINE to HIGH. Fix 2: read domain _values_ instead of domain _names_. Care plans are now
-distinct. Same eval, better system. That is the entire discipline."
+distinct. The eval never changed; the system it measures got better."
 
 **If someone asks why James is still HIGH and not URGENT:** because recalibrating the
 priority thresholds is a separate change with its own evidence. Bundling it here would make
@@ -253,7 +252,7 @@ fix 1's effect on recall unreadable. That gap survives on purpose.
 
 ## Act 5 — The Five-Takeaway Slide (1 min)
 
-1. **You can't improve what you can't measure.** Evals are the unit tests of agent behavior.
+1. **Evals are the unit tests of agent behavior.** Without one, an "improvement" is a guess.
 2. **Pin the deterministic core.** The variance hides in the seam with the LLM.
 3. **Evaluate the path, not just the answer.** L2 trajectory — did it call the right tools in the right order?
 4. **Build on auditable systems.** The IRIS Interop trace is a free outcome oracle.
@@ -278,7 +277,7 @@ works well as a slide screenshot.
 | ------------------------- | ------------------------------------------------------------------------------------ |
 | `ModuleNotFoundError`     | `cd` into `evals/` before running — it's on `sys.path` via `sys.path.insert(0, '.')` |
 | Jupyter can't find kernel | `python -m ipykernel install --user`                                                 |
-| Test failures             | `python -m pytest tests/ -q` — 31 pass, 9 skip (the skips are live-IRIS parity)      |
+| Test failures             | `python -m pytest tests/ -q` — 32 pass, 9 skip (the skips are live-IRIS parity)      |
 | Need a real LLM           | `CARECONNECT_EVAL_PROVIDER=anthropic ANTHROPIC_API_KEY=sk-... python run_evals.py`   |
 
 ---
