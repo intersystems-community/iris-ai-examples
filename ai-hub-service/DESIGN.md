@@ -144,7 +144,7 @@ and which tools are writes.
 
 In sidecar mode:
 
-- **Legacy IRIS** (the demo pins 2025.1) keeps `CareConnect.Patient` and
+- **Legacy IRIS** (the demo pins 2025.3) keeps `CareConnect.Patient` and
   `CareConnect.Production`. Nothing on it is upgraded. It gains one
   version-neutral class, `AIHub.Legacy.Interop`, and only because the
   interop tools need it.
@@ -281,7 +281,7 @@ The companion here is a bare Deployment only because it holds no data.
 
 ## What the prototype proves, and what it does not
 
-Proven here, with no Docker and no key (`pytest` in this directory, 116 tests):
+Proven here, with no Docker and no key (`pytest` in this directory, 128 tests):
 
 - The contract, roles, approval park/resume/reject, no self-approval,
   visibility, cancel, audit, async runs, and the callback allow-list.
@@ -292,7 +292,9 @@ Proven here, with no Docker and no key (`pytest` in this directory, 116 tests):
   matches the ObjectScript tools byte for byte through the offline port, which
   careconnect-sdoh's parity tests pin to the ObjectScript.
 - MCP streamable-HTTP (JSON and event-stream replies, session ids, re-init
-  after a server restart) and Native API reconnects, against fakes.
+  after a server restart) and Native API reconnects, against fakes. The MCP
+  fake publishes prefixed names and string-encoded answers, as the stock
+  server does (below).
 - The OpenAI and Anthropic loops, including a gated call inside a batch of
   three and a rejection reported back to the model.
 - The ObjectScript contract: every path the wrappers call is a served route;
@@ -302,16 +304,76 @@ Proven here, with no Docker and no key (`pytest` in this directory, 116 tests):
   `kubeconform -strict` (22 resources across the three overlays). The Service
   selectors, ports and URLs are checked against each other.
 
+**Measured on real IRIS** (2026-09-23), stock `irishealth:2024.1` (2024.1.6
+build 825U) and `irishealth:2025.1` (2025.1.4 build 561U) from
+`containers.intersystems.com`, arm64, against this service in offline mode:
+
+- All seven `AIHub.*` classes compile with `$system.OBJ.LoadDir(…, "ck")` in
+  an Interoperability-enabled `USER`. The first compile did not:
+  `AIHub.Legacy.Interop` had `Continue:typeDef.ClassType '= "datatype"`, a
+  postconditional with an unparenthesized space, which is error #1012 on both
+  releases. It is parenthesized now, and
+  `test_no_postconditional_holds_an_unparenthesized_space` fails if the shape
+  comes back.
+- `SELECT AIHub.Ask('sdoh-assessment', '', '{"patientId": …}')` returns
+  `AWAITING_APPROVAL <run id>: TriggerFollowUp needs an approver`. After an
+  approver approves over REST, `AIHub.RunStatus` returns `succeeded` and
+  `AIHub.RunOutput` returns the assessment. `AIHub.Tool` answers a direct tool
+  call.
+- `AIHub.Interop.AgentOperation`, in a one-item production with the API key
+  in an `Ens.Config.Credentials` entry, answers an `AgentRequest` with
+  `status=awaiting_approval`, `awaitingTool=TriggerFollowUp` and 4 steps. A
+  `RunStatusRequest` reads it back. An unknown run id fails with the service's
+  own detail (`no run …`) appended to the adapter's 404. The production needs
+  a licence that includes Interoperability; without one,
+  `StartProduction` fails with `ErrNoEnsembleLicense`.
+- `AIHub.Legacy.Interop.ProductionStatus()` reads the running production.
+  `Dispatch()` refuses a service that is not on the allow-list.
+
+**Measured on the sidecar stack** (2026-09-23, arm64, `docker compose
+--profile sidecar`): companion `irishealth:2026.3.0AI.139.0` pulled from the
+registry, stock `iris-mcp-server`, no local patches; legacy built from
+`intersystemsdc/irishealth-community:2025.3` (build 226U), where `%AI.Agent`
+does not exist. The first run found three defects, none visible to the fakes
+as they were:
+
+- **Tool names.** The stock server publishes `/mcp/careconnect`'s tools as
+  `mcp_careconnect_<Tool>` and answers a bare name with `isError` ("no
+  registered service found"). A direct `tools/call` of the prefixed name
+  answered, so the server was fine and the client was wrong. The MCP backend
+  now takes `tool_prefix`, and both example configs set it.
+- **Readiness lied.** `/readyz` reported the companion ready with "17 tools"
+  while every call to it failed. It now fails, naming the missing tools,
+  unless the server publishes every tool the catalog binds to it. Checked
+  live with a wrong prefix: 503.
+- **The playbook carried on after an error.** The Maria run reported
+  `succeeded`, with the scorer's error text handed to `DraftCarePlan` as her
+  SDoH scores and "Follow-up: not triggered" at the end. Nothing was
+  written, but an URGENT patient got no escalation and a clean status. A step
+  that answers `ERROR` now fails the run; a rejected approval still does not.
+  Checked live: the run fails at step 2 and the legacy production is not
+  touched.
+
+A fourth quirk surfaced once calls got through. A `%String` tool's answer
+comes back as a JSON string literal, so it arrives wrapped in quotes with
+`\n` escapes. iris-ai's `mcp_probe.py` documents the same behaviour. The
+backend decodes it once, which also matters for the error check: a quoted
+`"ERROR: …"` does not start with `ERROR`.
+
+After the fixes, Maria parks at `TriggerFollowUp` (urgent). An approver
+approves it, it goes through `AIHub.Legacy.Interop.Dispatch()` into the legacy
+production, and `GetInteropTraces` shows the four-hop
+BS → BP → BO → BP → BS flow. Every tool output, and the answer, is byte for
+byte what the offline port produces. The one exception is the trace count:
+the real production also logs its own `ScheduleService` message at start-up.
+
 **Not yet verified**, and it should be before anyone quotes it:
 
-- **The ObjectScript was not compiled.** No IRIS image was pullable where
-  this was built. The `AIHub.*` classes need a compile on a real legacy
-  release (2023.1, 2024.1 and 2025.1 at minimum) and an end-to-end
-  `AIHub.SQL.Ask` round trip.
-- **No live MCP round trip** against an AI Hub `iris-mcp-server`. The client
-  follows the MCP spec; the real server's quirks, if any, are unmeasured.
-- **The images and the Kubernetes deployment were not run.** They were built
-  as files and validated, but never started.
+- **2023.1 was not compiled.** No 2023.1 tag is published on
+  `containers.intersystems.com`.
+- **The Kubernetes deployment was not run.** The compose images were built and
+  run (above); the manifests were rendered and validated, but never applied
+  to a cluster.
 - **No real model** drove `sdoh-assistant`. The loops ran against scripted
   replies only.
 

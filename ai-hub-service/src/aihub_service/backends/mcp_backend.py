@@ -7,6 +7,14 @@ that is either ``application/json`` or a ``text/event-stream`` carrying the
 same JSON-RPC message, and an ``Mcp-Session-Id`` header the server may issue on
 ``initialize`` and expects back on every later request.
 
+iris-mcp-server publishes each tool under its web application's prefix —
+``mcp_careconnect_AssessSDoHRisk`` for ``/mcp/careconnect`` — and answers a
+bare name with "no registered service found". ``tool_prefix`` names that
+prefix: the catalog keeps the bare names, and the prefix is added on the wire.
+It also returns a %String tool's answer as a JSON string literal — quotes,
+``\\n`` escapes and all — so a text answer is decoded once before anyone reads
+it, including the playbook looking for ``ERROR``.
+
 It is a deliberately small client — tools/list and tools/call are all the
 service needs — so it carries no MCP SDK dependency.
 """
@@ -31,6 +39,7 @@ class MCPBackend:
         self.name = name
         self.spec = spec
         self.url = spec["url"]
+        self.prefix = spec.get("tool_prefix", "")
         auth = None
         if spec.get("username"):
             auth = (spec["username"], spec.get("password", ""))
@@ -99,7 +108,8 @@ class MCPBackend:
                 while True:
                     result = self._request("tools/list", {"cursor": cursor} if cursor else {})
                     for t in result.get("tools", []):
-                        tools[t["name"]] = t
+                        if t["name"].startswith(self.prefix):
+                            tools[t["name"][len(self.prefix):]] = t
                     cursor = result.get("nextCursor")
                     if not cursor:
                         break
@@ -109,16 +119,17 @@ class MCPBackend:
     def call(self, tool, args: dict) -> str:
         with self._lock:
             self._ensure_initialized()
+            params = {"name": self.prefix + tool.remote_name, "arguments": args}
             try:
-                result = self._request("tools/call", {"name": tool.remote_name, "arguments": args})
+                result = self._request("tools/call", params)
             except BackendError:
                 # A restarted iris-mcp-server forgets our session; start a new one once.
                 self._initialized, self._session = False, None
                 self._ensure_initialized()
-                result = self._request("tools/call", {"name": tool.remote_name, "arguments": args})
-        text = "\n".join(
+                result = self._request("tools/call", params)
+        text = _unwrap("\n".join(
             c.get("text", "") for c in result.get("content", []) if c.get("type") == "text"
-        )
+        ))
         if result.get("isError"):
             return text if text.startswith("ERROR") else f"ERROR: {text}"
         return text
@@ -135,13 +146,27 @@ class MCPBackend:
             "parameters": t.get("inputSchema", {"type": "object", "properties": {}}),
         }
 
-    def health(self) -> dict:
+    def health(self, expected: list[str] = ()) -> dict:
+        """Ready only if the server publishes every tool the catalog binds here."""
         try:
             self._tools = None
-            n = len(self.list_tools())
-            return {"ok": True, "detail": f"{self.url} ({n} tools)"}
+            listed = self.list_tools()
         except BackendError as exc:
             return {"ok": False, "detail": str(exc)}
+        missing = sorted(set(expected) - set(listed))
+        if missing:
+            return {"ok": False, "detail": f"{self.url} publishes {len(listed)} tools"
+                    f"{f' under {self.prefix!r}' if self.prefix else ''} but not: {', '.join(missing)}"}
+        return {"ok": True, "detail": f"{self.url} ({len(listed)} tools)"}
+
+
+def _unwrap(text: str) -> str:
+    """A JSON string literal becomes the string; anything else is left as it came."""
+    try:
+        decoded = json.loads(text)
+    except ValueError:
+        return text
+    return decoded if isinstance(decoded, str) else text
 
 
 def _parse_response(r: httpx.Response, want_id) -> dict:

@@ -113,4 +113,8 @@ class Catalog:
         )
 
     def health(self) -> dict:
-        return {name: b.health() for name, b in self.backends.items()}
+        out = {}
+        for name, b in self.backends.items():
+            bound = [t.remote_name for t in self.tools.values() if t.backend == name]
+            out[name] = b.health(expected=bound) if b.kind == "mcp" else b.health()
+        return out

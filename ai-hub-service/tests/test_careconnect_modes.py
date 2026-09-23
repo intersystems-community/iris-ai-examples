@@ -48,9 +48,9 @@ def inplace_client():
     return TestClient(create_app(EXAMPLES / "inplace.yaml", http_transport=hub.transport())), hub
 
 
-def sidecar_client(sse=True):
+def sidecar_client(sse=True, **companion_opts):
     legacy = FakeLegacyIRIS(PATIENTS)
-    companion = FakeMCPServer(LocalToolClient(), TOOL_SCHEMAS, sse=sse)
+    companion = FakeMCPServer(LocalToolClient(), TOOL_SCHEMAS, sse=sse, **companion_opts)
     app = create_app(EXAMPLES / "sidecar.yaml", http_transport=companion.transport(),
                      iris_connect=legacy.connect)
     return TestClient(app), (legacy, companion)
@@ -103,7 +103,8 @@ def test_sidecar_really_routes_to_both_instances():
         "GetInteropTraces": "legacy",
     }
     called = [c["msg"]["params"]["name"] for c in companion.requests if c["msg"].get("method") == "tools/call"]
-    assert called == ["SearchSDoHProtocols", "AssessSDoHRisk", "DraftCarePlan"]
+    assert called == ["mcp_careconnect_SearchSDoHProtocols", "mcp_careconnect_AssessSDoHRisk",
+                      "mcp_careconnect_DraftCarePlan"]
     # The follow-up reached the legacy production through the allow-listed dispatcher.
     cls, method, args = legacy.calls[0]
     assert (cls, method) == ("AIHub.Legacy.Interop", "Dispatch")
@@ -117,6 +118,35 @@ def test_sidecar_follow_up_waits_for_approval_before_touching_the_legacy_product
                     json={"context": {"patientId": "maria-gonzalez-001"}}).json()
     assert r["status"] == "awaiting_approval"
     assert legacy.calls == [], "the interop dispatcher ran before anyone approved"
+
+
+# Measured on the sidecar stack 2026-09-23: with the companion's tools out of
+# reach, readyz said ready and the playbook reported `succeeded`, having fed
+# the scorer's error text to DraftCarePlan as the patient's SDoH scores.
+
+
+def test_sidecar_is_unready_when_the_companion_publishes_none_of_its_tools():
+    client, _ = sidecar_client(prefix="mcp_elsewhere_")
+    r = client.get("/readyz")
+    assert r.status_code == 503
+    detail = r.json()["backends"]["companion"]
+    assert detail["ok"] is False and "AssessSDoHRisk" in detail["detail"]
+
+
+def test_sidecar_ready_names_the_tools_it_found():
+    client, _ = sidecar_client()
+    r = client.get("/readyz")
+    assert r.status_code == 200, r.text
+
+
+def test_a_playbook_step_that_errors_fails_the_run_before_anything_is_written():
+    client, (legacy, _) = sidecar_client(prefix="mcp_elsewhere_")
+    r = client.post("/v1/agents/sdoh-assessment/runs", headers=CHW,
+                    json={"context": {"patientId": "maria-gonzalez-001"}}).json()
+    assert r["status"] == "failed"
+    assert "SearchSDoHProtocols" in r["error"]
+    assert [s["tool"] for s in r["steps"]] == ["FetchPatientSummary", "SearchSDoHProtocols"]
+    assert legacy.calls == []
 
 
 def test_sidecar_reports_a_stopped_legacy_production_as_the_toolset_does():

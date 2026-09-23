@@ -17,6 +17,11 @@ playbook is that: each step names a tool, templated arguments, and an optional
 
 Results are keyed by tool name (``result.<Tool>``); a step can set ``as:`` to
 keep two calls of the same tool apart.
+
+A step whose tool answers ``ERROR`` fails the run. Later steps take earlier
+results as arguments, so carrying on would hand error text to the next tool as
+if it were data — a care plan drafted from "ERROR: ..." as the patient's
+scores. A rejected approval is a decision, not an error, and does not stop it.
 """
 
 from __future__ import annotations
@@ -75,3 +80,5 @@ class PlaybookEngine:
     def observe(self, run, call: PlannedCall, output: str) -> None:
         key = run.engine_state["keys"].get(call.id, call.tool)
         run.engine_state["results"][key] = output
+        if output.startswith("ERROR"):
+            raise EngineError(f"playbook step {call.tool} failed: {output}")

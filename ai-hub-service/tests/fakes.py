@@ -2,7 +2,11 @@
 
 FakeMCPServer
     An MCP streamable-HTTP endpoint (the shape iris-mcp-server serves) in front
-    of any object whose methods are tools. In CareConnect tests that object is
+    of any object whose methods are tools. Like the stock server it publishes
+    each tool under its web application's prefix, ``mcp_careconnect_<Tool>``,
+    answers a bare name with isError, and returns a %String tool's answer as a
+    JSON string literal, quotes and escapes included (every SDoHToolSet tool
+    returns %String). In CareConnect tests that object is
     the eval suite's LocalToolClient — the faithful port of SDoHToolSet — so a
     tool answered "over MCP" returns what the ObjectScript returns.
 
@@ -36,8 +40,10 @@ PATIENT_CLS = REPO / "careconnect-sdoh" / "src" / "CareConnect" / "Patient.cls"
 
 
 class FakeMCPServer:
-    def __init__(self, target, schemas, sse: bool = False, session_id: str = "sess-1"):
+    def __init__(self, target, schemas, sse: bool = False, session_id: str = "sess-1",
+                 prefix: str = "mcp_careconnect_"):
         self.target = target
+        self.prefix = prefix
         self.schemas = {s["name"]: s for s in schemas}
         self.sse = sse
         self.session_id = session_id
@@ -64,17 +70,18 @@ class FakeMCPServer:
             return httpx.Response(202)
         if method == "tools/list":
             tools = [
-                {"name": n, "description": s["description"], "inputSchema": s["parameters"]}
+                {"name": self.prefix + n, "description": s["description"], "inputSchema": s["parameters"]}
                 for n, s in self.schemas.items()
             ]
             return self._reply(msg, {"tools": tools})
         if method == "tools/call":
-            name = msg["params"]["name"]
-            fn = getattr(self.target, name, None)
+            published = msg["params"]["name"]
+            name = published[len(self.prefix):] if published.startswith(self.prefix) else None
+            fn = getattr(self.target, name, None) if name else None
             if fn is None or name not in self.schemas:
-                return self._reply(msg, {"content": [{"type": "text", "text": f"unknown tool {name}"}],
-                                         "isError": True})
-            text = str(fn(**msg["params"].get("arguments", {})))
+                text = f"Service unavailable: no registered service found for tool '{published}'"
+                return self._reply(msg, {"content": [{"type": "text", "text": text}], "isError": True})
+            text = json.dumps(str(fn(**msg["params"].get("arguments", {}))))
             return self._reply(msg, {"content": [{"type": "text", "text": text}], "isError": False})
         return self._reply(msg, None, error={"code": -32601, "message": f"no method {method}"})
 

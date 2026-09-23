@@ -7,7 +7,7 @@
 # It loads only the CareConnect classes that need no AI Hub (the patient table,
 # its seed, the production and its BS/BP/BO/messages) plus the version-neutral
 # AIHub.* wrappers. tests/test_objectscript.py holds both lists to that.
-ARG LEGACY_IRIS_VERSION=2025.1
+ARG LEGACY_IRIS_VERSION=2025.3
 FROM intersystemsdc/irishealth-community:${LEGACY_IRIS_VERSION}
 
 USER root

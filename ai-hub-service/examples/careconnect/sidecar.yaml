@@ -1,7 +1,7 @@
 # Sidecar mode: the application runs on an IRIS that predates AI Hub, and an AI
 # Hub companion IRIS runs beside it. Nobody upgrades the legacy instance.
 #
-#   legacy IRIS (any version with the Native API — the demo pins 2025.1)
+#   legacy IRIS (any version with the Native API — the demo pins 2025.3)
 #     owns the data (CareConnect.Patient) and the production
 #     (CareConnect.Production). Unchanged application code, plus one small
 #     version-neutral adapter class, AIHub.Legacy.Interop, for the interop tools.
@@ -40,6 +40,8 @@ backends:
     url: ${AIHUB_MCP_URL:-http://companion-iris:8888/mcp/careconnect}
     username: ${AIHUB_MCP_USERNAME:-_SYSTEM}
     password: ${AIHUB_MCP_PASSWORD:-SYS}
+    # iris-mcp-server publishes /mcp/careconnect's tools as mcp_careconnect_<Tool>.
+    tool_prefix: ${AIHUB_MCP_TOOL_PREFIX:-mcp_careconnect_}
 
 tools:
   # -- data: the legacy instance, over SQL --------------------------------

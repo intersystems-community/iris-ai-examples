@@ -85,7 +85,7 @@ Both are declared in [examples/careconnect/base.yaml](./examples/careconnect/bas
 (cd ../careconnect-sdoh && make up)
 docker compose --profile inplace up -d --build
 
-# sidecar: a 2025.1 IRIS holding the data + production, an AI Hub companion,
+# sidecar: a 2025.3 IRIS holding the data + production, an AI Hub companion,
 # and the service meshing them. The companion needs an AI Hub image
 # (IRIS_IMAGE, see ../careconnect-sdoh/docs/eap-setup.md).
 docker compose --profile sidecar up -d --build
@@ -165,8 +165,11 @@ every binding shape.
 - **An existing classmethod becomes a tool**:
   `binding: {classmethod: Pkg.Class.Method, args: [...]}`.
 - **An existing `%AI.ToolSet`**: `backend: <an mcp backend>`. The schema comes
-  from the server.
-- **A known workflow becomes an agent**: `engine: playbook` with `steps:`.
+  from the server. Set the backend's `tool_prefix` to the web application's
+  prefix: iris-mcp-server publishes `/mcp/careconnect` tools as
+  `mcp_careconnect_<Tool>`, and `/readyz` fails if a bound tool is not listed.
+- **A known workflow becomes an agent**: `engine: playbook` with `steps:`. A
+  step whose tool answers `ERROR` fails the run.
 - **A side effect**: `effect: write`, and the approval gate applies.
 
 ## Layout

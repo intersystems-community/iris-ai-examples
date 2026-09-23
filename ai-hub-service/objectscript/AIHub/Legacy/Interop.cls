@@ -133,7 +133,7 @@ ClassMethod Properties(obj) As %DynamicObject
         Continue:($Extract(p.Name) = "%")||p.Private||p.MultiDimensional||(p.Collection '= "")
         Set typeDef = ##class(%Dictionary.CompiledClass).%OpenId(p.Type)
         Continue:'$IsObject(typeDef)
-        Continue:typeDef.ClassType '= "datatype"
+        Continue:(typeDef.ClassType '= "datatype")
         Do out.%Set(p.Name, $Property(obj, p.Name))
     }
     Quit out

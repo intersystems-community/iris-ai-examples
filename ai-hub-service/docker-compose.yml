@@ -85,7 +85,7 @@ services:
       context: ..
       dockerfile: ai-hub-service/docker/legacy-iris/Dockerfile
       args:
-        - LEGACY_IRIS_VERSION=${LEGACY_IRIS_VERSION:-2025.1}
+        - LEGACY_IRIS_VERSION=${LEGACY_IRIS_VERSION:-2025.3}
     container_name: ai-hub-service-legacy-iris
     ports:
       - "${LEGACY_SUPERSERVER_PORT:-41972}:1972"

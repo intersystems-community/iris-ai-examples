@@ -204,3 +204,23 @@ def test_legacy_image_copies_only_files_that_exist():
     dockerfile = (ROOT / "docker" / "legacy-iris" / "Dockerfile").read_text()
     for src in re.findall(r"^COPY\s+(?:--\S+\s+)*(\S+)\s+\S+$", dockerfile, re.M):
         assert (REPO / src).exists(), src
+
+
+# Community images carry a time-limited licence. The published
+# intersystemsdc/irishealth-community:2025.1 (2025.1.0.230.2com) refused to
+# start on 2026-09-23 with "Community License expired", so the sidecar demo
+# could not build for anyone. A tag goes here once it has been seen to expire.
+EXPIRED_COMMUNITY_TAGS = {"2025.1"}
+
+
+def test_the_legacy_release_is_pinned_once_and_still_starts():
+    dockerfile = (ROOT / "docker" / "legacy-iris" / "Dockerfile").read_text()
+    compose_text = (ROOT / "docker-compose.yml").read_text()
+    env_example = (ROOT / ".env.example").read_text()
+    pins = {
+        "Dockerfile": re.search(r"^ARG LEGACY_IRIS_VERSION=(\S+)", dockerfile, re.M).group(1),
+        "docker-compose.yml": re.search(r"LEGACY_IRIS_VERSION:-([^}]+)\}", compose_text).group(1),
+        ".env.example": re.search(r"LEGACY_IRIS_VERSION=(\S+)", env_example).group(1),
+    }
+    assert len(set(pins.values())) == 1, pins
+    assert pins["Dockerfile"] not in EXPIRED_COMMUNITY_TAGS, pins

@@ -11,8 +11,8 @@ pin what can be pinned from source:
   class this repo ships, and every tool it sends to the companion is one
   SDoHToolSet's XData declares.
 
-Compilation on a real legacy instance is the step these cannot replace; the
-design doc lists it as unverified.
+Compilation on a real IRIS is the step these cannot replace; the design doc
+records the releases it was measured on and the one defect it found.
 """
 
 from __future__ import annotations
@@ -93,6 +93,23 @@ def test_no_quit_with_an_argument_inside_a_try_block():
                 in_try.pop()
             if in_try and re.search(r"\bQuit\s+[^:\s]", line) and not re.search(r"\bQuit\s*$", line):
                 pytest.fail(f"{path.name}:{n}: argumented Quit inside Try: {line.strip()}")
+
+
+# A postconditional ends at its first space, so `Continue:a '= b` leaves `'= b`
+# where the compiler wants end of line (#1012 on 2024.1 and 2025.1). Parenthesize.
+POSTCONDITIONAL_WITH_A_SPACE = re.compile(
+    r"\b(?:Continue|Quit|Set|Do|Write|Kill|Throw|Goto|Lock|Merge|Hang|Xecute)\s*:"
+    r"(?!\()\S+\s+(?:'?[=<>\[\]]|&&?|!|_|\|\|)"
+)
+
+
+def test_no_postconditional_holds_an_unparenthesized_space():
+    for path in SHIPPED:
+        for n, line in enumerate(body(path).splitlines(), 1):
+            if line.lstrip().startswith("///"):
+                continue
+            if POSTCONDITIONAL_WITH_A_SPACE.search(re.sub(r'"[^"\n]*"', '""', line)):
+                pytest.fail(f"{path.name}:{n}: parenthesize the postconditional: {line.strip()}")
 
 
 # -- the client calls routes that exist --------------------------------------

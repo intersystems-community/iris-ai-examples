@@ -23,6 +23,8 @@ backends:
     url: ${AIHUB_MCP_URL:-http://careconnect-iris-hub:8888/mcp/careconnect}
     username: ${AIHUB_MCP_USERNAME:-_SYSTEM}
     password: ${AIHUB_MCP_PASSWORD:-SYS}
+    # iris-mcp-server publishes /mcp/careconnect's tools as mcp_careconnect_<Tool>.
+    tool_prefix: ${AIHUB_MCP_TOOL_PREFIX:-mcp_careconnect_}
     timeout: 120
 
 tools:
