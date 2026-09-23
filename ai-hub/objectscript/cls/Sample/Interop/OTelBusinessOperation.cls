@@ -28,6 +28,7 @@ Method OnMessage(pRequest As %Library.Persistent, Output pResponse As %Library.P
     Set tAttrs("messaging.destination") = ..%ClassName(1)
     Set tAttrs("messaging.operation")   = "send"
     Set tSpan  = tTracer.StartSpan("bo." _ ..%ClassName(0), tParentCtx, "Client", .tAttrs)
+    Do ##class(Sample.Interop.OTelInteropAttrs).Apply(tSpan, ..%ConfigName, ..%ClassName(1), ..%SessionId, ..%RequestHeader)
     Set tScope = tTracer.SetActiveSpan(tSpan)
     Set ..TraceparentOut = tSpan.Context.ToString()
     Set ^IRIS.Temp.MsgTraceparent($Job) = ..TraceparentOut

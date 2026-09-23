@@ -34,9 +34,11 @@ Method OnProcessInput(pInput As %RegisteredObject, Output pOutput As %Registered
     Set ^IRIS.Temp.MsgTraceparent($Job) = ..TraceparentOut
     Try {
         Set tSC = ..OnHandleInput(pInput, .pOutput, pHint)
+        Do ..ApplyInteropAttrs(tSpan)
         If $$$ISOK(tSC) { Do tSpan.SetStatus("Ok") }
         Else             { Do tSpan.SetStatus("Error") }
     } Catch tEx {
+        Do ..ApplyInteropAttrs(tSpan)
         Do tSpan.SetStatus("Error")
         Do tSpan.End()
         Kill tScope
@@ -47,6 +49,12 @@ Method OnProcessInput(pInput As %RegisteredObject, Output pOutput As %Registered
     Kill tScope
     Kill ^IRIS.Temp.MsgTraceparent($Job)
     Quit tSC
+}
+
+/// The session and request header exist only once OnHandleInput has sent something.
+Method ApplyInteropAttrs(pSpan As %Trace.Span) [ Private ]
+{
+    Do ##class(Sample.Interop.OTelInteropAttrs).Apply(pSpan, ..%ConfigName, ..%ClassName(1), ..%SessionId, ..%RequestHeader)
 }
 
 /// Subclasses override OnHandleInput (not OnProcessInput) to implement ingest logic.

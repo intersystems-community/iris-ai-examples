@@ -46,6 +46,7 @@ Method OnRequest(pRequest As %Persistent, Output pResponse As %Persistent) As %S
     Set tAttrs("messaging.destination") = ..%ClassName(1)
     Set tAttrs("messaging.operation")   = "process"
     Set tSpan  = tTracer.StartSpan("bp." _ ..%ClassName(0), tParentCtx, "Internal", .tAttrs)
+    Do ##class(Sample.Interop.OTelInteropAttrs).Apply(tSpan, ..%ConfigName, ..%ClassName(1), ..%SessionId, ..%PrimaryRequestHeader)
     Set tScope = tTracer.SetActiveSpan(tSpan)
     Set ..TraceparentOut = tSpan.Context.ToString()
     If $IsObject(..OTelPolicy) { Set ..OTelPolicy.Traceparent = ..TraceparentOut }
