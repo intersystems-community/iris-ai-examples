@@ -1,0 +1,143 @@
+###############################################################################
+# AI Hub Service — local stacks for the three deployment modes.
+#
+# Pick one profile; each runs the same service image with a different config.
+#
+#   offline  the service alone, tools in-process. No IRIS, no key.
+#              docker compose --profile offline up -d --build
+#
+#   inplace  the service in front of careconnect-sdoh's own AI Hub stack,
+#            which must already be up (it owns those containers, not us):
+#              (cd ../careconnect-sdoh && make up)
+#              docker compose --profile inplace up -d --build
+#
+#   sidecar  a pre-AI-Hub IRIS (legacy data + production), an AI Hub companion
+#            IRIS (the toolset over MCP), and the service meshing the two:
+#              docker compose --profile sidecar up -d --build
+#
+# The service answers on http://localhost:${AIHUB_PORT:-8080} in every mode.
+# Container names carry this directory's name as prefix, as everywhere in this
+# repo. The companion's MCP port is not published: only the service calls it.
+###############################################################################
+
+name: ai-hub-service
+
+x-service: &service
+  build:
+    context: ..
+    dockerfile: ai-hub-service/Dockerfile
+  image: aihub-service:0.1.0
+  ports:
+    - "${AIHUB_PORT:-8080}:8080"
+  environment: &service-env
+    AIHUB_KEY_CHW: ${AIHUB_KEY_CHW:-dev-chw-key}
+    AIHUB_KEY_LEAD: ${AIHUB_KEY_LEAD:-dev-lead-key}
+    AIHUB_KEY_APP: ${AIHUB_KEY_APP:-dev-app-key}
+    AIHUB_KEY_ADMIN: ${AIHUB_KEY_ADMIN:-dev-admin-key}
+    AIHUB_LLM_ENGINE: ${AIHUB_LLM_ENGINE:-openai}
+    AIHUB_LLM_MODEL: ${AIHUB_LLM_MODEL:-gpt-4o-mini}
+    AIHUB_LLM_BASE_URL: ${AIHUB_LLM_BASE_URL:-}
+    AIHUB_LLM_API_KEY: ${AIHUB_LLM_API_KEY:-}
+  restart: unless-stopped
+
+services:
+
+  aihub-offline:
+    <<: *service
+    container_name: ai-hub-service-offline
+    environment:
+      <<: *service-env
+      AIHUB_CONFIG: /app/ai-hub-service/examples/careconnect/offline.yaml
+    profiles: [offline]
+
+  aihub-inplace:
+    <<: *service
+    container_name: ai-hub-service-inplace
+    environment:
+      <<: *service-env
+      AIHUB_CONFIG: /app/ai-hub-service/examples/careconnect/inplace.yaml
+      AIHUB_MCP_URL: http://careconnect-iris-hub:8888/mcp/careconnect
+    networks: [careconnect-sdoh]
+    profiles: [inplace]
+
+  aihub-sidecar:
+    <<: *service
+    container_name: ai-hub-service-sidecar
+    environment:
+      <<: *service-env
+      AIHUB_CONFIG: /app/ai-hub-service/examples/careconnect/sidecar.yaml
+      LEGACY_IRIS_HOST: legacy-iris
+      AIHUB_MCP_URL: http://companion-iris:8888/mcp/careconnect
+    networks:
+      default:
+        aliases: [aihub-service]
+    depends_on:
+      legacy-iris:
+        condition: service_healthy
+      companion-iris:
+        condition: service_healthy
+    profiles: [sidecar]
+
+  # A release that predates AI Hub, holding the application: patient table and
+  # production. LEGACY_IRIS_VERSION picks the tag; no %AI class is loaded.
+  legacy-iris:
+    build:
+      context: ..
+      dockerfile: ai-hub-service/docker/legacy-iris/Dockerfile
+      args:
+        - LEGACY_IRIS_VERSION=${LEGACY_IRIS_VERSION:-2025.1}
+    container_name: ai-hub-service-legacy-iris
+    ports:
+      - "${LEGACY_SUPERSERVER_PORT:-41972}:1972"
+      - "${LEGACY_WEB_PORT:-41773}:52773"
+    healthcheck:
+      test: ["CMD", "bash", "-c", "cat < /dev/null > /dev/tcp/localhost/1972"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    profiles: [sidecar]
+
+  # The AI Hub companion: careconnect-sdoh's hub image, reused as built there,
+  # so SDoHToolSet and its MCP web application are exactly the ones that example
+  # ships. It holds no application data.
+  companion-iris:
+    build:
+      context: ../careconnect-sdoh
+      dockerfile: services/iris-ai-hub/Dockerfile
+      args:
+        - IMAGE=${IRIS_IMAGE:-intersystemsdc/irishealth-community:2026.2}
+    container_name: ai-hub-service-companion-iris
+    ports:
+      - "${COMPANION_SUPERSERVER_PORT:-41973}:1972"
+    healthcheck:
+      test: ["CMD", "bash", "-c", "test -f /tmp/.careconnect-setup-done"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 90s
+    profiles: [sidecar]
+
+  # iris-mcp-server in the companion's network namespace, as careconnect-sdoh
+  # runs it: it reaches IRIS on localhost:1972 and serves /mcp/careconnect on 8888.
+  companion-mcp:
+    build:
+      context: ../careconnect-sdoh/services/iris-mcp-sidecar
+      args:
+        - IMAGE=${IRIS_IMAGE:-intersystemsdc/irishealth-community:2026.2}
+    container_name: ai-hub-service-companion-mcp
+    network_mode: "service:companion-iris"
+    command: ["--config", "/etc/iris-mcp/config.toml", "run"]
+    volumes:
+      - ../careconnect-sdoh/services/iris-mcp-sidecar:/etc/iris-mcp:ro
+    depends_on:
+      companion-iris:
+        condition: service_healthy
+    restart: on-failure
+    profiles: [sidecar]
+
+networks:
+  # careconnect-sdoh's project network. Only the inplace profile joins it.
+  careconnect-sdoh:
+    name: careconnect-sdoh_default
+    external: true

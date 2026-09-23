@@ -1,0 +1,18 @@
+# The whole CareConnect sidecar proof in one namespace: service, AI Hub
+# companion, and a demo legacy IRIS with CareConnect's data and production.
+# Build the three images first (README), then:
+#
+#   kubectl create namespace careconnect-demo
+#   kubectl apply -k deploy/k8s/overlays/sidecar-demo -n careconnect-demo
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+components:
+  - ../../components/companion
+  - ../../components/legacy-demo
+
+patches:
+  - path: aihub-service-env.yaml

@@ -298,6 +298,7 @@ def test_container_names_share_one_prefix_scheme():
     """Every container is named after the example directory it belongs to."""
     prefixes = {
         "ai-hub": "ai-hub-",
+        "ai-hub-service": "ai-hub-service-",
         "careconnect-python": "careconnect-python-",
         "careconnect-sdoh": "careconnect-sdoh-",
         "kg-ticket-resolver": "kg-ticket-resolver-",

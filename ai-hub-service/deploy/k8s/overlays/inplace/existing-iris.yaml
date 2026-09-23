@@ -1,0 +1,12 @@
+# The AI Hub IRIS the service fronts, reached by a stable in-cluster name.
+# Point externalName at wherever it really lives: another namespace's Service
+# (iris.<namespace>.svc.cluster.local) or a host outside the cluster.
+apiVersion: v1
+kind: Service
+metadata:
+  name: existing-iris
+spec:
+  type: ExternalName
+  externalName: iris.example.internal
+  ports:
+    - {name: mcp, port: 8888}

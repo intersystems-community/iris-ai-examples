@@ -1,0 +1,10 @@
+# The existing IRIS, by a stable in-cluster name. Point externalName at it.
+apiVersion: v1
+kind: Service
+metadata:
+  name: legacy-iris
+spec:
+  type: ExternalName
+  externalName: legacy-iris.example.internal
+  ports:
+    - {name: superserver, port: 1972}

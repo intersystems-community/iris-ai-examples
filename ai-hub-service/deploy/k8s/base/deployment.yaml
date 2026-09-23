@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aihub-service
+  labels:
+    app.kubernetes.io/name: aihub-service
+spec:
+  # One replica: the prototype keeps runs in memory, so a second replica would
+  # not see the first one's parked runs. DESIGN.md names the durable store
+  # that lifts this.
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: aihub-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: aihub-service
+    spec:
+      serviceAccountName: aihub-service
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: aihub-service
+          image: aihub-service:0.1.0
+          ports:
+            - {name: http, containerPort: 8080}
+          env:
+            # Overlays point this at the mode's config. A customer deployment
+            # mounts its own service.yaml from a ConfigMap at /etc/aihub.
+            - name: AIHUB_CONFIG
+              value: /app/ai-hub-service/examples/careconnect/offline.yaml
+          # API keys, LLM credentials, IRIS passwords. Optional so the demo runs
+          # on the config's dev defaults; create it for anything real:
+          #   kubectl create secret generic aihub-service-secrets \
+          #     --from-literal=AIHUB_KEY_APP=... --from-literal=AIHUB_LLM_API_KEY=...
+          envFrom:
+            - secretRef:
+                name: aihub-service-secrets
+                optional: true
+          readinessProbe:
+            # Ready means every backend answers: an unready pod gets no traffic
+            # while its IRIS is still starting.
+            httpGet: {path: /readyz, port: http}
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 20
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {memory: 512Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}

@@ -1,0 +1,19 @@
+# AI Hub Service — the part every topology shares: the service itself.
+#
+# Not deployable alone; apply an overlay:
+#   kubectl apply -k deploy/k8s/overlays/inplace       existing AI Hub IRIS
+#   kubectl apply -k deploy/k8s/overlays/sidecar       existing legacy IRIS + companion
+#   kubectl apply -k deploy/k8s/overlays/sidecar-demo  everything, CareConnect demo data
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: aihub-service
+    includeSelectors: false
+
+resources:
+  - serviceaccount.yaml
+  - deployment.yaml
+  - service.yaml
+  - networkpolicy.yaml

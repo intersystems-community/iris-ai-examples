@@ -1,0 +1,14 @@
+# In-place: the customer's IRIS already runs AI Hub (2026.2.0AI+) with the
+# application's %AI.ToolSet compiled and served over MCP. The service is the
+# only thing deployed; existing-iris.yaml names the instance it fronts.
+#
+#   kubectl apply -k deploy/k8s/overlays/inplace
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - existing-iris.yaml
+
+patches:
+  - path: aihub-service-env.yaml

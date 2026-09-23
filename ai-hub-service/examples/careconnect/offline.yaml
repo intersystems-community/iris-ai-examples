@@ -1,0 +1,38 @@
+# Offline mode: every tool answered in-process by the faithful Python port of
+# CareConnect.Tools.SDoHToolSet that the eval suite keeps in parity with the
+# ObjectScript (careconnect-sdoh/evals/careconnect_evals/tools_local.py).
+#
+# No Docker, no IRIS, no API key. The playbook agent runs end to end, the
+# approval gate works, the audit trail fills in. This is the mode the tests
+# run, and the one to demo the *contract* with before any IRIS is involved.
+#
+#   python -m aihub_service --config examples/careconnect/offline.yaml
+
+extends: base.yaml
+
+service:
+  mode: offline
+
+python_path:
+  - ../../../careconnect-sdoh/evals
+
+backends:
+  local:
+    kind: python
+    object: careconnect_evals.tools_local:LocalToolClient
+    # The live stack's entrypoint starts CareConnect.Production; start the
+    # simulated one the same way so TriggerFollowUp behaves as it does there.
+    object_kwargs: {production_running: true}
+    schemas: careconnect_evals.tools_local:TOOL_SCHEMAS
+
+tools:
+  - {name: SearchPatients, backend: local}
+  - {name: FetchPatientSummary, backend: local}
+  - {name: SearchSDoHProtocols, backend: local}
+  - {name: AssessSDoHRisk, backend: local}
+  - {name: DraftCarePlan, backend: local}
+  - {name: SearchClinicalNotes, backend: local}
+  - {name: GetInteropTraces, backend: local}
+  - {name: GetProductionStatus, backend: local}
+  - {name: TriggerFollowUp, backend: local}
+  - {name: StartProduction, backend: local}

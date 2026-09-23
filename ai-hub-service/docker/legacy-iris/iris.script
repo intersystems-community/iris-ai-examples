@@ -1,0 +1,25 @@
+zn "%SYS"
+do ##class(Security.Users).UnExpireUserPasswords("*")
+set sc = ##class(Security.Users).Get("_SYSTEM",.props)
+set props("ChangePassword") = 0
+set sc = ##class(Security.Users).Modify("_SYSTEM",.props)
+; The Native API rides %Service_Bindings; the service reaches this instance through it.
+do ##class(Security.Services).Get("%Service_Bindings",.svc)
+set svc("Enabled") = 1
+do ##class(Security.Services).Modify("%Service_Bindings",.svc)
+do ##class(%EnsembleMgr).EnableNamespace("USER",1)
+
+zn "USER"
+; irissession runs stdin one line at a time: keep every statement on one line.
+do $system.OBJ.LoadDir("/src/CareConnect","ck",.err,1)
+do $system.OBJ.LoadDir("/src/AIHub","ck",.err2,1)
+do ##class(CareConnect.Setup.DemoData).Load()
+; The only business service the AI Hub Service may reach, with its one request class.
+do ##class(AIHub.Legacy.Interop).Allow("CareConnect.Service.SDoHFollowUpBS","CareConnect.Message.FollowUpRequest")
+; Outbound: this instance's own calls to agents (AIHub.Client, AIHub.SQL). Dev key.
+do ##class(AIHub.Client).Configure("aihub-service",8080,"dev-app-key")
+do ##class(Ens.Director).SetAutoStart("CareConnect.Production")
+write "AIHub.Legacy.Interop: ",##class(%Dictionary.CompiledClass).%ExistsId("AIHub.Legacy.Interop"),!
+write "AIHub.SQL: ",##class(%Dictionary.CompiledClass).%ExistsId("AIHub.SQL"),!
+write "CareConnect.Production: ",##class(%Dictionary.CompiledClass).%ExistsId("CareConnect.Production"),!
+halt

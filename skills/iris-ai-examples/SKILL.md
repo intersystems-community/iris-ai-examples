@@ -64,13 +64,14 @@ SQL: `VECTOR_COSINE(SummaryVec, TO_VECTOR(?, DOUBLE))`.
 
 ## Key AI Hub Classes Demonstrated
 
-| Class             | Where                                      | Role                                 |
-| ----------------- | ------------------------------------------ | ------------------------------------ |
-| `%AI.ToolSet`     | Both examples                              | Define tools as XData + methods      |
-| `%AI.MCP.Service` | Both examples                              | Expose ToolSet via MCP endpoint      |
-| `%AI.Agent`       | `kg-ticket-resolver/`, `careconnect-sdoh/` | Agent definition + run loop          |
-| `%AI.Provider`    | `kg-ticket-resolver/`                      | Configure LLM backend inside IRIS    |
-| `iris_llm.Agent`  | `careconnect-python/`                      | Python-first agent (no ObjectScript) |
+| Class             | Where                                      | Role                                                     |
+| ----------------- | ------------------------------------------ | -------------------------------------------------------- |
+| `%AI.ToolSet`     | Both examples                              | Define tools as XData + methods                          |
+| `%AI.MCP.Service` | Both examples                              | Expose ToolSet via MCP endpoint                          |
+| `%AI.Agent`       | `kg-ticket-resolver/`, `careconnect-sdoh/` | Agent definition + run loop                              |
+| `%AI.Provider`    | `kg-ticket-resolver/`                      | Configure LLM backend inside IRIS                        |
+| `iris_llm.Agent`  | `careconnect-python/`                      | Python-first agent (no ObjectScript)                     |
+| `AIHub.*` (REST)  | `ai-hub-service/`                          | Agents as a service; any IRIS version calls it over HTTP |
 
 ## Related Skills
 

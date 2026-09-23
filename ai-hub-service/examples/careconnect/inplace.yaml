@@ -1,0 +1,38 @@
+# In-place mode: the customer's IRIS already runs AI Hub (2026.2.0AI+), and the
+# application's %AI.ToolSet is compiled there. The service adds the REST
+# contract, the agent runtime and the governance; every tool call goes to that
+# instance's MCP endpoint.
+#
+# For CareConnect that instance is careconnect-sdoh's own stack, unmodified:
+#   cd careconnect-sdoh && make up
+#   cd ai-hub-service  && docker compose --profile inplace up -d
+#
+# Tool descriptions and schemas are read from the MCP server (tools/list), so
+# they are exactly what SDoHToolSet's XData says — nothing to keep in sync here.
+
+extends: base.yaml
+
+service:
+  mode: inplace
+
+backends:
+  hub:
+    kind: mcp
+    # careconnect-iris-hub is the network alias careconnect-sdoh's compose file
+    # keeps stable; iris-mcp-server shares that container's network namespace.
+    url: ${AIHUB_MCP_URL:-http://careconnect-iris-hub:8888/mcp/careconnect}
+    username: ${AIHUB_MCP_USERNAME:-_SYSTEM}
+    password: ${AIHUB_MCP_PASSWORD:-SYS}
+    timeout: 120
+
+tools:
+  - {name: SearchPatients, backend: hub}
+  - {name: FetchPatientSummary, backend: hub}
+  - {name: SearchSDoHProtocols, backend: hub}
+  - {name: AssessSDoHRisk, backend: hub}
+  - {name: DraftCarePlan, backend: hub}
+  - {name: SearchClinicalNotes, backend: hub}
+  - {name: GetInteropTraces, backend: hub}
+  - {name: GetProductionStatus, backend: hub}
+  - {name: TriggerFollowUp, backend: hub}
+  - {name: StartProduction, backend: hub}

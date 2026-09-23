@@ -1,0 +1,166 @@
+# Sidecar mode: the application runs on an IRIS that predates AI Hub, and an AI
+# Hub companion IRIS runs beside it. Nobody upgrades the legacy instance.
+#
+#   legacy IRIS (any version with the Native API — the demo pins 2025.1)
+#     owns the data (CareConnect.Patient) and the production
+#     (CareConnect.Production). Unchanged application code, plus one small
+#     version-neutral adapter class, AIHub.Legacy.Interop, for the interop tools.
+#
+#   companion IRIS (AI Hub build)
+#     compiles CareConnect.Tools.SDoHToolSet unmodified and serves it over MCP.
+#     Owns the logic that needs %AI: the scorer, the care-plan drafter, the
+#     protocol search.
+#
+# The service binds each tool to the instance that holds what the tool needs,
+# and callers see one catalog. That routing *is* the mesh: no ECP, no mirrored
+# data, no linked tables — DESIGN.md weighs those alternatives.
+#
+# Patient and trace output is formatted by careconnect_bindings.py to match the
+# ObjectScript tools byte for byte, so the scorer and the model see the same
+# text whichever topology answered. tests/test_careconnect_modes.py holds that.
+
+extends: base.yaml
+
+service:
+  mode: sidecar
+
+python_path:
+  - .
+
+backends:
+  legacy:
+    kind: iris
+    host: ${LEGACY_IRIS_HOST:-legacy-iris}
+    port: ${LEGACY_IRIS_PORT:-1972}
+    namespace: ${LEGACY_IRIS_NAMESPACE:-USER}
+    username: ${LEGACY_IRIS_USERNAME:-_SYSTEM}
+    password: ${LEGACY_IRIS_PASSWORD:-SYS}
+  companion:
+    kind: mcp
+    url: ${AIHUB_MCP_URL:-http://companion-iris:8888/mcp/careconnect}
+    username: ${AIHUB_MCP_USERNAME:-_SYSTEM}
+    password: ${AIHUB_MCP_PASSWORD:-SYS}
+
+tools:
+  # -- data: the legacy instance, over SQL --------------------------------
+  - name: SearchPatients
+    backend: legacy
+    description: >-
+      List all demo patients or search by name, condition, or patient ID. Returns
+      patientId values for use with FetchPatientSummary.
+    parameters:
+      type: object
+      properties:
+        query: {type: string, description: Optional search term}
+    binding:
+      cases:
+        - when: args.query
+          sql: >-
+            SELECT PatientId, Name, Demographics, Conditions, SDoHFlags, Notes
+            FROM CareConnect.Patient
+            WHERE LOWER(Name) LIKE ? OR LOWER(Conditions) LIKE ? OR PatientId = ?
+          params: ["%${args.query|lower}%", "%${args.query|lower}%", "${args.query}"]
+          format: python:careconnect_bindings:search_patients_matches
+          empty: >-
+            No patients found matching '${args.query}'. Call SearchPatients with no
+            arguments to list all.
+        - sql: >-
+            SELECT PatientId, Name, Demographics, Conditions, SDoHFlags
+            FROM CareConnect.Patient ORDER BY Name
+          format: python:careconnect_bindings:search_patients_all
+          empty: >-
+            No patients in database. Run CareConnect.Setup.DemoData.Load() to seed
+            demo patients.
+
+  - name: FetchPatientSummary
+    backend: legacy
+    description: >-
+      Fetch clinical conditions, observations, and social context for a patient
+      from the demo database.
+    parameters:
+      type: object
+      properties:
+        patientId: {type: string}
+      required: [patientId]
+    binding:
+      cases:
+        - when: not args.patientId
+          result: "ERROR: patientId is required"
+        - sql: >-
+            SELECT Name, Demographics, Conditions, Observations, Notes
+            FROM CareConnect.Patient WHERE PatientId = ?
+          params: ["${args.patientId}"]
+          format: python:careconnect_bindings:patient_summary
+          empty: >-
+            Patient not found: ${args.patientId}. Call SearchPatients to list
+            available patients.
+
+  # -- interop: the legacy instance's production --------------------------
+  - name: TriggerFollowUp
+    backend: legacy
+    description: Trigger an SDoH follow-up workflow via the IRIS Interoperability production.
+    parameters:
+      type: object
+      properties:
+        patientId: {type: string}
+        priority: {type: string}
+        sdohFlags: {type: string}
+      required: [patientId]
+    binding:
+      cases:
+        - when: not args.patientId
+          result: "ERROR: patientId is required"
+        - classmethod: AIHub.Legacy.Interop.Dispatch
+          args:
+            - CareConnect.Service.SDoHFollowUpBS
+            - CareConnect.Message.FollowUpRequest
+            - json:
+                PatientId: "${args.patientId}"
+                Priority: "${args.priority|default:routine}"
+                SDoHFlags: "${args.sdohFlags}"
+          format: python:careconnect_bindings:follow_up
+
+  - name: GetInteropTraces
+    backend: legacy
+    description: >-
+      Show recent IRIS Interoperability message traces: source, target, message
+      class, status, and timestamp.
+    parameters:
+      type: object
+      properties:
+        maxRows: {type: string}
+    binding:
+      sql: >-
+        SELECT TOP ? ID, SourceConfigName, TargetConfigName, MessageBodyClassName,
+        TimeCreated, Status FROM Ens.MessageHeader
+        WHERE SourceConfigName != '' ORDER BY ID DESC
+      params: ["${args.maxRows|default:20}"]
+      format: python:careconnect_bindings:interop_traces
+      empty: >-
+        No messages found. Start the production with StartProduction, then call
+        TriggerFollowUp.
+
+  - name: GetProductionStatus
+    backend: legacy
+    description: >-
+      Get the current status of the CareConnect IRIS Interoperability production
+      and list active components.
+    binding:
+      classmethod: AIHub.Legacy.Interop.ProductionStatus
+
+  - name: StartProduction
+    backend: legacy
+    description: >-
+      Start the CareConnect IRIS Interoperability production. Safe to call if
+      already running.
+    binding:
+      classmethod: AIHub.Legacy.Interop.StartProduction
+      args: [CareConnect.Production]
+
+  # -- logic: the AI Hub companion, over MCP ------------------------------
+  # Schemas come from the companion's tools/list, i.e. SDoHToolSet's XData.
+  - {name: SearchSDoHProtocols, backend: companion}
+  - {name: AssessSDoHRisk, backend: companion}
+  - {name: DraftCarePlan, backend: companion}
+  # Reads the FHIR server; the companion is the instance configured to reach it.
+  - {name: SearchClinicalNotes, backend: companion}

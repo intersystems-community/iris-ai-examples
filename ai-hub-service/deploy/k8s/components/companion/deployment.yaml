@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: companion-iris
+  labels:
+    app.kubernetes.io/name: companion-iris
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: companion-iris
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: companion-iris
+    spec:
+      containers:
+        - name: iris
+          # careconnect-sdoh/services/iris-ai-hub, built on an AI Hub IRIS image.
+          image: ai-hub-service-companion-iris:0.1.0
+          ports:
+            - {name: superserver, containerPort: 1972}
+          readinessProbe:
+            exec:
+              command: ["bash", "-c", "test -f /tmp/.careconnect-setup-done"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 500m, memory: 1Gi}
+            limits: {memory: 3Gi}
+        - name: iris-mcp
+          # The same image carries /usr/irissys/bin/iris-mcp-server.
+          image: ai-hub-service-companion-iris:0.1.0
+          command: ["/usr/irissys/bin/iris-mcp-server"]
+          args: ["--config", "/etc/iris-mcp/config.toml", "run"]
+          ports:
+            - {name: mcp, containerPort: 8888}
+          readinessProbe:
+            tcpSocket: {port: mcp}
+            periodSeconds: 10
+          volumeMounts:
+            - {name: mcp-config, mountPath: /etc/iris-mcp, readOnly: true}
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+      volumes:
+        - name: mcp-config
+          configMap:
+            name: companion-mcp-config

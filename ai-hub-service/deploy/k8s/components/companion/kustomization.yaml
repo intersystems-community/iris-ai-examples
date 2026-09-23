@@ -1,0 +1,22 @@
+# The AI Hub companion: an AI Hub IRIS that holds the %AI toolset, and
+# iris-mcp-server beside it in the same pod (localhost:1972), exactly the
+# pairing careconnect-sdoh's compose file makes with network_mode: service.
+#
+# The companion holds logic, not data, so it is a Deployment with no volume:
+# the toolset is compiled into the image at build time and a restart loses
+# nothing. For production IRIS on Kubernetes, the InterSystems Kubernetes
+# Operator (IrisCluster) is the supported path; this is the smallest thing
+# that runs the proof.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+resources:
+  - deployment.yaml
+  - service.yaml
+
+configMapGenerator:
+  # Byte-identical to careconnect-sdoh/services/iris-mcp-sidecar/config.toml;
+  # tests/test_deploy.py fails if the two drift.
+  - name: companion-mcp-config
+    files:
+      - config.toml=mcp-config.toml

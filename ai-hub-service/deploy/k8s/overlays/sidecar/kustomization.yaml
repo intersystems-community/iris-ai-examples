@@ -1,0 +1,21 @@
+# Sidecar: the application stays on the IRIS it already runs, whatever its
+# version; an AI Hub companion IRIS is deployed beside it; the service meshes
+# the two by binding each tool to the instance that holds what it needs.
+#
+# The legacy instance needs the Native API reachable (superserver, 1972) and,
+# for interop tools only, the AIHub.Legacy.Interop class loaded. Nothing else
+# on it changes.
+#
+#   kubectl apply -k deploy/k8s/overlays/sidecar
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - legacy-iris.yaml
+
+components:
+  - ../../components/companion
+
+patches:
+  - path: aihub-service-env.yaml

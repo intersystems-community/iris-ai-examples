@@ -6,14 +6,15 @@ This repo shows how **iris-agentic-dev + iris-vector-graph + iris-devtester + ir
 fit together. Study these examples to understand the full IRIS AI stack. Every pattern
 here has been demo-proven at InterSystems READY 2026.
 
-**Four examples, two tech stacks:**
+**Five examples, two tech stacks:**
 
-| Example               | Stack              | AI Hub APIs                                                   | Key IRIS feature                                |
-| --------------------- | ------------------ | ------------------------------------------------------------- | ----------------------------------------------- |
-| `careconnect-sdoh/`   | ObjectScript + MCP | `%AI.ToolSet`, `%AI.MCP.Service`                              | IRIS Interoperability BS→BP→BO                  |
-| `kg-ticket-resolver/` | ObjectScript + MCP | `%AI.ToolSet`, `%AI.MCP.Service`, `%AI.Agent`, `%AI.Provider` | IRIS native vector search + Graph_KG provenance |
-| `careconnect-python/` | Python + iris_llm  | `iris_llm.Agent` (@tool decorator)                            | Python-first, no ObjectScript                   |
-| `ai-hub/`             | Both               | OTel, ConfigStore, Python bridge, OAuth 2.0, external MCP     | Pattern library — no stack, no seeded data      |
+| Example               | Stack                                         | AI Hub APIs                                                   | Key IRIS feature                                                   |
+| --------------------- | --------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `careconnect-sdoh/`   | ObjectScript + MCP                            | `%AI.ToolSet`, `%AI.MCP.Service`                              | IRIS Interoperability BS→BP→BO                                     |
+| `kg-ticket-resolver/` | ObjectScript + MCP                            | `%AI.ToolSet`, `%AI.MCP.Service`, `%AI.Agent`, `%AI.Provider` | IRIS native vector search + Graph_KG provenance                    |
+| `careconnect-python/` | Python + iris_llm                             | `iris_llm.Agent` (@tool decorator)                            | Python-first, no ObjectScript                                      |
+| `ai-hub/`             | Both                                          | OTel, ConfigStore, Python bridge, OAuth 2.0, external MCP     | Pattern library — no stack, no seeded data                         |
+| `ai-hub-service/`     | Python service + version-neutral ObjectScript | `%AI.MCP.Service` behind a REST contract                      | Agents as a service; meshes a legacy IRIS with an AI Hub companion |
 
 ---
 
@@ -198,6 +199,48 @@ Container: `careconnect-python-iris` (port 1972 superserver)
 
 ---
 
+## AI Hub Service (`ai-hub-service/`)
+
+**What it demonstrates:** AI Hub delivered as a service rather than an SDK. A REST
+contract (`/v1/tools`, `/v1/agents/{a}/runs`, `/v1/runs/{r}/approval`, `/v1/audit`) in
+front of a tool catalog, an agent runtime and a governance layer. Proved out on
+CareConnect's SDoH agent in three topologies. [DESIGN.md](./ai-hub-service/DESIGN.md) is the argument.
+
+**The one idea:** every tool is bound to a _backend_ — `mcp` (an AI Hub IRIS via
+iris-mcp-server), `iris` (any IRIS version via the Native API: SQL or a classmethod), or
+`python` (in-process). A deployment mode is just a config file choosing bindings:
+
+| Config (`examples/careconnect/`) | Bindings                                                                                                              |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `offline.yaml`                   | All tools → the eval suite's Python port of SDoHToolSet                                                               |
+| `inplace.yaml`                   | All tools → careconnect-sdoh's `/mcp/careconnect`                                                                     |
+| `sidecar.yaml`                   | Patient + interop tools → a legacy 2025.1 IRIS over SQL/Native API; scorer + care plan → an AI Hub companion over MCP |
+
+All three extend `base.yaml` (agents, policy, which tools are `write`). A `write` tool
+inside a run parks it in `awaiting_approval` until an `approver` decides — enforced by
+the runtime, not the prompt.
+
+| Path                          | Role                                                                                                            |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `src/aihub_service/app.py`    | The HTTP contract (FastAPI); `openapi.json` is held equal to it by a test                                       |
+| `src/aihub_service/runs.py`   | Run lifecycle: park on approval, resume, reject, audit                                                          |
+| `src/aihub_service/backends/` | `mcp`, `iris`, `python`                                                                                         |
+| `src/aihub_service/engines/`  | `playbook` (deterministic), `openai`, `anthropic`                                                               |
+| `objectscript/AIHub/`         | Version-neutral wrappers: `Client`, `SQL` (`SELECT AIHub.Ask(...)`), `Interop.AgentOperation`, `Legacy.Interop` |
+| `deploy/k8s/`                 | kustomize base + `inplace`, `sidecar`, `sidecar-demo` overlays                                                  |
+
+**Rules when editing:** `objectscript/AIHub/*` must stay free of `%AI`, embedded Python
+and `%JSON.Adaptor` — it runs on customer IRIS versions that predate AI Hub, and
+`tests/test_objectscript.py` enforces it. A new legacy-bound tool needs its classmethod,
+table and columns to exist in a shipped class; the same test checks that.
+
+```bash
+cd ai-hub-service && python -m pytest        # 116 tests; no Docker, IRIS, or key
+PYTHONPATH=src python -m aihub_service --config examples/careconnect/offline.yaml
+```
+
+---
+
 ## AI Agent Workflows
 
 ### Extend CareConnect with a New Tool
@@ -294,6 +337,9 @@ Use the `container_name:` value, not the service key: they differ in `careconnec
 | Eval suite for CareConnect                                 | `careconnect-sdoh/evals/run_evals.py`                                                          |
 | Demo talk track                                            | `careconnect-sdoh/evals/PRESENTATION.md`                                                       |
 | Python-first agent pattern                                 | `careconnect-python/src/agent.py`                                                              |
+| Calling agents from SQL / a production / any IRIS version  | `ai-hub-service/objectscript/AIHub/` — `SQL.cls`, `Interop/AgentOperation.cls`, `Client.cls`   |
+| Making legacy SQL or a classmethod an agent tool           | `ai-hub-service/examples/careconnect/sidecar.yaml` — `binding:` blocks                         |
+| Human-approval gate for write tools                        | `ai-hub-service/src/aihub_service/runs.py` — `Runner.advance` / `Runner.decide`                |
 
 ---
 
@@ -320,22 +366,26 @@ skills add iris-devtester
 
 ## Container and Port Reference
 
-| Container name               | Port (superserver) | Other published | Example               |
-| ---------------------------- | ------------------ | --------------- | --------------------- |
-| `careconnect-sdoh-iris-hub`  | 1973               | 8888 (MCP)      | `careconnect-sdoh/`   |
-| `careconnect-sdoh-iris-fhir` | 1974               | 52774 (web)     | `careconnect-sdoh/`   |
-| `kg-ticket-resolver-iris`    | 1972               | 52773, 8888     | `kg-ticket-resolver/` |
-| `careconnect-python-iris`    | 31972              | 31773 (web)     | `careconnect-python/` |
+| Container name                  | Port (superserver) | Other published | Example                               |
+| ------------------------------- | ------------------ | --------------- | ------------------------------------- |
+| `careconnect-sdoh-iris-hub`     | 1973               | 8888 (MCP)      | `careconnect-sdoh/`                   |
+| `careconnect-sdoh-iris-fhir`    | 1974               | 52774 (web)     | `careconnect-sdoh/`                   |
+| `kg-ticket-resolver-iris`       | 1972               | 52773, 8888     | `kg-ticket-resolver/`                 |
+| `careconnect-python-iris`       | 31972              | 31773 (web)     | `careconnect-python/`                 |
+| `ai-hub-service-legacy-iris`    | 41972              | 41773 (web)     | `ai-hub-service/` (`sidecar` profile) |
+| `ai-hub-service-companion-iris` | 41973              | —               | `ai-hub-service/` (`sidecar` profile) |
 
 `careconnect-sdoh/` also starts `careconnect-sdoh-mcp-sidecar`, `careconnect-sdoh-app`, `careconnect-sdoh-jupyter`,
 and — behind profiles — `careconnect-sdoh-ollama` and three `careconnect-sdoh-ivg-*` containers. `ai-hub/`
-starts nothing.
+starts nothing. `ai-hub-service/` starts one service container per profile
+(`ai-hub-service-offline`, `-inplace`, `-sidecar`, all on 8080) plus, for `sidecar`,
+`ai-hub-service-companion-mcp` in the companion's network namespace.
 
 Each example is self-contained — containers do not share resources. Names cannot collide
 any more, but ports still can: `kg-ticket-resolver-iris` and `careconnect-sdoh-iris-hub` both publish MCP
 on 8888, so run one example at a time unless you remap.
 
-**Container isolation rule:** The four containers above are the only ones this repo owns.
+**Container isolation rule:** The containers above are the only ones this repo owns.
 Container names are global to the Docker daemon, so a name that is not in that table may
 belong to an unrelated stack on the same machine. Never start, stop, or `docker rm` one
 from here — find out what owns it first.

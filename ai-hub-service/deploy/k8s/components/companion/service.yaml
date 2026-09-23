@@ -1,0 +1,12 @@
+# Only MCP is exposed in-cluster: the service is the companion's one client.
+apiVersion: v1
+kind: Service
+metadata:
+  name: companion-iris
+  labels:
+    app.kubernetes.io/name: companion-iris
+spec:
+  selector:
+    app.kubernetes.io/name: companion-iris
+  ports:
+    - {name: mcp, port: 8888, targetPort: mcp}

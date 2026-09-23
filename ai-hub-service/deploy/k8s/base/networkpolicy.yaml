@@ -1,0 +1,14 @@
+# Only the HTTP port is reachable. Tighten `from` to the namespaces your IRIS
+# applications run in; left open here so the demo works in any cluster.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: aihub-service
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: aihub-service
+  policyTypes: [Ingress]
+  ingress:
+    - ports:
+        - {port: 8080, protocol: TCP}

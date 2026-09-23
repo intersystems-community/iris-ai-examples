@@ -1,0 +1,11 @@
+# A stand-in for the customer's existing IRIS, for the demo only: a
+# pre-AI-Hub irishealth-community release with CareConnect's data and
+# production (ai-hub-service/docker/legacy-iris). A real deployment points
+# the legacy-iris Service at the instance it already runs instead — see
+# overlays/sidecar/legacy-iris.yaml.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+resources:
+  - deployment.yaml
+  - service.yaml

@@ -1,0 +1,14 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aihub-service
+spec:
+  template:
+    spec:
+      containers:
+        - name: aihub-service
+          env:
+            - name: AIHUB_CONFIG
+              value: /app/ai-hub-service/examples/careconnect/inplace.yaml
+            - name: AIHUB_MCP_URL
+              value: http://existing-iris:8888/mcp/careconnect

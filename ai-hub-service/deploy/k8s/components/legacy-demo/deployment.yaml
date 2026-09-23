@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: legacy-iris
+  labels:
+    app.kubernetes.io/name: legacy-iris
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: legacy-iris
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: legacy-iris
+    spec:
+      containers:
+        - name: iris
+          image: ai-hub-service-legacy-iris:0.1.0
+          ports:
+            - {name: superserver, containerPort: 1972}
+            - {name: web, containerPort: 52773}
+          readinessProbe:
+            tcpSocket: {port: superserver}
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 500m, memory: 1Gi}
+            limits: {memory: 3Gi}

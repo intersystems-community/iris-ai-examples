@@ -1,0 +1,136 @@
+# CareConnect SDoH as a service — what every deployment mode shares.
+#
+# The agents, the governance, and the effect of each tool are properties of
+# the application, not of the topology, so they live here once. The three mode
+# files (offline.yaml, inplace.yaml, sidecar.yaml) extend this one and say only
+# which backend answers each tool.
+#
+# Every key below is a development default. A real deployment supplies them
+# from a Kubernetes Secret (deploy/k8s) or a compose .env file.
+
+service:
+  name: careconnect-sdoh
+
+auth:
+  api_keys:
+    # A community health worker: may run agents and read, may not approve.
+    - key: ${AIHUB_KEY_CHW:-dev-chw-key}
+      principal: chw_user
+      roles: [caller]
+    # The clinical lead: works the approval queue.
+    - key: ${AIHUB_KEY_LEAD:-dev-lead-key}
+      principal: clinical_lead
+      roles: [caller, approver]
+    # The IRIS application itself, calling through AIHub.Client / AIHub.SQL /
+    # AIHub.Interop.AgentOperation. A caller like any other, audited by name.
+    - key: ${AIHUB_KEY_APP:-dev-app-key}
+      principal: careconnect_app
+      roles: [caller]
+    - key: ${AIHUB_KEY_ADMIN:-dev-admin-key}
+      principal: admin
+      roles: [caller, approver, admin]
+
+policy:
+  approval:
+    # Any tool whose effect is `write` pauses a run until an approver decides.
+    required_for: [write]
+  roles:
+    # Direct invocation of a write tool, outside a run, is admin-only: there is
+    # no run to park, so the second pair of eyes has to be the caller's role.
+    invoke_write_tools: [admin]
+
+callbacks:
+  # Hosts a run may POST its result to when it settles. Empty disables callbacks.
+  allowed_hosts: []
+
+# The ten core CareConnect tools (the seven IVG knowledge-graph tools need the
+# --profile ivg stack and are left out of this proof). `effect` is the
+# governance fact; the mode files add `backend` and, where needed, `binding`.
+tools:
+  - {name: SearchPatients, effect: read}
+  - {name: FetchPatientSummary, effect: read}
+  - {name: SearchSDoHProtocols, effect: read}
+  - {name: AssessSDoHRisk, effect: read}
+  - {name: DraftCarePlan, effect: read}
+  - {name: SearchClinicalNotes, effect: read}
+  - {name: GetInteropTraces, effect: read}
+  - {name: GetProductionStatus, effect: read}
+  # Fires CareConnect.Production: BS -> BP -> BO. A real side effect.
+  - {name: TriggerFollowUp, effect: write}
+  # Changes the state of a production other people depend on.
+  - {name: StartProduction, effect: write}
+
+agents:
+  # Deterministic: no model, no API key. The workflow CareConnect's
+  # %AI.Agent instructions describe, written down as steps.
+  sdoh-assessment:
+    description: >-
+      Assess one patient across six SDoH domains, draft a care plan, and fire the
+      follow-up workflow when the case is URGENT or the caller asks for it. The
+      follow-up waits for an approver.
+    engine: playbook
+    tools: [FetchPatientSummary, SearchSDoHProtocols, AssessSDoHRisk, DraftCarePlan,
+            TriggerFollowUp, GetInteropTraces]
+    playbook:
+      requires: [patientId]
+      steps:
+        - tool: FetchPatientSummary
+          args: {patientId: "${context.patientId}"}
+        - tool: SearchSDoHProtocols
+          args: {conditions: "${result.FetchPatientSummary}"}
+        - tool: AssessSDoHRisk
+          args:
+            patientId: "${context.patientId}"
+            clinicalSummary: "${result.FetchPatientSummary}"
+            protocolMatches: "${result.SearchSDoHProtocols}"
+        - tool: DraftCarePlan
+          args:
+            patientId: "${context.patientId}"
+            sdohScores: "${result.AssessSDoHRisk}"
+        # URGENT always escalates, at urgent priority, whatever the caller asked.
+        - tool: TriggerFollowUp
+          when: "result.AssessSDoHRisk contains 'Overall Priority: URGENT'"
+          args: {patientId: "${context.patientId}", priority: urgent, sdohFlags: ""}
+        # Otherwise only on request, at the caller's priority.
+        - tool: TriggerFollowUp
+          when: "context.followUp and not result.AssessSDoHRisk contains 'Overall Priority: URGENT'"
+          args:
+            patientId: "${context.patientId}"
+            priority: "${context.priority|default:routine}"
+            sdohFlags: ""
+        # Only once the production actually accepted one: not after a rejection.
+        - tool: GetInteropTraces
+          when: "result.TriggerFollowUp contains 'Follow-up triggered'"
+          args: {maxRows: "10"}
+      output: |-
+        ${result.AssessSDoHRisk}
+
+        ${result.DraftCarePlan}
+
+        Follow-up: ${result.TriggerFollowUp|default:not triggered}
+
+  # Model-driven: the same tools, the model chooses the order. Needs a key.
+  sdoh-assistant:
+    description: >-
+      Free-form SDoH assistant for a community health worker. Chooses its own tool
+      calls; any follow-up it attempts waits for an approver.
+    engine: ${AIHUB_LLM_ENGINE:-openai}
+    model: ${AIHUB_LLM_MODEL:-gpt-4o-mini}
+    base_url: ${AIHUB_LLM_BASE_URL:-}
+    api_key: ${AIHUB_LLM_API_KEY:-}
+    tools: [SearchPatients, FetchPatientSummary, SearchSDoHProtocols, AssessSDoHRisk,
+            DraftCarePlan, SearchClinicalNotes, TriggerFollowUp, GetInteropTraces,
+            GetProductionStatus]
+    instructions: |-
+      You are a Community Health Worker assistant that identifies and addresses
+      social determinants of health (SDoH) for patients.
+
+      Workflow: SearchPatients -> FetchPatientSummary -> SearchSDoHProtocols ->
+      AssessSDoHRisk -> DraftCarePlan -> TriggerFollowUp -> GetInteropTraces.
+
+      - Always assess all six SDoH domains before drafting a care plan.
+      - Pass the full FetchPatientSummary text to AssessSDoHRisk as clinicalSummary;
+        do not paraphrase it — the scorer is keyword-based.
+      - Trigger a follow-up only when asked or when the case is URGENT. A follow-up
+        waits for a human approver; if it is rejected, say so and do not retry.
+      - Respect patient privacy: do not repeat sensitive details unnecessarily.

@@ -1,0 +1,18 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aihub-service
+spec:
+  template:
+    spec:
+      containers:
+        - name: aihub-service
+          env:
+            - name: AIHUB_CONFIG
+              value: /app/ai-hub-service/examples/careconnect/sidecar.yaml
+            - name: LEGACY_IRIS_HOST
+              value: legacy-iris
+            - name: LEGACY_IRIS_PORT
+              value: "1972"
+            - name: AIHUB_MCP_URL
+              value: http://companion-iris:8888/mcp/careconnect

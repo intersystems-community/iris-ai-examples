@@ -2,16 +2,17 @@
 
 Working AI Hub applications built on InterSystems IRIS — ready to run, domain-specific, and built for demonstration.
 
-Three of the four examples ship a Docker stack, seeded demo data, and a set of MCP tools you can drive from Claude Desktop, VS Code, or any MCP client. The fourth (`ai-hub/`) is a pattern library you read and copy from rather than a stack you start.
+Three of the examples ship a Docker stack, seeded demo data, and a set of MCP tools you can drive from Claude Desktop, VS Code, or any MCP client. `ai-hub/` is a pattern library you read and copy from rather than a stack you start. `ai-hub-service/` turns AI Hub into a deployable service (REST in front, agents and governance inside) and proves it on CareConnect.
 
 ## Examples
 
-| Example                                     | Domain                     | Language            | Tools | AI Hub APIs                                                       | Interop                 |
-| ------------------------------------------- | -------------------------- | ------------------- | ----- | ----------------------------------------------------------------- | ----------------------- |
-| [careconnect-sdoh](./careconnect-sdoh/)     | Healthcare / SDoH          | ObjectScript        | 17    | `%AI.ToolSet`, `%AI.MCP.Service`                                  | BS → BP → BO production |
-| [careconnect-python](./careconnect-python/) | Healthcare / SDoH          | Python (`iris_llm`) | 4     | `iris_llm.Agent`, `@tool`                                         | —                       |
-| [kg-ticket-resolver](./kg-ticket-resolver/) | Support / Knowledge Mining | ObjectScript        | 6     | `%AI.ToolSet`, `%AI.MCP.Service`, `%AI.Agent`, `%AI.Provider`     | —                       |
-| [ai-hub](./ai-hub/)                         | Patterns library           | Both                | —     | OTel, ConfigStore, Bridge, Jira MCP, Interop+OTel, Python `@tool` | OTel Interop spans      |
+| Example                                     | Domain                     | Language                       | Tools              | AI Hub APIs                                                            | Interop                                                   |
+| ------------------------------------------- | -------------------------- | ------------------------------ | ------------------ | ---------------------------------------------------------------------- | --------------------------------------------------------- |
+| [careconnect-sdoh](./careconnect-sdoh/)     | Healthcare / SDoH          | ObjectScript                   | 17                 | `%AI.ToolSet`, `%AI.MCP.Service`                                       | BS → BP → BO production                                   |
+| [careconnect-python](./careconnect-python/) | Healthcare / SDoH          | Python (`iris_llm`)            | 4                  | `iris_llm.Agent`, `@tool`                                              | —                                                         |
+| [kg-ticket-resolver](./kg-ticket-resolver/) | Support / Knowledge Mining | ObjectScript                   | 6                  | `%AI.ToolSet`, `%AI.MCP.Service`, `%AI.Agent`, `%AI.Provider`          | —                                                         |
+| [ai-hub](./ai-hub/)                         | Patterns library           | Both                           | —                  | OTel, ConfigStore, Bridge, Jira MCP, Interop+OTel, Python `@tool`      | OTel Interop spans                                        |
+| [ai-hub-service](./ai-hub-service/)         | Agents as a service        | Python + ObjectScript wrappers | 10 (CareConnect's) | `%AI.MCP.Service` behind a REST contract; any IRIS version as a caller | Agents as a business operation; drives legacy productions |
 
 The two CareConnect examples solve the same problem in the two supported languages. Read
 them side by side to see what the ObjectScript and Python SDKs each cost you.
@@ -88,6 +89,32 @@ embedded Python (`irispython`), `iris_tool_bridge`, IRIS Interoperability + AI t
 
 ---
 
+### [`ai-hub-service/`](./ai-hub-service/)
+
+#### AI Hub as a service: agents over REST, for any IRIS
+
+A service in a box for teams that want to call agents from the ObjectScript, SQL and
+Interoperability code they already have, on the IRIS version they already run, without
+adopting an SDK. It is a REST service with a tool catalog, an agent runtime, and a
+governance layer, deployable with `kubectl apply -k`.
+
+- Three topologies, one config each: **in-place** (in front of an AI Hub IRIS),
+  **sidecar** (a legacy IRIS keeps its data and production, an AI Hub companion runs the
+  `%AI` logic, and the service meshes them per tool), and **offline**
+- Human approval enforced by the runtime: a `write` tool parks the run until an approver
+  decides, whatever the model wanted
+- Deterministic playbook agents alongside OpenAI-compatible and Anthropic model loops
+- Version-neutral ObjectScript wrappers: `SELECT AIHub.Ask(...)`, an Interop business
+  operation, a client class, and an allow-listed dispatcher for legacy productions
+- CareConnect's SDoH agent gives the same answer in all three topologies, pinned by tests
+  that need no Docker and no key
+
+**Best for demonstrating:** what AI Hub looks like to a customer who asked for a service
+rather than an SDK. [DESIGN.md](./ai-hub-service/DESIGN.md) is the argument and is
+explicit about what is not yet verified.
+
+---
+
 ## Requirements
 
 - InterSystems IRIS AI Hub, community image `irishealth-community:2026.2.0AI.162.0` or later
@@ -139,12 +166,13 @@ before anyone else can read the container.
 Each example is self-contained, but they do not all start the same way. Start from the
 example's own README; the table below is the short version.
 
-| Example              | How to start it                                                                               |
-| -------------------- | --------------------------------------------------------------------------------------------- |
-| `careconnect-sdoh`   | `make up` (or `docker compose up -d --wait`) from the example root                            |
-| `careconnect-python` | `cd docker && docker compose up -d iris`, then `docker compose run agent python agent.py "…"` |
-| `kg-ticket-resolver` | `cd docker && docker compose up -d`                                                           |
-| `ai-hub`             | No stack. Load the classes you want into an existing AI Hub instance.                         |
+| Example              | How to start it                                                                                                                     |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `careconnect-sdoh`   | `make up` (or `docker compose up -d --wait`) from the example root                                                                  |
+| `careconnect-python` | `cd docker && docker compose up -d iris`, then `docker compose run agent python agent.py "…"`                                       |
+| `kg-ticket-resolver` | `cd docker && docker compose up -d`                                                                                                 |
+| `ai-hub`             | No stack. Load the classes you want into an existing AI Hub instance.                                                               |
+| `ai-hub-service`     | `python -m aihub_service --config examples/careconnect/offline.yaml`, or `docker compose --profile offline\|inplace\|sidecar up -d` |
 
 For the three Docker examples, connect your MCP client to the running server afterwards —
 each README carries the exact client config.
@@ -174,6 +202,9 @@ repo is reachable only by listing the files.
 | [README](./ai-hub/README.md)                                                | The pattern library: OTel, ConfigStore, bridge governance, Jira MCP, Interop spans      |
 | [Sample.AI.OAuth](./ai-hub/objectscript/cls/Sample/AI/OAuth/README.md)      | Bearer token to IRIS roles to a role-filtered tool catalog, with the measured matrix    |
 | [fixtures/keycloak](./ai-hub/fixtures/keycloak/README.md)                   | The throwaway IdP those measurements came from                                          |
+| **ai-hub-service**                                                          |                                                                                         |
+| [README](./ai-hub-service/README.md)                                        | Quickstart, the approval walkthrough, the three modes, Kubernetes, calling it from IRIS |
+| [DESIGN.md](./ai-hub-service/DESIGN.md)                                     | Why a service, the topologies, meshing options weighed, governance, what is unverified  |
 | **Repo-wide**                                                               |                                                                                         |
 | [AGENTS.md](./AGENTS.md)                                                    | Project index and build commands, written for coding agents                             |
 | [CLAUDE.md](./CLAUDE.md)                                                    | Claude Code's instructions for this repo                                                |
