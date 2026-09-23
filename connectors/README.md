@@ -38,6 +38,15 @@ Each subdirectory carries a `STATUS.md` separating what is **verified with real
 command output** from what is **unverified**, plus the specific human actions
 needed to finish. Read that file before trusting anything here.
 
+## What's left to do
+
+The remaining work for every connector here — and for the thirteen catalogs that
+have no connector yet — is broken out in
+[`../research/catalog-paths.md`](../research/catalog-paths.md): development
+projects, tasks, shared foundations and a definition of done per catalog. Its
+single critical path is a live IRIS instance to validate against; nothing in this
+directory has touched one.
+
 ## Contents
 
 | Directory | Gap addressed | Rank in analysis |

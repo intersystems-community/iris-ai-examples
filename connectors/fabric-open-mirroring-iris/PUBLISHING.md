@@ -38,6 +38,19 @@ Microsoft approval gate to *build* it.
   a docs page, a Fabric Community post) to start owning some of the search
   real estate the ecosystem-gaps research flagged as ceded to third parties
   (Matillion, CData, etc. — see `../research/ecosystem-connector-gaps.md`).
+- **Eligibility for a branded listing that this section originally
+  missed.** Microsoft maintains an
+  [Open Mirroring Partner Ecosystem](https://learn.microsoft.com/en-us/fabric/mirroring/open-mirroring-partners-ecosystem)
+  page with a named entry — description plus link — for each partner whose
+  solution writes into open mirrored databases. Informatica, MongoDB, Qlik
+  Replicate, Striim and CData are among those listed. It is a docs page in
+  `MicrosoftDocs/fabric-docs` with named Microsoft reviewers, so entries are
+  added by Microsoft's partner team, not by Microsoft engineering building
+  anything. That makes it the cheapest *branded* Fabric listing available —
+  much cheaper than native mirrored-source status (Route 2). Read verbatim
+  from the docs source on 2026-09-23; the exact admission process was not
+  published on the page and needs asking. See
+  `../../research/catalog-paths.md`, path #5.
 
 **Effort:** low-to-moderate, no Microsoft dependency. This directory is a
 working reference implementation of the Parquet/metadata side; the only

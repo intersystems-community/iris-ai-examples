@@ -40,6 +40,11 @@ under the InterSystems name.
 
 ---
 
+> **Execution plan:** [`catalog-paths.md`](catalog-paths.md) breaks every catalog
+> below into development projects, tasks, shared foundations and a definition of
+> done. Read it for *how*; this document remains the *why* and the ranking. Grounding
+> those paths added three more corrections, recorded at the end of the next section.
+
 ## Update — all ten were implemented, and four findings revise this analysis
 
 Working implementations of the top ten now live in
@@ -91,6 +96,20 @@ implementation. Those directories require an HTTP-reachable endpoint and domain
 verification, which a stdio server cannot satisfy and an owner-less reference
 server cannot pass. Separately, ChatGPT's connector directory has **no public
 manifest schema** — portal submission and domain verification only.
+
+### Three more, from grounding the execution paths (2026-09-23)
+
+- **Fabric has a branded listing within reach.** Microsoft's
+  [Open Mirroring Partner Ecosystem](https://learn.microsoft.com/en-us/fabric/mirroring/open-mirroring-partners-ecosystem)
+  page names each partner that writes into open mirrored databases — Informatica,
+  MongoDB, Qlik Replicate, CData among them. An entry needs Microsoft's partner team,
+  not Microsoft engineering, so #5's low effort now comes with a tile, not just a
+  capability. Read verbatim from `MicrosoftDocs/fabric-docs`.
+- **Airflow's registry cannot list IRIS yet.** It carries only official Apache
+  providers; third-party listing is planned, not live. #16 is waiting on the host.
+- **Zapier does not fit self-hosted IRIS.** Public integrations require a publicly
+  launched product with a public HTTPS API and API docs, then 10 templates and 50
+  active users — so only a hosted InterSystems cloud service qualifies for #15.
 
 ### Verification ceiling on all of it
 
@@ -169,8 +188,8 @@ themselves are sourced and are the durable part of this document.
 
 | # | Platform | Gap | T | M | E | Total |
 | --- | --- | --- | --- | --- | --- | --- |
-| 15 | **Zapier / Make / Workato** | No IRIS app (n8n has a community node) | 5 | 2 | 2 | 7 |
-| 16 | **Airflow Registry** | `airflow-provider-iris` exists off-registry, flagged "Issue Detected" | 3 | 2 | **1** | 5 |
+| 15 | **Zapier / Make / Workato** | No IRIS app (n8n has a community node). Zapier requires a public HTTPS API, so only a hosted InterSystems service qualifies | 5 | 2 | 2 | 7 |
+| 16 | **Airflow Registry** | `airflow-provider-iris` exists, flagged "Issue Detected" — but the registry lists only official Apache providers, so it cannot be listed yet | 3 | 2 | **1** | 5 |
 | 17 | **Apache Superset docs** | `superset-iris` works but IRIS is not in Superset's own DB list | 3 | 2 | **1** | 5 |
 | 18 | **Terraform Registry** | No IRIS/IKO provider | 3 | 2 | 2 | 5 |
 | 19 | **Hightouch / Census** (now Fivetran) | No IRIS source | 2 | 3 | 3 | 5 |
