@@ -7,7 +7,7 @@
 #   ./stage.sh
 #
 # No route to OpenAI? Use the bundled Ollama instead of OPENAI_API_KEY:
-#   LOCAL_LLM=qwen2.5:14b ... ./stage.sh
+#   LOCAL_LLM=qwen3.8:27b ... ./stage.sh
 #
 # Both artifacts must be built for the target's architecture (linux x86_64 or
 # aarch64). .env is written once, mode 600, with random secrets; rerunning keeps

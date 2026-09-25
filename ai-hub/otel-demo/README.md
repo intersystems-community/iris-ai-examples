@@ -16,12 +16,12 @@ Both tabs produce one connected trace per turn:
 ```text
 chat turn (%AI.Agent)                    app, FastAPI
 └─ invoke_agent %AI.Agent                Rust, inside IRIS
-   ├─ chat qwen2.5:14b                   Rust, token usage attached
+   ├─ chat qwen3.8:27b                   Rust, token usage attached
    ├─ LookupPatient                      Rust execute_tool span
    │  └─ bs.ToolService                  IRIS interop, parented on execute_tool
    │     └─ bp.LookupBP
    │        └─ bo.LookupBO
-   └─ chat qwen2.5:14b
+   └─ chat qwen3.8:27b
 ```
 
 The LangChain tab has the same shape, with `invoke_agent iris-langchain` and
@@ -56,7 +56,7 @@ The stack uses a patched AI Hub build on top of an IRIS for Health AI image:
    ```
 
    On a host with no route to OpenAI, replace `OPENAI_API_KEY` with
-   `LOCAL_LLM=qwen2.5:14b`. That turns on the `local-llm` compose profile, an
+   `LOCAL_LLM=qwen3.8:27b`. That turns on the `local-llm` compose profile, an
    Ollama container on the host GPU, and points both tabs at its
    OpenAI-compatible endpoint.
 
@@ -64,7 +64,7 @@ The stack uses a patched AI Hub build on top of an IRIS for Health AI image:
 
    ```sh
    docker compose up -d --build
-   docker compose exec ollama ollama pull qwen2.5:14b   # LOCAL_LLM only
+   docker compose exec ollama ollama pull qwen3.8:27b   # LOCAL_LLM only
    ```
 
 3. Open the app at `http://<host>:8095` and Langfuse at `http://<host>:3300`.
@@ -92,6 +92,9 @@ are `[ Internal ]` and the kernel-bug note lives in a code comment instead of
 the doc comment. The %AI.Agent tab also runs at temperature 0.2
 (`Demo.AIHub.Chat` `TEMPERATURE`). At the default temperature, qwen2.5:14b
 skipped the tool on 2 of 10 identical requests. At 0.2 it called it 10 of 10.
+qwen3.8:27b, the model the local profile now suggests, called it 10 of 10 at
+both temperatures. Its reasoning comes back in a separate `reasoning` field,
+so it stays out of the reply.
 
 ## Why the tool runs in a worker job
 

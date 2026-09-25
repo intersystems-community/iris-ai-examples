@@ -13,9 +13,9 @@ def test_default_is_openai_gpt_4o_mini():
 
 def test_a_base_url_points_the_openai_provider_elsewhere():
     model, settings = llm_config.from_env(
-        {"DEMO_LLM_BASE_URL": "http://ollama:11434/v1", "DEMO_MODEL": "qwen2.5:14b"}
+        {"DEMO_LLM_BASE_URL": "http://ollama:11434/v1", "DEMO_MODEL": "qwen3.8:27b"}
     )
-    assert model == "qwen2.5:14b"
+    assert model == "qwen3.8:27b"
     assert json.loads(settings) == {"api_key": "unused", "base_url": "http://ollama:11434/v1"}
 
 

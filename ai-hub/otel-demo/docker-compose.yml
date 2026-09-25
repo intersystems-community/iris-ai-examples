@@ -99,7 +99,7 @@ services:
 
   # Local model for hosts with a GPU and no route to a hosted LLM API.
   # COMPOSE_PROFILES=local-llm, DEMO_LLM_BASE_URL=http://ollama:11434/v1,
-  # DEMO_MODEL=qwen2.5:14b, then: docker compose exec ollama ollama pull qwen2.5:14b
+  # DEMO_MODEL=qwen3.8:27b, then: docker compose exec ollama ollama pull qwen3.8:27b
   ollama:
     image: ollama/ollama:latest
     container_name: ai-hub-otel-demo-ollama
