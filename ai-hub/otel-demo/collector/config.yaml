@@ -1,0 +1,33 @@
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+      grpc:
+        endpoint: 0.0.0.0:4317
+
+processors:
+  batch:
+    timeout: 1s
+  # The IRIS %Trace exporter sends resource attributes as Bool(true) instead of
+  # their values. Put usable ones back so Langfuse can tell the services apart.
+  transform/iris-resource:
+    trace_statements:
+      - context: resource
+        statements:
+          - set(attributes["service.name"], "aihub-otel-demo-iris") where attributes["service.name"] == true
+          - set(attributes["host.name"], "iris") where attributes["host.name"] == true
+          - delete_key(attributes, "service.version") where attributes["service.version"] == true
+
+exporters:
+  otlphttp/langfuse:
+    endpoint: http://langfuse-web:3000/api/public/otel
+    headers:
+      Authorization: "Basic ${env:LANGFUSE_OTLP_AUTH}"
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [transform/iris-resource, batch]
+      exporters: [otlphttp/langfuse]

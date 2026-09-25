@@ -1,0 +1,232 @@
+# AI Hub observability demo: two chatbots, one Langfuse.
+#
+#   iris       IRIS + locally built AI Hub layer; %AI.Agent tab and the interop production
+#   app        FastAPI + HTMX; iris_llm ChatIris under a LangChain loop
+#   collector  OTLP in from both, fixes IRIS resource attributes, out to Langfuse
+#   langfuse-* Langfuse v4 (web, worker, postgres, clickhouse, redis, minio)
+#
+# ./stage.sh fills build/ and writes .env; see README.md.
+name: ai-hub-otel-demo
+
+x-langfuse-env: &langfuse-env
+  NEXTAUTH_URL: ${LANGFUSE_PUBLIC_URL:-http://localhost:3300}
+  DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@langfuse-postgres:5432/postgres
+  SALT: ${LANGFUSE_SALT:-changeme-salt}
+  ENCRYPTION_KEY: ${LANGFUSE_ENCRYPTION_KEY:-0000000000000000000000000000000000000000000000000000000000000000}
+  TELEMETRY_ENABLED: "false"
+  CLICKHOUSE_MIGRATION_URL: clickhouse://langfuse-clickhouse:9000
+  CLICKHOUSE_URL: http://langfuse-clickhouse:8123
+  CLICKHOUSE_USER: clickhouse
+  CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-clickhouse}
+  CLICKHOUSE_CLUSTER_ENABLED: "false"
+  REDIS_HOST: langfuse-redis
+  REDIS_PORT: "6379"
+  REDIS_AUTH: ${REDIS_AUTH:-changeme-redis}
+  LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
+  LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
+  LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: minio
+  LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-miniosecret}
+  LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://langfuse-minio:9000
+  LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+  LANGFUSE_S3_EVENT_UPLOAD_PREFIX: events/
+  LANGFUSE_S3_MEDIA_UPLOAD_BUCKET: langfuse
+  LANGFUSE_S3_MEDIA_UPLOAD_REGION: auto
+  LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID: minio
+  LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-miniosecret}
+  LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: http://langfuse-minio:9000
+  LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE: "true"
+  LANGFUSE_S3_MEDIA_UPLOAD_PREFIX: media/
+
+x-otel-env: &otel-env
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://collector:4318
+  OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+  OTEL_BSP_SCHEDULE_DELAY: "1000"
+  IRIS_LLM_TELEMETRY: "1"
+  IRIS_LLM_TELEMETRY_CAPTURE_CONTENT: "1"
+  OTEL_CAPTURE_CONTENT: "true"
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+  DEMO_LLM_BASE_URL: ${DEMO_LLM_BASE_URL:-}
+  DEMO_MODEL: ${DEMO_MODEL:-gpt-4o-mini}
+
+services:
+  iris:
+    build:
+      context: ..
+      dockerfile: otel-demo/iris/Dockerfile
+      args:
+        IRIS_IMAGE: ${IRIS_IMAGE:-intersystems/irishealth:2026.3.0AI.154.0}
+    image: ai-hub-otel-demo-iris:latest
+    container_name: ai-hub-otel-demo-iris
+    restart: unless-stopped
+    command: --check-caps false --ISCAgent false
+    environment:
+      <<: *otel-env
+      OTEL_SERVICE_NAME: aihub-otel-demo-iris
+    volumes:
+      - ${IRIS_KEY_FILE:-./iris.key}:/usr/irissys/mgr/iris.key:ro
+    ports:
+      - "${IRIS_PORT:-21980}:1972"
+    healthcheck:
+      test: ["CMD-SHELL", "iris qlist IRIS | grep -q running"]
+      interval: 10s
+      retries: 30
+    depends_on: [collector]
+
+  app:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    image: ai-hub-otel-demo-app:latest
+    container_name: ai-hub-otel-demo-app
+    restart: unless-stopped
+    environment:
+      <<: *otel-env
+      OTEL_SERVICE_NAME: aihub-otel-demo-app
+      IRIS_HOST: iris
+      IRIS_SUPERSERVER_PORT: "1972"
+      IRIS_NAMESPACE: USER
+      IRIS_USERNAME: _SYSTEM
+      IRIS_PASSWORD: ${IRIS_PASSWORD:-SYS}
+      LANGFUSE_PUBLIC_URL: ${LANGFUSE_PUBLIC_URL:-http://localhost:3300}
+      LANGFUSE_INIT_PROJECT_ID: ${LANGFUSE_INIT_PROJECT_ID:-otel-demo}
+    ports:
+      - "${APP_PORT:-8095}:8000"
+    depends_on:
+      iris:
+        condition: service_healthy
+      collector:
+        condition: service_started
+
+  # Local model for hosts with a GPU and no route to a hosted LLM API.
+  # COMPOSE_PROFILES=local-llm, DEMO_LLM_BASE_URL=http://ollama:11434/v1,
+  # DEMO_MODEL=qwen2.5:14b, then: docker compose exec ollama ollama pull qwen2.5:14b
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ai-hub-otel-demo-ollama
+    profiles: [local-llm]
+    restart: unless-stopped
+    environment:
+      OLLAMA_KEEP_ALIVE: 24h
+    volumes:
+      - ollama:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  collector:
+    image: otel/opentelemetry-collector-contrib:0.120.0
+    container_name: ai-hub-otel-demo-collector
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol/config.yaml"]
+    environment:
+      LANGFUSE_OTLP_AUTH: ${LANGFUSE_OTLP_AUTH:?run stage.sh to write .env}
+    volumes:
+      - ./collector/config.yaml:/etc/otelcol/config.yaml:ro
+    depends_on: [langfuse-web]
+
+  langfuse-web:
+    image: docker.langfuse.com/langfuse/langfuse:4
+    container_name: ai-hub-otel-demo-langfuse-web
+    restart: unless-stopped
+    depends_on: &langfuse-deps
+      langfuse-postgres:
+        condition: service_healthy
+      langfuse-clickhouse:
+        condition: service_healthy
+      langfuse-redis:
+        condition: service_healthy
+      langfuse-minio:
+        condition: service_healthy
+    environment:
+      <<: *langfuse-env
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-changeme-nextauth}
+      LANGFUSE_INIT_ORG_ID: otel-demo-org
+      LANGFUSE_INIT_ORG_NAME: AI Hub demo
+      LANGFUSE_INIT_PROJECT_ID: ${LANGFUSE_INIT_PROJECT_ID:-otel-demo}
+      LANGFUSE_INIT_PROJECT_NAME: AI Hub observability
+      LANGFUSE_INIT_PROJECT_PUBLIC_KEY: ${LANGFUSE_INIT_PROJECT_PUBLIC_KEY:?run stage.sh to write .env}
+      LANGFUSE_INIT_PROJECT_SECRET_KEY: ${LANGFUSE_INIT_PROJECT_SECRET_KEY:?run stage.sh to write .env}
+      LANGFUSE_INIT_USER_EMAIL: ${LANGFUSE_INIT_USER_EMAIL:-demo@example.com}
+      LANGFUSE_INIT_USER_NAME: Demo
+      LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_INIT_USER_PASSWORD:?run stage.sh to write .env}
+    ports:
+      - "${LANGFUSE_PORT:-3300}:3000"
+
+  langfuse-worker:
+    image: docker.langfuse.com/langfuse/langfuse-worker:4
+    container_name: ai-hub-otel-demo-langfuse-worker
+    restart: unless-stopped
+    depends_on: *langfuse-deps
+    environment: *langfuse-env
+
+  langfuse-postgres:
+    image: postgres:17
+    container_name: ai-hub-otel-demo-langfuse-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: postgres
+    volumes:
+      - langfuse_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      retries: 10
+
+  langfuse-clickhouse:
+    image: clickhouse/clickhouse-server:25.12
+    container_name: ai-hub-otel-demo-langfuse-clickhouse
+    restart: unless-stopped
+    user: "101:101"
+    environment:
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-clickhouse}
+    volumes:
+      - langfuse_clickhouse:/var/lib/clickhouse
+      - langfuse_clickhouse_logs:/var/log/clickhouse-server
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1
+      interval: 5s
+      retries: 10
+
+  langfuse-redis:
+    image: redis:7
+    container_name: ai-hub-otel-demo-langfuse-redis
+    restart: unless-stopped
+    command: --requirepass ${REDIS_AUTH:-changeme-redis} --maxmemory-policy noeviction
+    volumes:
+      - langfuse_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_AUTH:-changeme-redis}", "ping"]
+      interval: 3s
+      retries: 10
+
+  langfuse-minio:
+    image: cgr.dev/chainguard/minio
+    container_name: ai-hub-otel-demo-langfuse-minio
+    restart: unless-stopped
+    entrypoint: sh
+    command: -c 'mkdir -p /data/langfuse && minio server --address ":9000" /data'
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-miniosecret}
+    volumes:
+      - langfuse_minio:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 2s
+      retries: 10
+
+volumes:
+  langfuse_postgres:
+  langfuse_clickhouse:
+  langfuse_clickhouse_logs:
+  langfuse_redis:
+  langfuse_minio:
+  ollama:

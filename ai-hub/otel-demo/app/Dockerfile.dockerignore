@@ -1,0 +1,4 @@
+**
+!build/wheels/**
+!app/demo_app/**
+**/__pycache__

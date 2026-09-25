@@ -75,6 +75,9 @@ servers (Atlassian Rovo), and IRIS Interoperability + OTel integration.
 
 - **OTel observability**: gen_ai.\* semantic convention spans, W3C traceparent
   propagation, pre-generated chat span IDs so tool-call spans are children
+- **[OTel demo stack](./ai-hub/otel-demo/README.md)**: `%AI.Agent` and
+  iris_llm + LangChain chat tabs, each turn one trace in Langfuse from the app
+  span through the Rust agent loop to the interop BS/BP/BO spans
 - **ConfigStore governance**: provider credentials + model via IRIS RBAC — no
   hardcoded env-var secrets
 - **Python bridge governance**: `@tool` functions governed by deny/allow-list

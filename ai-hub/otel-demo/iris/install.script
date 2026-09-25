@@ -1,0 +1,12 @@
+zn "%SYS"
+do ##class(Security.Users).UnExpireUserPasswords("*")
+set db=##class(SYS.Database).%OpenId("/usr/irissys/mgr/irislib/") set db.ReadOnly=0 set sc=db.%Save()
+do $system.OBJ.LoadDir("/opt/demo/ai-cls","ck-d",.e1,1)
+set db=##class(SYS.Database).%OpenId("/usr/irissys/mgr/irislib/") set db.ReadOnly=1 set sc=db.%Save()
+do ##class(%EnsembleMgr).EnableNamespace("USER",1)
+zn "USER"
+do $system.OBJ.LoadDir("/opt/demo/interop","ck-d",.e2,0)
+do $system.OBJ.LoadDir("/opt/demo/cls","ck-d",.e3,1)
+set ^Ens.AutoStart="Demo.AIHub.Production"
+write "install errors=",+$get(e1)+$get(e2)+$get(e3),!
+halt

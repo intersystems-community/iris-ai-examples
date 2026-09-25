@@ -1,0 +1,5 @@
+**
+!objectscript/cls/Sample/Interop/**
+!objectscript/cls/Sample/AI/Policies/OTelAuditPolicy.cls
+!otel-demo/build/**
+!otel-demo/iris/**
