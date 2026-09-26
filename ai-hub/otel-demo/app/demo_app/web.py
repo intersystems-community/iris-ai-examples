@@ -56,6 +56,11 @@ hands the app's trace context to the Rust core, and <code>%AI.Tool.CurrentTracep
 hands the tool's span to the production. This stack runs a patched AI Hub build that has
 both. A stock build does not, and there the app, the agent and the production each start
 their own trace.</p>
+<p>Three processes export those spans: the app (Python OTel SDK), the Rust core in IRIS
+(<code>invoke_agent</code>, <code>chat</code>, <code>execute_tool</code>) and the production
+(<code>%Trace</code>). All three send OTLP to one OTel Collector, and only the collector
+talks to Langfuse. No MCP server is in this path: the agent runs in-process through
+<code>%AI.Agent</code>.</p>
 <p><a href="/architecture" target="_blank">Architecture diagram: the app, the OTel hooks and the patch</a></p>
 {patch}</details>
 <div class="tabs">{buttons}</div>

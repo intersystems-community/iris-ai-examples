@@ -116,6 +116,18 @@ def test_the_architecture_diagram_is_served_and_linked_from_the_blurb():
         assert part in r.text, part
 
 
+def test_the_page_and_the_diagram_name_every_span_exporter():
+    """Three processes export spans, not just the production, and all of them go through
+    the collector. The diagram once drew only the production's edge."""
+    c = client(Backends())
+    about = c.get("/").text
+    about = about[about.index('id="about"'):]
+    assert "OTel Collector" in about and "Rust core" in about and "%Trace" in about
+    diagram = c.get("/architecture").text
+    for label in ("OTLP: chat turn", "OTLP: agent, chat, tool", "OTLP: bs, bp, bo"):
+        assert label in diagram, label
+
+
 def test_patch_links_come_from_the_host_not_the_source():
     """The ai-core MRs live on an internal GitLab; the public repo carries no URL for them."""
     env = {"DEMO_PATCH_LINKS": '[["ai-core MR !2", "https://git.example/mr/2"], ["bad", "javascript:x"]]'}

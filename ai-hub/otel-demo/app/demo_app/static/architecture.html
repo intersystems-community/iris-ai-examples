@@ -4501,7 +4501,7 @@
       <p class="subtitle">FastAPI app → %AI.Agent (Rust, inside IRIS) → tool → interop production, all parented into one Langfuse trace</p>
     </div>
 
-    <script id="archify-guided-views-data" type="application/json">[{"id":"agent-path","label":"%AI.Agent tab","focus":["browser","app","agent","model","tool","bs","bp","bo"],"note":"The app span hands its traceparent to the Rust loop; execute_tool hands it on to the production."},{"id":"langchain-path","label":"LangChain tab","focus":["browser","app","langchain","model","bs","bp","bo"],"note":"Same production, reached from Python ChatIris over the native API."},{"id":"telemetry","label":"Where spans go","focus":["app","agent","bp","collector","langfuse"],"note":"Every layer exports OTLP to one collector, which forwards to Langfuse."}]</script>
+    <script id="archify-guided-views-data" type="application/json">[{"id":"agent-path","label":"%AI.Agent tab","focus":["browser","app","agent","model","tool","bs","bp","bo"],"note":"The app span hands its traceparent to the Rust loop; execute_tool hands it on to the production."},{"id":"langchain-path","label":"LangChain tab","focus":["browser","app","langchain","model","bs","bp","bo"],"note":"Same production, reached from Python ChatIris over the native API."},{"id":"telemetry","label":"Where spans go","focus":["app","agent","tool","bs","bp","bo","collector","langfuse"],"note":"Three exporters, one intake: the app, the Rust core in IRIS and the interop production each send OTLP to the collector."}]</script>
 
     <div class="guided-views no-print" id="guided-views" hidden aria-label="Guided diagram views">
       <button id="guided-view-prev" type="button" aria-label="Previous guided view" title="Previous guided view ([)">&#8592;</button>
@@ -4544,7 +4544,7 @@
 
     <!-- Main Diagram -->
     <div class="diagram-container" data-detail-level="read">
-      <svg viewBox="0 0 1380 778" role="img" aria-labelledby="archify-diagram-title archify-diagram-description" data-preset="classic" data-quality-profile="showcase">
+      <svg viewBox="0 0 1380 618" role="img" aria-labelledby="archify-diagram-title archify-diagram-description" data-preset="classic" data-quality-profile="showcase">
         <title id="archify-diagram-title">AI Hub OTel demo: one chat turn, one trace</title>
         <desc id="archify-diagram-description">FastAPI app → %AI.Agent (Rust, inside IRIS) → tool → interop production, all parented into one Langfuse trace</desc>
         <!-- Definitions -->
@@ -4583,8 +4583,10 @@
         <path data-edge-from="langchain" data-edge-to="bs" data-edge-label="native API" data-edge-key="6" data-edge-id="lc-bs" data-composition-points="390,500;710,500" d="M 390 500 L 710 500" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="bs" data-edge-to="bp" data-edge-key="7" data-edge-id="bs-bp" data-composition-points="850,500;940,500" d="M 850 500 L 940 500" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="bp" data-edge-to="bo" data-edge-key="8" data-edge-id="bp-bo" data-composition-points="1080,500;1170,500" d="M 1080 500 L 1170 500" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="bp" data-edge-to="collector" data-edge-label="OTLP" data-edge-key="9" data-edge-id="spans" data-composition-points="1010,530;1010,650" d="M 1010 530 L 1010 650" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
-        <path data-edge-from="collector" data-edge-to="langfuse" data-edge-key="10" data-edge-id="export" data-composition-points="1080,680;1170,680" d="M 1080 680 L 1170 680" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="app" data-edge-to="collector" data-edge-label="OTLP: chat turn" data-edge-key="9" data-edge-id="spans-app" data-composition-points="320,300;320,70;1010,70;1010,120" d="M 320 300 L 320 78 Q 320 70 328 70 L 1002 70 Q 1010 70 1010 78 L 1010 120" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path data-edge-from="agent" data-edge-to="collector" data-edge-label="OTLP: agent, chat, tool" data-edge-key="10" data-edge-id="spans-rust" data-composition-points="550,300;550,276;916,276;916,150;940,150" d="M 550 300 L 550 284 Q 550 276 558 276 L 908 276 Q 916 276 916 268 L 916 158 Q 916 150 924 150 L 940 150" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path data-edge-from="bp" data-edge-to="collector" data-edge-label="OTLP: bs, bp, bo" data-edge-key="11" data-edge-id="spans-interop" data-composition-points="1010,470;1010,180" d="M 1010 470 L 1010 180" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path data-edge-from="collector" data-edge-to="langfuse" data-edge-key="12" data-edge-id="export" data-composition-points="1080,150;1170,150" d="M 1080 150 L 1170 150" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
 
         <!-- Components -->
         <g id="node-browser" data-node-id="browser" data-node-label="Browser" tabindex="0" role="button" aria-label="Focus Browser, demo page :8095, Architecture component" aria-pressed="false" data-node-kind="external" data-node-sublabel="demo page :8095" data-node-context="Architecture component">
@@ -4695,28 +4697,28 @@
 
         <g id="node-collector" data-node-id="collector" data-node-label="OTel Collector" tabindex="0" role="button" aria-label="Focus OTel Collector, OTLP :4318, Architecture component" aria-pressed="false" data-node-kind="messagebus" data-node-sublabel="OTLP :4318" data-node-context="Architecture component">
           <title>OTel Collector · OTLP :4318 · Architecture component</title>
-          <rect x="940" y="650" width="140" height="60" rx="6" class="c-mask"/>
-          <rect x="940" y="650" width="140" height="60" rx="6" class="c-messagebus" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="messagebus" class="semantic-sigil s-messagebus" transform="translate(946 656) scale(0.6875)">
+          <rect x="940" y="120" width="140" height="60" rx="6" class="c-mask"/>
+          <rect x="940" y="120" width="140" height="60" rx="6" class="c-messagebus" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="messagebus" class="semantic-sigil s-messagebus" transform="translate(946 126) scale(0.6875)">
             <path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"/>
             <circle cx="5" cy="4.5" r="1" class="sigil-fill"/>
             <circle cx="10.5" cy="8" r="1" class="sigil-fill"/>
             <circle cx="7" cy="11.5" r="1" class="sigil-fill"/>
           </g>
-          <text data-detail-anchor x="1010" y="678" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">OTel Collector</text>
-        <text data-detail="context" x="1010" y="694" class="t-muted" font-size="9" text-anchor="middle">OTLP :4318</text>
+          <text data-detail-anchor x="1010" y="148" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">OTel Collector</text>
+        <text data-detail="context" x="1010" y="164" class="t-muted" font-size="9" text-anchor="middle">OTLP :4318</text>
         </g>
 
         <g id="node-langfuse" data-node-id="langfuse" data-node-label="Langfuse" tabindex="0" role="button" aria-label="Focus Langfuse, traces :3300, Architecture component" aria-pressed="false" data-node-kind="database" data-node-sublabel="traces :3300" data-node-context="Architecture component">
           <title>Langfuse · traces :3300 · Architecture component</title>
-          <rect x="1170" y="650" width="140" height="60" rx="6" class="c-mask"/>
-          <rect x="1170" y="650" width="140" height="60" rx="6" class="c-database" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(1176 656) scale(0.6875)">
+          <rect x="1170" y="120" width="140" height="60" rx="6" class="c-mask"/>
+          <rect x="1170" y="120" width="140" height="60" rx="6" class="c-database" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(1176 126) scale(0.6875)">
             <ellipse cx="8" cy="4" rx="5" ry="2"/>
             <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
           </g>
-          <text data-detail-anchor x="1240" y="678" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Langfuse</text>
-        <text data-detail="context" x="1240" y="694" class="t-muted" font-size="9" text-anchor="middle">traces :3300</text>
+          <text data-detail-anchor x="1240" y="148" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Langfuse</text>
+        <text data-detail="context" x="1240" y="164" class="t-muted" font-size="9" text-anchor="middle">traces :3300</text>
         </g>
 
         <!-- Connection labels -->
@@ -4727,8 +4729,8 @@
         </g>
 
         <g data-detail="context" data-edge-from="agent" data-edge-to="model" data-edge-label="chat" data-edge-key="3" data-edge-id="model-call">
-          <rect x="535" y="230" width="30" height="14" rx="3" class="c-mask"/>
-          <text x="550" y="240" class="t-muted" font-size="8" text-anchor="middle">chat</text>
+          <rect x="497" y="230" width="30" height="14" rx="3" class="c-mask"/>
+          <text x="512" y="240" class="t-muted" font-size="8" text-anchor="middle">chat</text>
         </g>
 
         <g data-detail="context" data-edge-from="tool" data-edge-to="bs" data-edge-label="CurrentTraceparent" data-edge-key="5" data-edge-id="tool-bs">
@@ -4741,38 +4743,46 @@
         </g>
 
 
-        <g data-detail="context" data-edge-from="bp" data-edge-to="collector" data-edge-label="OTLP" data-edge-key="9" data-edge-id="spans">
-          <rect x="995" y="580" width="30" height="14" rx="3" class="c-mask"/>
-          <text x="1010" y="590" class="t-messagebus" font-size="8" text-anchor="middle">OTLP</text>
+        <g data-detail="context" data-edge-from="app" data-edge-to="collector" data-edge-label="OTLP: chat turn" data-edge-key="9" data-edge-id="spans-app">
+          <rect x="619" y="48" width="82" height="14" rx="3" class="c-mask"/>
+          <text x="660" y="58" class="t-messagebus" font-size="8" text-anchor="middle">OTLP: chat turn</text>
+        </g>
+        <g data-detail="context" data-edge-from="agent" data-edge-to="collector" data-edge-label="OTLP: agent, chat, tool" data-edge-key="10" data-edge-id="spans-rust">
+          <rect x="672.8" y="256" width="120.39999999999999" height="14" rx="3" class="c-mask"/>
+          <text x="733" y="266" class="t-messagebus" font-size="8" text-anchor="middle">OTLP: agent, chat, tool</text>
+        </g>
+        <g data-detail="context" data-edge-from="bp" data-edge-to="collector" data-edge-label="OTLP: bs, bp, bo" data-edge-key="11" data-edge-id="spans-interop">
+          <rect x="1026.6" y="320" width="86.8" height="14" rx="3" class="c-mask"/>
+          <text x="1070" y="330" class="t-messagebus" font-size="8" text-anchor="middle">OTLP: bs, bp, bo</text>
         </g>
 
 
         <!-- Legend -->
         <g data-legend data-legend-bridge>
-          <text x="40" y="742" class="t-primary" font-size="10" font-weight="600">Legend</text>
-          <g data-legend-semantic-kind="frontend" data-legend-kind="frontend" data-legend-label="Frontend" data-legend-x="40" data-legend-baseline="762" data-legend-width="82">
-            <rect x="40" y="754" width="14" height="9" rx="2" class="c-frontend" stroke-width="1"/>
-            <text x="61" y="762" class="t-muted" font-size="8">Frontend</text>
+          <text x="40" y="582" class="t-primary" font-size="10" font-weight="600">Legend</text>
+          <g data-legend-semantic-kind="frontend" data-legend-kind="frontend" data-legend-label="Frontend" data-legend-x="40" data-legend-baseline="602" data-legend-width="82">
+            <rect x="40" y="594" width="14" height="9" rx="2" class="c-frontend" stroke-width="1"/>
+            <text x="61" y="602" class="t-muted" font-size="8">Frontend</text>
           </g>
-          <g data-legend-semantic-kind="backend" data-legend-kind="backend" data-legend-label="Backend" data-legend-x="144" data-legend-baseline="762" data-legend-width="77">
-            <rect x="144" y="754" width="14" height="9" rx="2" class="c-backend" stroke-width="1"/>
-            <text x="165" y="762" class="t-muted" font-size="8">Backend</text>
+          <g data-legend-semantic-kind="backend" data-legend-kind="backend" data-legend-label="Backend" data-legend-x="144" data-legend-baseline="602" data-legend-width="77">
+            <rect x="144" y="594" width="14" height="9" rx="2" class="c-backend" stroke-width="1"/>
+            <text x="165" y="602" class="t-muted" font-size="8">Backend</text>
           </g>
-          <g data-legend-semantic-kind="database" data-legend-kind="database" data-legend-label="Database" data-legend-x="243" data-legend-baseline="762" data-legend-width="82">
-            <rect x="243" y="754" width="14" height="9" rx="2" class="c-database" stroke-width="1"/>
-            <text x="264" y="762" class="t-muted" font-size="8">Database</text>
+          <g data-legend-semantic-kind="database" data-legend-kind="database" data-legend-label="Database" data-legend-x="243" data-legend-baseline="602" data-legend-width="82">
+            <rect x="243" y="594" width="14" height="9" rx="2" class="c-database" stroke-width="1"/>
+            <text x="264" y="602" class="t-muted" font-size="8">Database</text>
           </g>
-          <g data-legend-semantic-kind="cloud" data-legend-kind="cloud" data-legend-label="Cloud" data-legend-x="347" data-legend-baseline="762" data-legend-width="67">
-            <rect x="347" y="754" width="14" height="9" rx="2" class="c-cloud" stroke-width="1"/>
-            <text x="368" y="762" class="t-muted" font-size="8">Cloud</text>
+          <g data-legend-semantic-kind="cloud" data-legend-kind="cloud" data-legend-label="Cloud" data-legend-x="347" data-legend-baseline="602" data-legend-width="67">
+            <rect x="347" y="594" width="14" height="9" rx="2" class="c-cloud" stroke-width="1"/>
+            <text x="368" y="602" class="t-muted" font-size="8">Cloud</text>
           </g>
-          <g data-legend-semantic-kind="messagebus" data-legend-kind="messagebus" data-legend-label="Message bus" data-legend-x="436" data-legend-baseline="762" data-legend-width="97">
-            <rect x="436" y="754" width="14" height="9" rx="2" class="c-messagebus" stroke-width="1"/>
-            <text x="457" y="762" class="t-muted" font-size="8">Message bus</text>
+          <g data-legend-semantic-kind="messagebus" data-legend-kind="messagebus" data-legend-label="Message bus" data-legend-x="436" data-legend-baseline="602" data-legend-width="97">
+            <rect x="436" y="594" width="14" height="9" rx="2" class="c-messagebus" stroke-width="1"/>
+            <text x="457" y="602" class="t-muted" font-size="8">Message bus</text>
           </g>
-          <g data-legend-semantic-kind="external" data-legend-kind="external" data-legend-label="External" data-legend-x="555" data-legend-baseline="762" data-legend-width="82">
-            <rect x="555" y="754" width="14" height="9" rx="2" class="c-external" stroke-width="1"/>
-            <text x="576" y="762" class="t-muted" font-size="8">External</text>
+          <g data-legend-semantic-kind="external" data-legend-kind="external" data-legend-label="External" data-legend-x="555" data-legend-baseline="602" data-legend-width="82">
+            <rect x="555" y="594" width="14" height="9" rx="2" class="c-external" stroke-width="1"/>
+            <text x="576" y="602" class="t-muted" font-size="8">External</text>
           </g>
         </g>
       </svg>
@@ -4967,6 +4977,20 @@
           <li>&bull; %AI.System.Configure(&quot;telemetry:context&quot;) parents the Rust spans on the app&#39;s span</li>
           <li>&bull; %AI.Tool.CurrentTraceparent() hands the execute_tool span to the tool body</li>
           <li>&bull; Messages carry Traceparent so bs, bp and bo nest under the tool</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot violet"></div>
+          <h3>Who exports spans</h3>
+        </div>
+        <ul>
+          <li>&bull; Demo app: the chat turn root span (Python OTel SDK)</li>
+          <li>&bull; Rust core in irisllm.so: invoke_agent, chat, execute_tool</li>
+          <li>&bull; Interop production: bs, bp, bo spans via %Trace</li>
+          <li>&bull; All three post OTLP to one collector; only the collector talks to Langfuse</li>
+          <li>&bull; iris-mcp-server shares the same exporter code (MR !2) but is not in this demo</li>
         </ul>
       </div>
 
