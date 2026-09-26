@@ -141,3 +141,31 @@ def test_patch_links_come_from_the_host_not_the_source():
     assert "git.example" not in client(Backends()).get("/").text
     source = (web.Path(web.__file__).read_text())
     assert "iscinternal" not in source
+
+
+SEQUENCE_CALLS = {
+    "ai-agent": ("Chat.Ask", "telemetry:context", "invoke_agent", "execute_tool", "CurrentTraceparent",
+                 "RunLookup", "bs.ToolService", "bp.LookupBP", "bo.LookupBO", "OTel Collector"),
+    "langchain": ("run_turn", "ChatIris", "invoke_agent", "execute_tool", "Chat.Lookup",
+                  "bs.ToolService", "bo.LookupBO", "OTel Collector"),
+}
+
+
+def test_each_tab_has_a_sequence_diagram_of_its_calls():
+    c = client(Backends())
+    for tab, calls in SEQUENCE_CALLS.items():
+        r = c.get(f"/sequence/{tab}")
+        assert r.status_code == 200 and "<svg" in r.text, tab
+        for call in calls:
+            assert call in r.text, (tab, call)
+
+
+def test_an_unknown_sequence_is_a_404():
+    assert client(Backends()).get("/sequence/nope").status_code == 404
+
+
+def test_the_blurb_links_both_sequence_diagrams():
+    page = client(Backends()).get("/").text
+    about = page[page.index('id="about"'):]
+    for tab in SEQUENCE_CALLS:
+        assert f'href="/sequence/{tab}"' in about, tab

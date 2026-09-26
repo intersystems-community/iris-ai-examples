@@ -62,6 +62,8 @@ their own trace.</p>
 talks to Langfuse. No MCP server is in this path: the agent runs in-process through
 <code>%AI.Agent</code>.</p>
 <p><a href="/architecture" target="_blank">Architecture diagram: the app, the OTel hooks and the patch</a></p>
+<p>Each call in order: <a href="/sequence/ai-agent" target="_blank">%AI.Agent tab</a>,
+<a href="/sequence/langchain" target="_blank">LangChain tab</a>.</p>
 {patch}</details>
 <div class="tabs">{buttons}</div>
 {panes}
@@ -108,6 +110,8 @@ def patch_links_from_env(env) -> list[tuple[str, str]]:
 
 
 ARCHITECTURE = Path(__file__).parent / "static" / "architecture.html"
+# One sequence diagram per tab, from docs/sequences.gen.py.
+SEQUENCES = {t: ARCHITECTURE.parent / f"sequence-{t}.html" for t in TABS}
 
 
 def create_app(backends, langfuse_url: str, project_id: str,
@@ -141,6 +145,12 @@ def create_app(backends, langfuse_url: str, project_id: str,
     @app.get("/architecture", response_class=HTMLResponse)
     def architecture():
         return ARCHITECTURE.read_text()
+
+    @app.get("/sequence/{tab}", response_class=HTMLResponse)
+    def sequence(tab: str):
+        if tab not in SEQUENCES:
+            return HTMLResponse("unknown tab", status_code=404)
+        return SEQUENCES[tab].read_text()
 
     @app.post("/chat/{tab}", response_class=HTMLResponse)
     def chat(tab: str, request: Request, question: str = Form(...)):

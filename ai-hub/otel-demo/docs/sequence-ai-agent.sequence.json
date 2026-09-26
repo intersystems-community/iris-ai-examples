@@ -1,0 +1,311 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "%AI.Agent tab: one chat turn, in call order",
+    "subtitle": "App \u2192 Chat.Ask \u2192 Rust agent loop \u2192 model \u2192 LookupPatient \u2192 worker JOB \u2192 bs \u2192 bp \u2192 bo, one trace",
+    "viewBox": [
+      1320,
+      1126
+    ],
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "handoff-1",
+        "label": "App to Rust",
+        "focus": [
+          "app",
+          "agent",
+          "model"
+        ],
+        "note": "telemetry:context hands the app's traceparent to the Rust loop, so invoke_agent nests under chat turn."
+      },
+      {
+        "id": "handoff-2",
+        "label": "Tool to production",
+        "focus": [
+          "tool",
+          "worker",
+          "bs",
+          "bp",
+          "bo"
+        ],
+        "note": "CurrentTraceparent() hands the execute_tool span to a worker JOB; messages carry it on to bp and bo."
+      },
+      {
+        "id": "export",
+        "label": "Where spans go",
+        "focus": [
+          "app",
+          "agent",
+          "bp",
+          "collector"
+        ],
+        "note": "Three exporters, one collector. Only the collector talks to Langfuse."
+      }
+    ]
+  },
+  "participants": [
+    {
+      "id": "browser",
+      "type": "external",
+      "label": "Browser",
+      "sublabel": "demo page"
+    },
+    {
+      "id": "app",
+      "type": "frontend",
+      "label": "Demo app",
+      "sublabel": "chat turn span"
+    },
+    {
+      "id": "agent",
+      "type": "backend",
+      "label": "%AI.Agent",
+      "sublabel": "Chat.Ask, Rust loop"
+    },
+    {
+      "id": "model",
+      "type": "cloud",
+      "label": "Model",
+      "sublabel": "chat span"
+    },
+    {
+      "id": "tool",
+      "type": "backend",
+      "label": "LookupPatient",
+      "sublabel": "execute_tool span"
+    },
+    {
+      "id": "worker",
+      "type": "backend",
+      "label": "Worker JOB",
+      "sublabel": "RunLookup"
+    },
+    {
+      "id": "bs",
+      "type": "backend",
+      "label": "bs",
+      "sublabel": "bs.ToolService"
+    },
+    {
+      "id": "bp",
+      "type": "backend",
+      "label": "bp",
+      "sublabel": "bp.LookupBP"
+    },
+    {
+      "id": "bo",
+      "type": "backend",
+      "label": "bo",
+      "sublabel": "bo.LookupBO"
+    },
+    {
+      "id": "collector",
+      "type": "messagebus",
+      "label": "Collector",
+      "sublabel": "OTel Collector"
+    }
+  ],
+  "segments": [
+    {
+      "from": 162,
+      "to": 324,
+      "label": "Turn"
+    },
+    {
+      "from": 330,
+      "to": 744,
+      "label": "Tool"
+    },
+    {
+      "from": 750,
+      "to": 912,
+      "label": "Answer"
+    },
+    {
+      "from": 918,
+      "to": 1044,
+      "label": "Spans"
+    }
+  ],
+  "messages": [
+    {
+      "from": "browser",
+      "to": "app",
+      "y": 184,
+      "label": "POST /chat/ai-agent",
+      "variant": "emphasis"
+    },
+    {
+      "from": "app",
+      "to": "agent",
+      "y": 226,
+      "label": "Chat.Ask(q, traceparent): telemetry:context",
+      "variant": "emphasis"
+    },
+    {
+      "from": "agent",
+      "to": "model",
+      "y": 268,
+      "label": "chat (under invoke_agent)",
+      "variant": "default"
+    },
+    {
+      "from": "model",
+      "to": "agent",
+      "y": 310,
+      "label": "call LookupPatient",
+      "variant": "return"
+    },
+    {
+      "from": "agent",
+      "to": "tool",
+      "y": 352,
+      "label": "execute_tool",
+      "variant": "emphasis"
+    },
+    {
+      "from": "tool",
+      "to": "worker",
+      "y": 394,
+      "label": "JOB, CurrentTraceparent()",
+      "variant": "emphasis"
+    },
+    {
+      "from": "worker",
+      "to": "bs",
+      "y": 436,
+      "label": "request, parent = tool span",
+      "variant": "default"
+    },
+    {
+      "from": "bs",
+      "to": "bp",
+      "y": 478,
+      "label": "PatientRequest + Traceparent",
+      "variant": "default"
+    },
+    {
+      "from": "bp",
+      "to": "bo",
+      "y": 520,
+      "label": "PatientRequest + Traceparent",
+      "variant": "default"
+    },
+    {
+      "from": "bo",
+      "to": "bp",
+      "y": 562,
+      "label": "summary",
+      "variant": "return"
+    },
+    {
+      "from": "bp",
+      "to": "bs",
+      "y": 604,
+      "label": "summary",
+      "variant": "return"
+    },
+    {
+      "from": "bs",
+      "to": "worker",
+      "y": 646,
+      "label": "summary",
+      "variant": "return"
+    },
+    {
+      "from": "worker",
+      "to": "tool",
+      "y": 688,
+      "label": "result",
+      "variant": "return"
+    },
+    {
+      "from": "tool",
+      "to": "agent",
+      "y": 730,
+      "label": "tool result",
+      "variant": "return"
+    },
+    {
+      "from": "agent",
+      "to": "model",
+      "y": 772,
+      "label": "chat",
+      "variant": "default"
+    },
+    {
+      "from": "model",
+      "to": "agent",
+      "y": 814,
+      "label": "answer",
+      "variant": "return"
+    },
+    {
+      "from": "agent",
+      "to": "app",
+      "y": 856,
+      "label": "{content}",
+      "variant": "return"
+    },
+    {
+      "from": "app",
+      "to": "browser",
+      "y": 898,
+      "label": "reply + trace link",
+      "variant": "return"
+    },
+    {
+      "from": "app",
+      "to": "collector",
+      "y": 940,
+      "label": "OTLP: chat turn",
+      "variant": "dashed"
+    },
+    {
+      "from": "agent",
+      "to": "collector",
+      "y": 982,
+      "label": "OTLP: invoke_agent, chat, execute_tool",
+      "variant": "dashed"
+    },
+    {
+      "from": "bp",
+      "to": "collector",
+      "y": 1024,
+      "label": "OTLP: bs, bp, bo",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "The two hooks",
+      "items": [
+        "%AI.System.Configure(\"telemetry:context\") parents the Rust spans on the app's span",
+        "%AI.Tool.CurrentTraceparent() hands the execute_tool span to the tool body",
+        "Both come from the patched ai-core build, not a stock one"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Why a worker JOB",
+      "items": [
+        "Nested $ZF corrupts the outer frame (kernel CL 9598334 pending)",
+        "So the tool runs the interop call in a JOB and passes only the traceparent",
+        "The result comes back through ^IRIS.Temp"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Drawn last",
+      "items": [
+        "Spans are exported in batches while the turn runs",
+        "They are drawn at the end so the call order stays readable"
+      ]
+    }
+  ]
+}

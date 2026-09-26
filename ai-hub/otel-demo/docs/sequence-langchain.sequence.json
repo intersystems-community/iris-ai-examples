@@ -1,0 +1,309 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "LangChain tab: one chat turn, in call order",
+    "subtitle": "App \u2192 run_turn (Python loop) \u2192 ChatIris \u2192 model \u2192 Chat.Lookup over the native API \u2192 bs \u2192 bp \u2192 bo, one trace",
+    "viewBox": [
+      1320,
+      1168
+    ],
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "loop",
+        "label": "Python owns the loop",
+        "focus": [
+          "app",
+          "loop",
+          "chatiris",
+          "model"
+        ],
+        "note": "run_turn emits invoke_agent and execute_tool itself. ChatIris is a leaf: one chat span per model call."
+      },
+      {
+        "id": "tool",
+        "label": "Same production",
+        "focus": [
+          "loop",
+          "lookup",
+          "bs",
+          "bp",
+          "bo"
+        ],
+        "note": "The tool calls IRIS over the native API with the execute_tool traceparent. No worker JOB is needed here."
+      },
+      {
+        "id": "export",
+        "label": "Where spans go",
+        "focus": [
+          "app",
+          "bp",
+          "collector"
+        ],
+        "note": "The app process exports every Python and iris_llm span; the production exports its own."
+      }
+    ]
+  },
+  "participants": [
+    {
+      "id": "browser",
+      "type": "external",
+      "label": "Browser",
+      "sublabel": "demo page"
+    },
+    {
+      "id": "app",
+      "type": "frontend",
+      "label": "Demo app",
+      "sublabel": "chat turn span"
+    },
+    {
+      "id": "loop",
+      "type": "backend",
+      "label": "run_turn",
+      "sublabel": "invoke_agent span"
+    },
+    {
+      "id": "chatiris",
+      "type": "backend",
+      "label": "ChatIris",
+      "sublabel": "iris_llm"
+    },
+    {
+      "id": "model",
+      "type": "cloud",
+      "label": "Model",
+      "sublabel": "chat span"
+    },
+    {
+      "id": "lookup",
+      "type": "backend",
+      "label": "Chat.Lookup",
+      "sublabel": "native API"
+    },
+    {
+      "id": "bs",
+      "type": "backend",
+      "label": "bs",
+      "sublabel": "bs.ToolService"
+    },
+    {
+      "id": "bp",
+      "type": "backend",
+      "label": "bp",
+      "sublabel": "bp.LookupBP"
+    },
+    {
+      "id": "bo",
+      "type": "backend",
+      "label": "bo",
+      "sublabel": "bo.LookupBO"
+    },
+    {
+      "id": "collector",
+      "type": "messagebus",
+      "label": "Collector",
+      "sublabel": "OTel Collector"
+    }
+  ],
+  "segments": [
+    {
+      "from": 162,
+      "to": 408,
+      "label": "Turn"
+    },
+    {
+      "from": 414,
+      "to": 744,
+      "label": "Tool"
+    },
+    {
+      "from": 750,
+      "to": 996,
+      "label": "Answer"
+    },
+    {
+      "from": 1002,
+      "to": 1086,
+      "label": "Spans"
+    }
+  ],
+  "messages": [
+    {
+      "from": "browser",
+      "to": "app",
+      "y": 184,
+      "label": "POST /chat/langchain",
+      "variant": "emphasis"
+    },
+    {
+      "from": "app",
+      "to": "loop",
+      "y": 226,
+      "label": "run_turn(question)",
+      "variant": "emphasis"
+    },
+    {
+      "from": "loop",
+      "to": "chatiris",
+      "y": 268,
+      "label": "invoke(messages, tools)",
+      "variant": "default"
+    },
+    {
+      "from": "chatiris",
+      "to": "model",
+      "y": 310,
+      "label": "chat",
+      "variant": "default"
+    },
+    {
+      "from": "model",
+      "to": "chatiris",
+      "y": 352,
+      "label": "tool call",
+      "variant": "return"
+    },
+    {
+      "from": "chatiris",
+      "to": "loop",
+      "y": 394,
+      "label": "AIMessage.tool_calls",
+      "variant": "return"
+    },
+    {
+      "from": "loop",
+      "to": "lookup",
+      "y": 436,
+      "label": "execute_tool: Lookup(id, traceparent)",
+      "variant": "emphasis"
+    },
+    {
+      "from": "lookup",
+      "to": "bs",
+      "y": 478,
+      "label": "Interop, parent = execute_tool",
+      "variant": "default"
+    },
+    {
+      "from": "bs",
+      "to": "bp",
+      "y": 520,
+      "label": "PatientRequest + Traceparent",
+      "variant": "default"
+    },
+    {
+      "from": "bp",
+      "to": "bo",
+      "y": 562,
+      "label": "PatientRequest + Traceparent",
+      "variant": "default"
+    },
+    {
+      "from": "bo",
+      "to": "bp",
+      "y": 604,
+      "label": "summary",
+      "variant": "return"
+    },
+    {
+      "from": "bp",
+      "to": "bs",
+      "y": 646,
+      "label": "summary",
+      "variant": "return"
+    },
+    {
+      "from": "bs",
+      "to": "lookup",
+      "y": 688,
+      "label": "summary",
+      "variant": "return"
+    },
+    {
+      "from": "lookup",
+      "to": "loop",
+      "y": 730,
+      "label": "ToolMessage",
+      "variant": "return"
+    },
+    {
+      "from": "loop",
+      "to": "chatiris",
+      "y": 772,
+      "label": "invoke(+ tool result)",
+      "variant": "default"
+    },
+    {
+      "from": "chatiris",
+      "to": "model",
+      "y": 814,
+      "label": "chat",
+      "variant": "default"
+    },
+    {
+      "from": "model",
+      "to": "chatiris",
+      "y": 856,
+      "label": "answer",
+      "variant": "return"
+    },
+    {
+      "from": "chatiris",
+      "to": "loop",
+      "y": 898,
+      "label": "AIMessage",
+      "variant": "return"
+    },
+    {
+      "from": "loop",
+      "to": "app",
+      "y": 940,
+      "label": "answer",
+      "variant": "return"
+    },
+    {
+      "from": "app",
+      "to": "browser",
+      "y": 982,
+      "label": "reply + trace link",
+      "variant": "return"
+    },
+    {
+      "from": "app",
+      "to": "collector",
+      "y": 1024,
+      "label": "OTLP: chat turn, invoke_agent, chat, execute_tool",
+      "variant": "dashed"
+    },
+    {
+      "from": "bp",
+      "to": "collector",
+      "y": 1066,
+      "label": "OTLP: bs, bp, bo",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Same tree, other owner",
+      "items": [
+        "The span tree matches the %AI.Agent tab's",
+        "Here the app emits invoke_agent and execute_tool, not the Rust core",
+        "iris_llm uses the OTel API only; the app process owns the SDK"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "The patch",
+      "items": [
+        "Issue #1: ChatIris dropped token usage",
+        "The iris_llm wheel comes from the same patched build, 7440647"
+      ]
+    }
+  ]
+}
