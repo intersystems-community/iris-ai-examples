@@ -77,3 +77,55 @@ def test_reply_text_is_escaped():
 
     r = client(Evil()).post("/chat/langchain", data={"question": "q"})
     assert "<script>x" not in r.text
+
+
+def test_the_langfuse_login_is_shown_only_when_the_host_opts_in():
+    on = {"LANGFUSE_SHOW_LOGIN": "1", "LANGFUSE_INIT_USER_EMAIL": "demo@example.com",
+          "LANGFUSE_INIT_USER_PASSWORD": "pw<1>"}
+    assert web.login_from_env(on) == ("demo@example.com", "pw<1>")
+    assert web.login_from_env({**on, "LANGFUSE_SHOW_LOGIN": ""}) is None
+    assert web.login_from_env({k: v for k, v in on.items() if k != "LANGFUSE_SHOW_LOGIN"}) is None
+    assert web.login_from_env({**on, "LANGFUSE_INIT_USER_PASSWORD": ""}) is None
+
+
+def test_the_index_prints_the_login_escaped_when_given_and_nothing_otherwise():
+    app = web.create_app(backends=Backends(), langfuse_url="http://lf.example:3300",
+                         project_id="demo", langfuse_login=("demo@example.com", "pw<1>"))
+    page = TestClient(app).get("/").text
+    assert "demo@example.com" in page and "pw&lt;1&gt;" in page and "pw<1>" not in page
+    assert "demo@example.com" not in client(Backends()).get("/").text
+
+
+def test_the_page_says_what_the_viewer_is_looking_at():
+    page = client(Backends()).get("/").text
+    about = page[page.index('id="about"'):]
+    for layer in ("FastAPI", "Rust", "execute_tool", "business service", "business process",
+                  "business operation", "one trace"):
+        assert layer in about, layer
+    assert "telemetry:context" in about and "CurrentTraceparent" in about
+    assert "stock" in about  # says the build is patched, not a shipped release
+
+
+def test_the_architecture_diagram_is_served_and_linked_from_the_blurb():
+    c = client(Backends())
+    about = c.get("/").text
+    assert 'href="/architecture"' in about[about.index('id="about"'):]
+    r = c.get("/architecture")
+    assert r.status_code == 200 and "<svg" in r.text
+    for part in ("%AI.Agent", "execute_tool", "bs.ToolService", "Langfuse", "7440647"):
+        assert part in r.text, part
+
+
+def test_patch_links_come_from_the_host_not_the_source():
+    """The ai-core MRs live on an internal GitLab; the public repo carries no URL for them."""
+    env = {"DEMO_PATCH_LINKS": '[["ai-core MR !2", "https://git.example/mr/2"], ["bad", "javascript:x"]]'}
+    assert web.patch_links_from_env(env) == [("ai-core MR !2", "https://git.example/mr/2")]
+    assert web.patch_links_from_env({}) == []
+    assert web.patch_links_from_env({"DEMO_PATCH_LINKS": "not json"}) == []
+    app = web.create_app(backends=Backends(), langfuse_url="http://lf.example:3300", project_id="demo",
+                         patch_links=[("MR <2>", "https://git.example/mr/2")])
+    page = TestClient(app).get("/").text
+    assert 'href="https://git.example/mr/2"' in page and "MR &lt;2&gt;" in page
+    assert "git.example" not in client(Backends()).get("/").text
+    source = (web.Path(web.__file__).read_text())
+    assert "iscinternal" not in source

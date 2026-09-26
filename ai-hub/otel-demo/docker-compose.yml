@@ -89,6 +89,12 @@ services:
       IRIS_PASSWORD: ${IRIS_PASSWORD:-SYS}
       LANGFUSE_PUBLIC_URL: ${LANGFUSE_PUBLIC_URL:-http://localhost:3300}
       LANGFUSE_INIT_PROJECT_ID: ${LANGFUSE_INIT_PROJECT_ID:-otel-demo}
+      # Print the Langfuse login on the page. Internal demo hosts only.
+      LANGFUSE_SHOW_LOGIN: ${LANGFUSE_SHOW_LOGIN:-}
+      LANGFUSE_INIT_USER_EMAIL: ${LANGFUSE_INIT_USER_EMAIL:-}
+      LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_INIT_USER_PASSWORD:-}
+      # JSON list of [label, url] for the patch behind the build, shown under the blurb.
+      DEMO_PATCH_LINKS: ${DEMO_PATCH_LINKS:-}
     ports:
       - "${APP_PORT:-8095}:8000"
     depends_on:

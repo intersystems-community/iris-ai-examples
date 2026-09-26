@@ -71,4 +71,6 @@ app = web.create_app(
     backends=Backends(),
     langfuse_url=os.environ.get("LANGFUSE_PUBLIC_URL", "http://localhost:3300"),
     project_id=os.environ.get("LANGFUSE_INIT_PROJECT_ID", "otel-demo"),
+    langfuse_login=web.login_from_env(os.environ),
+        patch_links=web.patch_links_from_env(os.environ),
 )

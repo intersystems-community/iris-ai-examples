@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "AI Hub OTel demo: one chat turn, one trace",
+    "subtitle": "FastAPI app → %AI.Agent (Rust, inside IRIS) → tool → interop production, all parented into one Langfuse trace",
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "agent-path", "label": "%AI.Agent tab", "focus": ["browser", "app", "agent", "model", "tool", "bs", "bp", "bo"], "note": "The app span hands its traceparent to the Rust loop; execute_tool hands it on to the production." },
+      { "id": "langchain-path", "label": "LangChain tab", "focus": ["browser", "app", "langchain", "model", "bs", "bp", "bo"], "note": "Same production, reached from Python ChatIris over the native API." },
+      { "id": "telemetry", "label": "Where spans go", "focus": ["app", "agent", "bp", "collector", "langfuse"], "note": "Every layer exports OTLP to one collector, which forwards to Langfuse." }
+    ]
+  },
+  "components": [
+    { "id": "browser", "type": "external", "label": "Browser", "sublabel": "demo page :8095", "pos": [40, 300], "size": [130, 60] },
+    { "id": "app", "type": "frontend", "label": "Demo app", "sublabel": "FastAPI, trace root", "pos": [250, 300], "size": [140, 60] },
+    { "id": "langchain", "type": "backend", "label": "ChatIris", "sublabel": "iris_llm + LangChain", "pos": [250, 470], "size": [140, 60], "tag": "patched wheel" },
+    { "id": "agent", "type": "backend", "label": "%AI.Agent", "sublabel": "Rust loop in IRIS", "pos": [480, 300], "size": [140, 60], "tag": "invoke_agent" },
+    { "id": "model", "type": "cloud", "label": "Ollama", "sublabel": "qwen3.8:27b", "pos": [480, 120], "size": [140, 60] },
+    { "id": "tool", "type": "backend", "label": "LookupPatient", "sublabel": "%AI.Tool", "pos": [710, 300], "size": [140, 60], "tag": "execute_tool" },
+    { "id": "bs", "type": "backend", "label": "bs.ToolService", "sublabel": "business service", "pos": [710, 470], "size": [140, 60] },
+    { "id": "bp", "type": "backend", "label": "bp.LookupBP", "sublabel": "business process", "pos": [940, 470], "size": [140, 60] },
+    { "id": "bo", "type": "backend", "label": "bo.LookupBO", "sublabel": "business operation", "pos": [1170, 470], "size": [140, 60] },
+    { "id": "collector", "type": "messagebus", "label": "OTel Collector", "sublabel": "OTLP :4318", "pos": [940, 650], "size": [140, 60] },
+    { "id": "langfuse", "type": "database", "label": "Langfuse", "sublabel": "traces :3300", "pos": [1170, 650], "size": [140, 60] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "IRIS for Health AI 154 + ai-core 7440647", "wraps": ["agent", "tool", "bs", "bp", "bo"] }
+  ],
+  "connections": [
+    { "id": "ask", "from": "browser", "to": "app", "variant": "emphasis" },
+    { "id": "agent-call", "from": "app", "to": "agent", "label": "traceparent", "variant": "emphasis" },
+    { "id": "lc-call", "from": "app", "to": "langchain", "fromSide": "bottom", "toSide": "top" },
+    { "id": "model-call", "from": "agent", "to": "model", "label": "chat", "fromSide": "top", "toSide": "bottom", "labelAt": [550, 240] },
+    { "id": "tool-call", "from": "agent", "to": "tool", "variant": "emphasis" },
+    { "id": "tool-bs", "from": "tool", "to": "bs", "label": "CurrentTraceparent", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "labelAt": [780, 415] },
+    { "id": "lc-bs", "from": "langchain", "to": "bs", "label": "native API" },
+    { "id": "bs-bp", "from": "bs", "to": "bp" },
+    { "id": "bp-bo", "from": "bp", "to": "bo" },
+    { "id": "spans", "from": "bp", "to": "collector", "label": "OTLP", "variant": "dashed", "fromSide": "bottom", "toSide": "top", "labelAt": [1010, 590] },
+    { "id": "export", "from": "collector", "to": "langfuse" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "What connects the layers", "items": ["%AI.System.Configure(\"telemetry:context\") parents the Rust spans on the app's span", "%AI.Tool.CurrentTraceparent() hands the execute_tool span to the tool body", "Messages carry Traceparent so bs, bp and bo nest under the tool"] },
+    { "dot": "amber", "title": "The patch (ai-core, not yet in a build)", "items": ["MR !1: OTel GenAI telemetry spec", "MR !2: invoke_agent / execute_tool spans, traceparent handoff", "Issue #1: ChatIris dropped token usage", "irisllm.so, %AI classes and iris_llm wheel all from 7440647"] },
+    { "dot": "rose", "title": "Worked around, not fixed", "items": ["Nested $ZF corrupts the outer frame (kernel CL 9598334 pending)", "So the tool runs the interop call in a worker job, passing only the traceparent"] }
+  ]
+}

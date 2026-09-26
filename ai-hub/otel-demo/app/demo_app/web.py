@@ -1,7 +1,9 @@
 """One FastAPI app, two tabs. Every reply is an HTMX fragment with its trace link."""
 
 import html
+import json
 import uuid
+from pathlib import Path
 
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse
@@ -28,11 +30,34 @@ body {{ font-family: system-ui, sans-serif; max-width: 920px; margin: 2em auto; 
 .turn {{ border-left: 3px solid #88a; padding: .3em .8em; margin: .8em 0; white-space: pre-wrap; }}
 .q {{ color: #555; }} .err {{ color: #a22; }} .trace {{ font-size: .85em; }}
 input[name=question] {{ width: 75%; padding: .4em; }}
+#about {{ background: #f4f5fa; border: 1px solid #dde; padding: .4em 1em; margin: 1em 0; }}
+#about pre {{ font-size: .85em; margin: .4em 0; }}
 </style></head>
 <body>
 <h2>AI Hub observability demo</h2>
 <p>Both tabs export OTel spans to <a href="{langfuse}" target="_blank">Langfuse</a>.
 Each reply links to its trace.</p>
+{login}<details id="about" open><summary><b>What you are looking at</b></summary>
+<p>Each tab answers questions about a patient by calling one tool, and the tool runs
+through an IRIS interoperability production. Ask a question, then open
+<i>trace in Langfuse</i> under the reply. The whole turn is <b>one trace</b>:</p>
+<pre>chat turn                  FastAPI app, where the trace starts
+└─ invoke_agent            the agent loop, in Rust inside IRIS (%AI.Agent tab)
+   ├─ chat &lt;model&gt;         each model call, with token usage
+   ├─ execute_tool         the tool call, e.g. LookupPatient
+   │  └─ bs.ToolService    business service
+   │     └─ bp.LookupBP    business process
+   │        └─ bo.LookupBO business operation
+   └─ chat &lt;model&gt;         the answer</pre>
+<p>The LangChain tab builds the same tree from Python, with its agent and tool spans
+emitted by the app instead of the Rust core.</p>
+<p>What makes it one trace is two AI Hub hooks: <code>%AI.System.Configure("telemetry:context")</code>
+hands the app's trace context to the Rust core, and <code>%AI.Tool.CurrentTraceparent()</code>
+hands the tool's span to the production. This stack runs a patched AI Hub build that has
+both. A stock build does not, and there the app, the agent and the production each start
+their own trace.</p>
+<p><a href="/architecture" target="_blank">Architecture diagram: the app, the OTel hooks and the patch</a></p>
+{patch}</details>
 <div class="tabs">{buttons}</div>
 {panes}
 <script>
@@ -55,7 +80,34 @@ PANE = """<div class="pane" id="pane-{tab}">
 </form></div>"""
 
 
-def create_app(backends, langfuse_url: str, project_id: str) -> FastAPI:
+def login_from_env(env) -> tuple[str, str] | None:
+    """The Langfuse login to print on the page, or None. Off unless the host sets
+    LANGFUSE_SHOW_LOGIN=1: only an internal demo host should publish its password."""
+    email = env.get("LANGFUSE_INIT_USER_EMAIL", "")
+    password = env.get("LANGFUSE_INIT_USER_PASSWORD", "")
+    if env.get("LANGFUSE_SHOW_LOGIN") != "1" or not email or not password:
+        return None
+    return email, password
+
+
+def patch_links_from_env(env) -> list[tuple[str, str]]:
+    """(label, url) pairs for the patch behind this build, from DEMO_PATCH_LINKS as a JSON
+    list of pairs. The ai-core MRs are on an internal GitLab, so the host supplies the URLs
+    and the source carries none. Anything that is not an http(s) pair is dropped."""
+    try:
+        pairs = json.loads(env.get("DEMO_PATCH_LINKS") or "[]")
+    except ValueError:
+        return []
+    return [(str(label), str(url)) for label, url in (p for p in pairs if isinstance(p, list) and len(p) == 2)
+            if str(url).startswith(("https://", "http://"))]
+
+
+ARCHITECTURE = Path(__file__).parent / "static" / "architecture.html"
+
+
+def create_app(backends, langfuse_url: str, project_id: str,
+               langfuse_login: tuple[str, str] | None = None,
+               patch_links: list[tuple[str, str]] | None = None) -> FastAPI:
     """backends has ai_agent(session_id, question) and langchain(session_id, question)."""
     app = FastAPI()
     handlers = {"ai-agent": backends.ai_agent, "langchain": backends.langchain}
@@ -69,7 +121,21 @@ def create_app(backends, langfuse_url: str, project_id: str) -> FastAPI:
         panes = "".join(
             PANE.format(tab=t, blurb=html.escape(blurb)) for t, (_, blurb) in TABS.items()
         )
-        return PAGE.format(langfuse=html.escape(langfuse_url), buttons=buttons, panes=panes)
+        login = ""
+        if langfuse_login:
+            email, password = (html.escape(x) for x in langfuse_login)
+            login = f'<p class="trace">Langfuse login: <code>{email}</code> / <code>{password}</code></p>\n'
+        patch = ""
+        if patch_links:
+            items = "".join(f'<li><a href="{html.escape(url)}" target="_blank">{html.escape(label)}</a></li>'
+                            for label, url in patch_links)
+            patch = f"<p>The patch behind this build:</p><ul>{items}</ul>\n"
+        return PAGE.format(langfuse=html.escape(langfuse_url), login=login, patch=patch,
+                           buttons=buttons, panes=panes)
+
+    @app.get("/architecture", response_class=HTMLResponse)
+    def architecture():
+        return ARCHITECTURE.read_text()
 
     @app.post("/chat/{tab}", response_class=HTMLResponse)
     def chat(tab: str, request: Request, question: str = Form(...)):
