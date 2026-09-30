@@ -15,6 +15,9 @@ extends: base.yaml
 service:
   mode: inplace
 
+python_path:
+  - ../../../careconnect-sdoh/evals
+
 backends:
   hub:
     kind: mcp
@@ -26,6 +29,11 @@ backends:
     # iris-mcp-server publishes /mcp/careconnect's tools as mcp_careconnect_<Tool>.
     tool_prefix: ${AIHUB_MCP_TOOL_PREFIX:-mcp_careconnect_}
     timeout: 120
+  liquid:
+    kind: python
+    object: careconnect_evals.tools_local:LocalToolClient
+    object_kwargs: {liquid_mode: "${LIQUID_DECISION_MODE:-mock}"}
+    schemas: careconnect_evals.tools_local:TOOL_SCHEMAS
 
 tools:
   - {name: SearchPatients, backend: hub}
@@ -33,7 +41,7 @@ tools:
   - {name: SearchSDoHProtocols, backend: hub}
   - {name: AssessSDoHRisk, backend: hub}
   - {name: DraftCarePlan, backend: hub}
-  - {name: DecideCareAction, backend: hub}
+  - {name: DecideCareAction, backend: liquid}
   - {name: SearchClinicalNotes, backend: hub}
   - {name: GetInteropTraces, backend: hub}
   - {name: GetProductionStatus, backend: hub}

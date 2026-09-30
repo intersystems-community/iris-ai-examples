@@ -130,7 +130,7 @@ each one triggers and what to say between them. The short form:
 | `SearchSDoHProtocols`         | Match USDHHS-aligned screening protocols to the patient's conditions                                                                            |
 | `AssessSDoHRisk`              | Score six SDoH domains: Economic Stability, Education Access, Health Care Access, Neighborhood/Built Env, Social Context, Transportation Access |
 | `DraftCarePlan`               | Generate prioritized CHW action steps from risk scores                                                                                          |
-| `DecideCareAction`            | Apply a bounded decision model to a proposed follow-up: `EXECUTE`, `SIMULATE`, `ASK_HUMAN`, or `REJECT`                                           |
+| `DecideCareAction`            | Ask Liquid AI `d1` Choice, Score, and Noul questions; return `EXECUTE`, `SIMULATE`, `ASK_HUMAN`, or `REJECT` with probabilities                  |
 | `StartProduction`             | Start the IRIS Interoperability production (safe if already running)                                                                            |
 | `TriggerFollowUp`             | Fire a BS → BP → BO follow-up workflow via `Ens.Director`                                                                                       |
 | `GetInteropTraces`            | Show recent message headers: source, target, class, status, timestamp                                                                           |
@@ -147,7 +147,7 @@ each one triggers and what to say between them. The short form:
 ## What it demonstrates
 
 - **`%AI.ToolSet`** — 18 domain-specific tools defined in ObjectScript XData, compiled into IRIS
-- **Bounded action gate** — separates model judgment from the governed `TriggerFollowUp` write, so confidence and consent do not silently become side effects
+- **Liquid d1 decision model** — evaluates typed Choice, Score, and Noul questions in one call with zero output tokens; the result is separated from the governed `TriggerFollowUp` write
 - **`%AI.MCP.Service`** — exposes the ToolSet on `/mcp/careconnect` via the IRIS web server
 - **IRIS Interoperability + AI** — an agent tool triggers a real BS/BP/BO workflow via `Ens.Director`, not just a SQL query
 - **Live message tracing** — `GetInteropTraces` reads `Ens.MessageHeader` to show the agent what the production just did
@@ -169,6 +169,25 @@ python run_evals.py
 
 See [`evals/EVALS.md`](./evals/EVALS.md) for the lessons and the
 measure → fix → re-measure loop.
+
+### Using Liquid d1 for the action gate
+
+The offline service defaults to a deterministic mock so the eval suite needs no
+network or API key. To use the real Liquid decision model, create a Liquid API key
+(`liquid_...`) and run the service with:
+
+```bash
+export LIQUID_API_KEY=liquid_...
+export LIQUID_DECISION_MODE=liquid
+export LIQUID_DECISION_MODEL=d1:free
+python -m aihub_service --config ../ai-hub-service/examples/careconnect/offline.yaml
+```
+
+`DecideCareAction` sends a structured state plus three typed questions to
+`https://api.liquid.ai/decisions/v1/systemone`: a **Choice** for the action, a
+**Score** for urgency, and a **Noul** for consent. Liquid returns calibrated
+probabilities and `output_tokens: 0`. The service applies only narrow safety rails
+to d1's result, then keeps `TriggerFollowUp` as a separate approval-gated write.
 
 ## Architecture
 

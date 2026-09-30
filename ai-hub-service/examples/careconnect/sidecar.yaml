@@ -26,6 +26,7 @@ service:
 
 python_path:
   - .
+  - ../../../careconnect-sdoh/evals
 
 backends:
   legacy:
@@ -42,6 +43,11 @@ backends:
     password: ${AIHUB_MCP_PASSWORD:-SYS}
     # iris-mcp-server publishes /mcp/careconnect's tools as mcp_careconnect_<Tool>.
     tool_prefix: ${AIHUB_MCP_TOOL_PREFIX:-mcp_careconnect_}
+  liquid:
+    kind: python
+    object: careconnect_evals.tools_local:LocalToolClient
+    object_kwargs: {liquid_mode: "${LIQUID_DECISION_MODE:-mock}"}
+    schemas: careconnect_evals.tools_local:TOOL_SCHEMAS
 
 tools:
   # -- data: the legacy instance, over SQL --------------------------------
@@ -164,6 +170,6 @@ tools:
   - {name: SearchSDoHProtocols, backend: companion}
   - {name: AssessSDoHRisk, backend: companion}
   - {name: DraftCarePlan, backend: companion}
-  - {name: DecideCareAction, backend: companion}
+  - {name: DecideCareAction, backend: liquid}
   # Reads the FHIR server; the companion is the instance configured to reach it.
   - {name: SearchClinicalNotes, backend: companion}

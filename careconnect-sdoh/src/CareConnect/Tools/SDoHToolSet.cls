@@ -11,7 +11,7 @@ Include %AI
 ///   SearchSDoHProtocols     - find screening protocols matching conditions
 ///   AssessSDoHRisk          - score six SDoH domains (five USDHHS plus transportation access)
 ///   DraftCarePlan           - generate an actionable care plan
-///   DecideCareAction        - gate a proposed follow-up using bounded confidence and policy
+///   DecideCareAction        - expose the Liquid d1 Choice/Score/Noul action-gate contract
 ///   TriggerFollowUp         - fire the Interoperability follow-up workflow
 ///   GetInteropTraces        - view recent message flow from the production
 ///   GetProductionStatus     - check whether the production is running
@@ -45,7 +45,7 @@ XData Definition [ MimeType = application/xml ]
   </Tool>
 
   <Tool Name="DecideCareAction" Method="DecideCareAction">
-    <Description>Choose EXECUTE, SIMULATE, ASK_HUMAN, or REJECT for a proposed follow-up using the risk assessment, model confidence, patient consent, and bounded policy. This tool decides what should happen; TriggerFollowUp remains the separately governed write action.</Description>
+    <Description>Use the Liquid d1 decision-model contract to choose EXECUTE, SIMULATE, ASK_HUMAN, or REJECT for a proposed follow-up from typed action, urgency, and consent signals. TriggerFollowUp remains the separately governed write action.</Description>
   </Tool>
 
   <Tool Name="TriggerFollowUp" Method="TriggerFollowUp">

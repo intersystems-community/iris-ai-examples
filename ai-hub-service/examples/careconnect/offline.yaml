@@ -22,7 +22,11 @@ backends:
     object: careconnect_evals.tools_local:LocalToolClient
     # The live stack's entrypoint starts CareConnect.Production; start the
     # simulated one the same way so TriggerFollowUp behaves as it does there.
-    object_kwargs: {production_running: true}
+    # Set LIQUID_DECISION_MODE=liquid and LIQUID_API_KEY to use Liquid d1;
+    # mock remains the default so the full eval suite stays offline and keyless.
+    object_kwargs:
+      production_running: true
+      liquid_mode: ${LIQUID_DECISION_MODE:-mock}
     schemas: careconnect_evals.tools_local:TOOL_SCHEMAS
 
 tools:

@@ -110,13 +110,13 @@ agents:
 
         Follow-up: ${result.TriggerFollowUp|default:not triggered}
 
-  # Decision-model example: the model chooses what should happen, while the
+  # Liquid d1 decision-model example: d1 chooses what should happen, while the
   # normal write policy still decides who may cause the follow-up side effect.
   sdoh-decision-gate:
     description: >-
-      Assess one patient, run a bounded action gate for a proposed follow-up, and
-      trigger the write only when the decision is EXECUTE. This separates model
-      judgment from IRIS policy and the Interoperability side effect.
+      Assess one patient, ask Liquid d1 for a typed Choice/Score/Noul decision on
+      a proposed follow-up, and trigger the write only when d1 returns EXECUTE.
+      This separates model judgment from IRIS policy and the Interoperability side effect.
     engine: playbook
     tools: [FetchPatientSummary, AssessSDoHRisk, DecideCareAction, TriggerFollowUp,
             GetInteropTraces]
@@ -178,6 +178,6 @@ agents:
         do not paraphrase it — the scorer is keyword-based.
       - Trigger a follow-up only when asked or when the case is URGENT. A follow-up
         waits for a human approver; if it is rejected, say so and do not retry.
-      - Use DecideCareAction before any proposed follow-up. It is a bounded judgment
-        layer, not a replacement for the write approval on TriggerFollowUp.
+      - Use DecideCareAction before any proposed follow-up. Liquid d1 supplies the
+        typed judgment, not a replacement for the write approval on TriggerFollowUp.
       - Respect patient privacy: do not repeat sensitive details unnecessarily.

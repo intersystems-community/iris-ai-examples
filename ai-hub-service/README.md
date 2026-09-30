@@ -72,6 +72,12 @@ Both are declared in [examples/careconnect/base.yaml](./examples/careconnect/bas
   It calls TriggerFollowUp when the case is URGENT or `context.followUp` is set,
   and that call is gated. GetInteropTraces runs once a follow-up has actually
   fired. Requires `context.patientId`.
+- **`sdoh-decision-gate`** uses Liquid AI `d1:free` through the Decision API. It
+  asks a typed Choice for the action, a Score for urgency, and a Noul for consent;
+  d1 returns calibrated probabilities with zero output tokens. The default
+  `LIQUID_DECISION_MODE=mock` keeps local tests keyless. Set
+  `LIQUID_DECISION_MODE=liquid` and `LIQUID_API_KEY=liquid_...` to call Liquid.
+  `TriggerFollowUp` remains a separate approval-gated write.
 - **`sdoh-assistant`** is **model-driven** over the same tools. Set
   `AIHUB_LLM_ENGINE` (`openai` or `anthropic`), `AIHUB_LLM_MODEL` and
   `AIHUB_LLM_API_KEY`. For a local model, use `AIHUB_LLM_BASE_URL` with any
@@ -115,7 +121,8 @@ kubectl apply -k ai-hub-service/deploy/k8s/overlays/sidecar-demo -n careconnect-
 | `sidecar-demo` | Everything, with a demo legacy IRIS carrying CareConnect's data                            |
 
 Real credentials go in a Secret named `aihub-service-secrets`. Its keys (for
-example `AIHUB_KEY_APP` or `AIHUB_LLM_API_KEY`) override the config's defaults.
+example `AIHUB_KEY_APP`, `AIHUB_LLM_API_KEY`, or `LIQUID_API_KEY`) override the
+config's defaults.
 
 ## From an IRIS application
 

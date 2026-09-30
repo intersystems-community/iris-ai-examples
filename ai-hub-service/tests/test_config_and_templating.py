@@ -44,9 +44,10 @@ def test_sidecar_splits_tools_between_legacy_and_companion():
         "GetInteropTraces", "GetProductionStatus", "StartProduction",
     }
     assert by_backend["companion"] == {
-        "SearchSDoHProtocols", "AssessSDoHRisk", "DraftCarePlan", "DecideCareAction",
+        "SearchSDoHProtocols", "AssessSDoHRisk", "DraftCarePlan",
         "SearchClinicalNotes",
     }
+    assert by_backend["liquid"] == {"DecideCareAction"}
 
 
 def test_environment_moves_the_backends():

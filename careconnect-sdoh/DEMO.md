@@ -164,25 +164,31 @@ you get a shorter plan.
 Run the action gate for Maria's urgent follow-up with confidence 0.92 and confirmed patient consent
 ```
 
-**What happens:** Claude calls `DecideCareAction` with the risk assessment, the proposed
-`trigger_follow_up` action, a confidence score, and consent. The tool returns a bounded
-decision without firing the workflow.
+**What happens:** The service calls Liquid AI's `d1:free` decision model with the risk
+assessment, proposed `trigger_follow_up` action, and consent state. One request asks
+three typed questions: a **Choice** for the action, a **Score** for urgency, and a
+**Noul** for consent. d1 returns calibrated probabilities with zero output tokens.
+The tool returns the decision without firing the workflow.
 
 **Expected output:**
 
 ```text
-Action Gate for maria-gonzalez-001
-Action: trigger_follow_up
-Priority: URGENT
-Confidence: 0.92
+Action Gate for maria-gonzalez-001 (Liquid d1)
 Decision: EXECUTE
-Reason: urgent follow-up meets consent and confidence policy
+d1 action confidence: 0.940
+d1 urgency score: 2.800
+d1 consent probability: 0.980
+Action probabilities: {"ASK_HUMAN": 0.02, "EXECUTE": 0.94, "REJECT": 0.01, "SIMULATE": 0.03}
+Urgency probabilities: {"high": 0.08, "routine": 0.02, "urgent": 0.9}
+Reason: Liquid d1 selected EXECUTE
 ```
 
-If consent is not confirmed or confidence is below `0.75`, the gate returns `ASK_HUMAN`.
-High-priority cases can return `SIMULATE`; unsupported actions return `REJECT`. This is a
-decision-model example, not a clinical policy recommendation: the service still treats
-`TriggerFollowUp` as a separate write and approval-gated operation.
+If d1 returns low consent probability or low action confidence, the gate escalates to
+`ASK_HUMAN`. d1 can return `SIMULATE` or `REJECT` directly, and unsupported actions are
+rejected before the API call. This is a decision-model integration example, not a clinical
+policy recommendation: the service still treats `TriggerFollowUp` as a separate write
+and approval-gated operation. Set `LIQUID_DECISION_MODE=liquid` and `LIQUID_API_KEY` to
+run this step against Liquid; the default offline mode uses a deterministic mock.
 
 ---
 

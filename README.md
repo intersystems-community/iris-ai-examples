@@ -23,7 +23,7 @@ them side by side to see what the ObjectScript and Python SDKs each cost you.
 
 A community health worker assistant that assesses Social Determinants of Health for patients and triggers follow-up workflows through IRIS Interoperability.
 
-- 18 MCP tools: 11 core (including a bounded decision gate for follow-up actions) and 7 knowledge-graph tools that need the `--profile ivg` stack
+- 18 MCP tools: 11 core (including a Liquid d1 decision gate for follow-up actions) and 7 knowledge-graph tools that need the `--profile ivg` stack
 - IRIS Interoperability production wired end-to-end (BusinessService → BusinessProcess → BusinessOperation)
 - 3 pre-seeded demo patients covering diabetes/hypertension, CHF/depression, and prenatal care
 - Shows how an agent can observe and trigger production workflows — not just query data

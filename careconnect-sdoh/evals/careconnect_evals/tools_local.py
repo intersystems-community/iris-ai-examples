@@ -15,8 +15,11 @@ The same patient data lives in CareConnect.Setup.DemoData.cls.
 from __future__ import annotations
 
 import json
+import os
 import uuid
 from dataclasses import dataclass, field
+
+from .liquid_decision import LiquidDecisionError, decide_with_d1
 
 # --- Demo patients (mirror of CareConnect.Setup.DemoData.Load) ---------------
 
@@ -270,6 +273,7 @@ class LocalToolClient:
 
     production_running: bool = False
     messages: list = field(default_factory=list)  # simulated Ens.MessageHeader rows
+    liquid_mode: str = "mock"  # mock keeps the offline suite keyless; liquid calls d1
 
     # -- deterministic data tools --
 
@@ -386,14 +390,27 @@ class LocalToolClient:
         confidence: str = "0.90",
         consent: str = "no",
     ) -> str:
-        """Bounded decision model for the proposed follow-up side effect.
+        """Use Liquid d1 when configured, with a deterministic offline fallback.
 
-        This is intentionally separate from TriggerFollowUp: the model decides
-        what should happen, while the service's write policy decides who may make
-        the actual change. The ObjectScript ToolSet mirrors this output.
+        This is intentionally separate from TriggerFollowUp: d1 decides what
+        should happen, while the service's write policy decides who may make the
+        actual change. The ObjectScript ToolSet exposes the same contract.
         """
         if not patientId:
             return "ERROR: patientId is required"
+        if self.liquid_mode.lower() == "liquid":
+            try:
+                return decide_with_d1(
+                    patientId,
+                    riskAssessment,
+                    proposedAction,
+                    consent,
+                    api_key=os.getenv("LIQUID_API_KEY", ""),
+                    base_url=os.getenv("LIQUID_BASE_URL", "https://api.liquid.ai"),
+                    model=os.getenv("LIQUID_DECISION_MODEL", "d1:free"),
+                )
+            except LiquidDecisionError as exc:
+                return f"ERROR: Liquid d1 decision failed: {exc}"
         action = proposedAction.lower()
         if action != "trigger_follow_up":
             return f"Decision: REJECT\nReason: unsupported action '{proposedAction}'"
@@ -408,7 +425,7 @@ class LocalToolClient:
         except (TypeError, ValueError):
             score = 0.0
         out = (
-            f"Action Gate for {patientId}\n"
+            f"Action Gate for {patientId} (offline mock)\n"
             f"Action: {action}\n"
             f"Priority: {priority}\n"
             f"Confidence: {confidence}\n"

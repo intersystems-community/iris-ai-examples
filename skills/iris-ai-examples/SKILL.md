@@ -37,10 +37,10 @@ at `/mcp/careconnect`.
 **Interop pattern:** `TriggerFollowUp` method calls `##class(Ens.Director).CreateBusinessService()`
 to fire a real BS→BP→BO pipeline from within a tool call.
 
-**Decision-model pattern:** `DecideCareAction` turns a risk assessment, model confidence,
-and patient consent into a bounded `EXECUTE`, `SIMULATE`, `ASK_HUMAN`, or `REJECT`
-decision. It is deliberately separate from the write tool, so model judgment and
-side-effect authorization remain distinct.
+**Decision-model pattern:** `DecideCareAction` calls Liquid AI's `d1:free` Decision API
+with typed Choice, Score, and Noul questions, then returns `EXECUTE`, `SIMULATE`,
+`ASK_HUMAN`, or `REJECT` with calibrated probabilities. It is deliberately separate
+from the write tool, so model judgment and side-effect authorization remain distinct.
 
 **Agent class:** `src/CareConnect/Agent/SDoHAssessment.cls` — extends `%AI.Agent`. Has
 `XData INSTRUCTIONS` for persona. Tools work via MCP directly without this class.

@@ -38,6 +38,10 @@ x-service: &service
     AIHUB_LLM_MODEL: ${AIHUB_LLM_MODEL:-gpt-4o-mini}
     AIHUB_LLM_BASE_URL: ${AIHUB_LLM_BASE_URL:-}
     AIHUB_LLM_API_KEY: ${AIHUB_LLM_API_KEY:-}
+    LIQUID_DECISION_MODE: ${LIQUID_DECISION_MODE:-mock}
+    LIQUID_DECISION_MODEL: ${LIQUID_DECISION_MODEL:-d1:free}
+    LIQUID_BASE_URL: ${LIQUID_BASE_URL:-https://api.liquid.ai}
+    LIQUID_API_KEY: ${LIQUID_API_KEY:-}
   restart: unless-stopped
 
 services:

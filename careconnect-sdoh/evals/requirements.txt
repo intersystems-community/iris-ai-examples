@@ -1,4 +1,6 @@
 # Core harness runs on the standard library alone (mock provider, no network).
+# httpx is used only when LIQUID_DECISION_MODE=liquid or by d1 contract tests.
+httpx>=0.27
 # The extras below are only needed for the notebook and for real-model runs.
 
 # Notebook + charts
