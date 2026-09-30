@@ -1,7 +1,7 @@
 """Tools served by an AI Hub IRIS through its MCP endpoint.
 
 iris-mcp-server fronts ``%AI.MCP.Service`` (in careconnect-sdoh: the
-``/mcp/careconnect`` web application, 17 tools from SDoHToolSet). This client
+``/mcp/careconnect`` web application, 18 tools from SDoHToolSet). This client
 speaks the MCP streamable-HTTP transport: JSON-RPC 2.0 over POST, a response
 that is either ``application/json`` or a ``text/event-stream`` carrying the
 same JSON-RPC message, and an ``Mcp-Session-Id`` header the server may issue on

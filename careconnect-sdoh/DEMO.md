@@ -156,7 +156,37 @@ you get a shorter plan.
 
 ---
 
-## Step 6 — Trigger the follow-up workflow
+## Step 6 — Run the bounded action gate
+
+**Prompt:**
+
+```text
+Run the action gate for Maria's urgent follow-up with confidence 0.92 and confirmed patient consent
+```
+
+**What happens:** Claude calls `DecideCareAction` with the risk assessment, the proposed
+`trigger_follow_up` action, a confidence score, and consent. The tool returns a bounded
+decision without firing the workflow.
+
+**Expected output:**
+
+```text
+Action Gate for maria-gonzalez-001
+Action: trigger_follow_up
+Priority: URGENT
+Confidence: 0.92
+Decision: EXECUTE
+Reason: urgent follow-up meets consent and confidence policy
+```
+
+If consent is not confirmed or confidence is below `0.75`, the gate returns `ASK_HUMAN`.
+High-priority cases can return `SIMULATE`; unsupported actions return `REJECT`. This is a
+decision-model example, not a clinical policy recommendation: the service still treats
+`TriggerFollowUp` as a separate write and approval-gated operation.
+
+---
+
+## Step 7 — Trigger the follow-up workflow
 
 **Prompt:**
 

@@ -31,7 +31,7 @@ def test_every_mode_keeps_the_shared_governance(mode):
     effects = {t["name"]: t["effect"] for t in cfg.tools}
     assert effects["TriggerFollowUp"] == "write" and effects["StartProduction"] == "write"
     assert all(t.get("backend") for t in cfg.tools), "a mode left a tool unbound"
-    assert set(cfg.agents) == {"sdoh-assessment", "sdoh-assistant"}
+    assert set(cfg.agents) == {"sdoh-assessment", "sdoh-assistant", "sdoh-decision-gate"}
 
 
 def test_sidecar_splits_tools_between_legacy_and_companion():
@@ -44,7 +44,8 @@ def test_sidecar_splits_tools_between_legacy_and_companion():
         "GetInteropTraces", "GetProductionStatus", "StartProduction",
     }
     assert by_backend["companion"] == {
-        "SearchSDoHProtocols", "AssessSDoHRisk", "DraftCarePlan", "SearchClinicalNotes",
+        "SearchSDoHProtocols", "AssessSDoHRisk", "DraftCarePlan", "DecideCareAction",
+        "SearchClinicalNotes",
     }
 
 

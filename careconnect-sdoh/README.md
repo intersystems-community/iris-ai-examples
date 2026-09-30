@@ -100,6 +100,8 @@ each one triggers and what to say between them. The short form:
 
 "Draft a care plan based on those scores"
 
+"Run the action gate for Maria with confidence 0.92 and confirmed consent"
+
 "Start the production and trigger a follow-up for her with priority urgent"
 
 "Show me the interoperability traces"
@@ -128,6 +130,7 @@ each one triggers and what to say between them. The short form:
 | `SearchSDoHProtocols`         | Match USDHHS-aligned screening protocols to the patient's conditions                                                                            |
 | `AssessSDoHRisk`              | Score six SDoH domains: Economic Stability, Education Access, Health Care Access, Neighborhood/Built Env, Social Context, Transportation Access |
 | `DraftCarePlan`               | Generate prioritized CHW action steps from risk scores                                                                                          |
+| `DecideCareAction`            | Apply a bounded decision model to a proposed follow-up: `EXECUTE`, `SIMULATE`, `ASK_HUMAN`, or `REJECT`                                           |
 | `StartProduction`             | Start the IRIS Interoperability production (safe if already running)                                                                            |
 | `TriggerFollowUp`             | Fire a BS → BP → BO follow-up workflow via `Ens.Director`                                                                                       |
 | `GetInteropTraces`            | Show recent message headers: source, target, class, status, timestamp                                                                           |
@@ -143,7 +146,8 @@ each one triggers and what to say between them. The short form:
 
 ## What it demonstrates
 
-- **`%AI.ToolSet`** — 17 domain-specific tools defined in ObjectScript XData, compiled into IRIS
+- **`%AI.ToolSet`** — 18 domain-specific tools defined in ObjectScript XData, compiled into IRIS
+- **Bounded action gate** — separates model judgment from the governed `TriggerFollowUp` write, so confidence and consent do not silently become side effects
 - **`%AI.MCP.Service`** — exposes the ToolSet on `/mcp/careconnect` via the IRIS web server
 - **IRIS Interoperability + AI** — an agent tool triggers a real BS/BP/BO workflow via `Ens.Director`, not just a SQL query
 - **Live message tracing** — `GetInteropTraces` reads `Ens.MessageHeader` to show the agent what the production just did
@@ -211,7 +215,7 @@ careconnect-sdoh/
 │   ├── careconnect-ivg/      Knowledge graph bolt API (--profile ivg)
 │   └── jupyter/              Notebooks
 ├── src/CareConnect/
-│   ├── Tools/SDoHToolSet.cls     %AI.ToolSet — all 17 tools
+│   ├── Tools/SDoHToolSet.cls     %AI.ToolSet — all 18 tools
 │   ├── MCP/Service.cls           %AI.MCP.Service at /mcp/careconnect
 │   ├── Agent/SDoHAssessment.cls  %AI.Agent definition
 │   ├── Production.cls            Ens.Production wiring
@@ -231,7 +235,7 @@ careconnect-sdoh/
 
 ## Notes for demos
 
-- All 17 tools work without an OpenAI API key — risk scoring and care planning are rule-based; IVG tools require the `--profile ivg` stack
+- All 18 tools work without an OpenAI API key — risk scoring, care planning, and the action gate are rule-based; IVG tools require the `--profile ivg` stack
 - The Interoperability production starts automatically at container startup via `iris.script`
 - `TriggerFollowUp` will return an error if the production isn't running — use `StartProduction` first, or just ask Claude to handle it
 - `GetInteropTraces` shows message headers from `Ens.MessageHeader` — each `TriggerFollowUp` call adds a row visible here

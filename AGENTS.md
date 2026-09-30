@@ -47,7 +47,7 @@ Interoperability production — not just query data. The `TriggerFollowUp` tool 
 
 | Class                              | Role                                                               |
 | ---------------------------------- | ------------------------------------------------------------------ |
-| `CareConnect.Tools.SDoHToolSet`    | `%AI.ToolSet` — 17 tools, 6-domain keyword scorer, care plan logic |
+| `CareConnect.Tools.SDoHToolSet`    | `%AI.ToolSet` — 18 tools, 6-domain keyword scorer, care plan logic, bounded action gate |
 | `CareConnect.MCP.Service`          | `%AI.MCP.Service` — exposes tools at `/mcp/careconnect`            |
 | `CareConnect.Agent.SDoHAssessment` | `%AI.Agent` — optional; tools work via MCP directly                |
 | `CareConnect.Production`           | `Ens.Production` — BS → BP → BO wiring                             |

@@ -49,10 +49,11 @@ def test_service_reports_mode_and_principal(offline):
     assert info["principal"] == {"name": "chw_user", "roles": ["caller"]}
 
 
-def test_catalog_lists_the_ten_core_tools_with_schemas_from_the_backend(offline):
+def test_catalog_lists_the_eleven_core_tools_with_schemas_from_the_backend(offline):
     tools = {t["name"]: t for t in offline.get("/v1/tools", headers=CHW).json()["tools"]}
-    assert len(tools) == 10
+    assert len(tools) == 11
     assert tools["AssessSDoHRisk"]["description"].startswith("Score a patient on six SDoH domains")
+    assert tools["DecideCareAction"]["effect"] == "read"
     assert tools["FetchPatientSummary"]["parameters"]["required"] == ["patientId"]
     assert {n for n, t in tools.items() if t["effect"] == "write"} == {"TriggerFollowUp", "StartProduction"}
 
@@ -72,6 +73,22 @@ def test_read_tool_invocation_returns_the_tool_text(offline):
     body = r.json()
     assert r.status_code == 200 and body["ok"] is True and body["backend"] == "local"
     assert "patientId: maria-gonzalez-001" in body["output"]
+
+
+def test_decision_gate_returns_a_bounded_execute_decision(offline):
+    assessment = "Overall Priority: URGENT (5/6 domains elevated)"
+    r = offline.post(
+        "/v1/tools/DecideCareAction/invoke",
+        headers=CHW,
+        json={"args": {
+            "patientId": "maria-gonzalez-001",
+            "riskAssessment": assessment,
+            "confidence": "0.92",
+            "consent": "yes",
+        }},
+    )
+    assert r.status_code == 200
+    assert "Decision: EXECUTE" in r.json()["output"]
 
 
 def test_write_tool_invocation_is_admin_only(offline):

@@ -8,7 +8,7 @@ Three of the examples ship a Docker stack, seeded demo data, and a set of MCP to
 
 | Example                                     | Domain                     | Language                       | Tools              | AI Hub APIs                                                            | Interop                                                   |
 | ------------------------------------------- | -------------------------- | ------------------------------ | ------------------ | ---------------------------------------------------------------------- | --------------------------------------------------------- |
-| [careconnect-sdoh](./careconnect-sdoh/)     | Healthcare / SDoH          | ObjectScript                   | 17                 | `%AI.ToolSet`, `%AI.MCP.Service`                                       | BS → BP → BO production                                   |
+| [careconnect-sdoh](./careconnect-sdoh/)     | Healthcare / SDoH          | ObjectScript                   | 18                 | `%AI.ToolSet`, `%AI.MCP.Service`                                       | BS → BP → BO production                                   |
 | [careconnect-python](./careconnect-python/) | Healthcare / SDoH          | Python (`iris_llm`)            | 4                  | `iris_llm.Agent`, `@tool`                                              | —                                                         |
 | [kg-ticket-resolver](./kg-ticket-resolver/) | Support / Knowledge Mining | ObjectScript                   | 6                  | `%AI.ToolSet`, `%AI.MCP.Service`, `%AI.Agent`, `%AI.Provider`          | —                                                         |
 | [ai-hub](./ai-hub/)                         | Patterns library           | Both                           | —                  | OTel, ConfigStore, Bridge, Jira MCP, Interop+OTel, Python `@tool`      | OTel Interop spans                                        |
@@ -23,7 +23,7 @@ them side by side to see what the ObjectScript and Python SDKs each cost you.
 
 A community health worker assistant that assesses Social Determinants of Health for patients and triggers follow-up workflows through IRIS Interoperability.
 
-- 17 MCP tools: 10 core (patient lookup, SDoH risk scoring across 6 USDHHS domains, care plan generation, follow-up workflow trigger, interop message tracing, clinical-note search) and 7 knowledge-graph tools that need the `--profile ivg` stack
+- 18 MCP tools: 11 core (including a bounded decision gate for follow-up actions) and 7 knowledge-graph tools that need the `--profile ivg` stack
 - IRIS Interoperability production wired end-to-end (BusinessService → BusinessProcess → BusinessOperation)
 - 3 pre-seeded demo patients covering diabetes/hypertension, CHF/depression, and prenatal care
 - Shows how an agent can observe and trigger production workflows — not just query data
@@ -185,7 +185,7 @@ repo is reachable only by listing the files.
 | Doc                                                                         | What it covers                                                                          |
 | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
 | **careconnect-sdoh**                                                        |                                                                                         |
-| [README](./careconnect-sdoh/README.md)                                      | Quickstart, the 17 tools, MCP client config, architecture                               |
+| [README](./careconnect-sdoh/README.md)                                      | Quickstart, the 18 tools, MCP client config, architecture                               |
 | [DEMO.md](./careconnect-sdoh/DEMO.md)                                       | 10-minute walkthrough: one health worker, one patient, tool call by tool call           |
 | [docs/eap-setup.md](./careconnect-sdoh/docs/eap-setup.md)                   | Getting the AI Hub EAP image, and what still runs without it                            |
 | [evals/README](./careconnect-sdoh/evals/README.md)                          | Running the eval suite — offline, no API key, under a second                            |

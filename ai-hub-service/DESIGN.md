@@ -342,7 +342,7 @@ as they were:
   registered service found"). A direct `tools/call` of the prefixed name
   answered, so the server was fine and the client was wrong. The MCP backend
   now takes `tool_prefix`, and both example configs set it.
-- **Readiness lied.** `/readyz` reported the companion ready with "17 tools"
+- **Readiness lied.** `/readyz` reported the companion ready with "18 tools"
   while every call to it failed. It now fails, naming the missing tools,
   unless the server publishes every tool the catalog binds to it. Checked
   live with a wrong prefix: 503.

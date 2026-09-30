@@ -43,7 +43,7 @@ callbacks:
   # Hosts a run may POST its result to when it settles. Empty disables callbacks.
   allowed_hosts: []
 
-# The ten core CareConnect tools (the seven IVG knowledge-graph tools need the
+# The eleven core CareConnect tools (the seven IVG knowledge-graph tools need the
 # --profile ivg stack and are left out of this proof). `effect` is the
 # governance fact; the mode files add `backend` and, where needed, `binding`.
 tools:
@@ -52,6 +52,7 @@ tools:
   - {name: SearchSDoHProtocols, effect: read}
   - {name: AssessSDoHRisk, effect: read}
   - {name: DraftCarePlan, effect: read}
+  - {name: DecideCareAction, effect: read}
   - {name: SearchClinicalNotes, effect: read}
   - {name: GetInteropTraces, effect: read}
   - {name: GetProductionStatus, effect: read}
@@ -109,6 +110,49 @@ agents:
 
         Follow-up: ${result.TriggerFollowUp|default:not triggered}
 
+  # Decision-model example: the model chooses what should happen, while the
+  # normal write policy still decides who may cause the follow-up side effect.
+  sdoh-decision-gate:
+    description: >-
+      Assess one patient, run a bounded action gate for a proposed follow-up, and
+      trigger the write only when the decision is EXECUTE. This separates model
+      judgment from IRIS policy and the Interoperability side effect.
+    engine: playbook
+    tools: [FetchPatientSummary, AssessSDoHRisk, DecideCareAction, TriggerFollowUp,
+            GetInteropTraces]
+    playbook:
+      requires: [patientId]
+      steps:
+        - tool: FetchPatientSummary
+          args: {patientId: "${context.patientId}"}
+        - tool: AssessSDoHRisk
+          args:
+            patientId: "${context.patientId}"
+            clinicalSummary: "${result.FetchPatientSummary}"
+            protocolMatches: ""
+        - tool: DecideCareAction
+          args:
+            patientId: "${context.patientId}"
+            riskAssessment: "${result.AssessSDoHRisk}"
+            proposedAction: "${context.action|default:trigger_follow_up}"
+            confidence: "${context.confidence|default:0.90}"
+            consent: "${context.consent|default:no}"
+        - tool: TriggerFollowUp
+          when: "result.DecideCareAction contains 'Decision: EXECUTE'"
+          args:
+            patientId: "${context.patientId}"
+            priority: "${context.priority|default:urgent}"
+            sdohFlags: ""
+        - tool: GetInteropTraces
+          when: "result.TriggerFollowUp contains 'Follow-up triggered'"
+          args: {maxRows: "10"}
+      output: |-
+        ${result.AssessSDoHRisk}
+
+        ${result.DecideCareAction}
+
+        Follow-up: ${result.TriggerFollowUp|default:not triggered}
+
   # Model-driven: the same tools, the model chooses the order. Needs a key.
   sdoh-assistant:
     description: >-
@@ -119,6 +163,7 @@ agents:
     base_url: ${AIHUB_LLM_BASE_URL:-}
     api_key: ${AIHUB_LLM_API_KEY:-}
     tools: [SearchPatients, FetchPatientSummary, SearchSDoHProtocols, AssessSDoHRisk,
+            DecideCareAction,
             DraftCarePlan, SearchClinicalNotes, TriggerFollowUp, GetInteropTraces,
             GetProductionStatus]
     instructions: |-
@@ -126,11 +171,13 @@ agents:
       social determinants of health (SDoH) for patients.
 
       Workflow: SearchPatients -> FetchPatientSummary -> SearchSDoHProtocols ->
-      AssessSDoHRisk -> DraftCarePlan -> TriggerFollowUp -> GetInteropTraces.
+      AssessSDoHRisk -> DecideCareAction -> DraftCarePlan -> TriggerFollowUp -> GetInteropTraces.
 
       - Always assess all six SDoH domains before drafting a care plan.
       - Pass the full FetchPatientSummary text to AssessSDoHRisk as clinicalSummary;
         do not paraphrase it — the scorer is keyword-based.
       - Trigger a follow-up only when asked or when the case is URGENT. A follow-up
         waits for a human approver; if it is rejected, say so and do not retry.
+      - Use DecideCareAction before any proposed follow-up. It is a bounded judgment
+        layer, not a replacement for the write approval on TriggerFollowUp.
       - Respect patient privacy: do not repeat sensitive details unnecessarily.

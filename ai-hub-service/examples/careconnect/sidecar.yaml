@@ -164,5 +164,6 @@ tools:
   - {name: SearchSDoHProtocols, backend: companion}
   - {name: AssessSDoHRisk, backend: companion}
   - {name: DraftCarePlan, backend: companion}
+  - {name: DecideCareAction, backend: companion}
   # Reads the FHIR server; the companion is the instance configured to reach it.
   - {name: SearchClinicalNotes, backend: companion}

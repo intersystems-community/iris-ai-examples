@@ -11,6 +11,7 @@ Include %AI
 ///   SearchSDoHProtocols     - find screening protocols matching conditions
 ///   AssessSDoHRisk          - score six SDoH domains (five USDHHS plus transportation access)
 ///   DraftCarePlan           - generate an actionable care plan
+///   DecideCareAction        - gate a proposed follow-up using bounded confidence and policy
 ///   TriggerFollowUp         - fire the Interoperability follow-up workflow
 ///   GetInteropTraces        - view recent message flow from the production
 ///   GetProductionStatus     - check whether the production is running
@@ -41,6 +42,10 @@ XData Definition [ MimeType = application/xml ]
 
   <Tool Name="DraftCarePlan" Method="DraftCarePlan">
     <Description>Draft an actionable care plan with prioritized steps for the community health worker based on SDoH risk scores.</Description>
+  </Tool>
+
+  <Tool Name="DecideCareAction" Method="DecideCareAction">
+    <Description>Choose EXECUTE, SIMULATE, ASK_HUMAN, or REJECT for a proposed follow-up using the risk assessment, model confidence, patient consent, and bounded policy. This tool decides what should happen; TriggerFollowUp remains the separately governed write action.</Description>
   </Tool>
 
   <Tool Name="TriggerFollowUp" Method="TriggerFollowUp">
@@ -229,6 +234,33 @@ ClassMethod DraftCarePlan(patientId As %String, sdohScores As %String) As %Strin
     Set out = out_step_". Schedule 30-day follow-up call to assess progress on care plan goals"_$Char(10)
     Set out = out_$Char(10)_"Priority: Urgent if 5+ domains HIGH - escalate to supervising CHW"
     Quit out
+}
+
+ClassMethod DecideCareAction(patientId As %String, riskAssessment As %String, proposedAction As %String = "trigger_follow_up", confidence As %String = "0.90", consent As %String = "no") As %String
+{
+    If patientId = "" Quit "ERROR: patientId is required"
+    Set actionLC = $ZCONVERT(proposedAction, "L")
+    If actionLC '= "trigger_follow_up" Quit "Decision: REJECT"_$Char(10)_"Reason: unsupported action '"_proposedAction_"'"
+    Set riskLC = $ZCONVERT(riskAssessment, "L")
+    Set priority = "ROUTINE"
+    If riskLC["overall priority: urgent" Set priority = "URGENT"
+    ElseIf riskLC["overall priority: high" Set priority = "HIGH"
+    Set conf = +confidence
+    Set consentLC = $ZCONVERT(consent, "L")
+    Set out = "Action Gate for "_patientId_$Char(10)_"Action: "_actionLC_$Char(10)_"Priority: "_priority_$Char(10)_"Confidence: "_confidence_$Char(10)
+    If consentLC '= "yes" {
+        Quit out_"Decision: ASK_HUMAN"_$Char(10)_"Reason: patient consent is not confirmed"
+    }
+    If conf < .75 {
+        Quit out_"Decision: ASK_HUMAN"_$Char(10)_"Reason: confidence is below the 0.75 decision threshold"
+    }
+    If priority = "URGENT", conf >= .85 {
+        Quit out_"Decision: EXECUTE"_$Char(10)_"Reason: urgent follow-up meets consent and confidence policy"
+    }
+    If priority = "HIGH", conf >= .90 {
+        Quit out_"Decision: SIMULATE"_$Char(10)_"Reason: high-priority action is eligible for simulation before a write"
+    }
+    Quit out_"Decision: REJECT"_$Char(10)_"Reason: no policy permits an automatic follow-up for this risk level"
 }
 
 ClassMethod TriggerFollowUp(patientId As %String, priority As %String = "routine", sdohFlags As %String = "") As %String

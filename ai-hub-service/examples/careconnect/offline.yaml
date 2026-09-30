@@ -31,6 +31,7 @@ tools:
   - {name: SearchSDoHProtocols, backend: local}
   - {name: AssessSDoHRisk, backend: local}
   - {name: DraftCarePlan, backend: local}
+  - {name: DecideCareAction, backend: local}
   - {name: SearchClinicalNotes, backend: local}
   - {name: GetInteropTraces, backend: local}
   - {name: GetProductionStatus, backend: local}

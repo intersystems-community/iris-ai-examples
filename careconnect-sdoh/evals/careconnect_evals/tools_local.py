@@ -186,6 +186,22 @@ TOOL_SCHEMAS = [
         },
     },
     {
+        "name": "DecideCareAction",
+        "description": "Choose EXECUTE, SIMULATE, ASK_HUMAN, or REJECT for a proposed "
+        "follow-up using bounded confidence, consent, and policy.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "patientId": {"type": "string"},
+                "riskAssessment": {"type": "string"},
+                "proposedAction": {"type": "string"},
+                "confidence": {"type": "string"},
+                "consent": {"type": "string"},
+            },
+            "required": ["patientId", "riskAssessment"],
+        },
+    },
+    {
         "name": "StartProduction",
         "description": "Start the CareConnect IRIS Interoperability production. "
         "Safe to call if already running.",
@@ -361,6 +377,51 @@ class LocalToolClient:
         out += f"{step}. Schedule 30-day follow-up call to assess progress on care plan goals\n"
         out += "\nPriority: Urgent if 5+ domains HIGH - escalate to supervising CHW"
         return out
+
+    def DecideCareAction(
+        self,
+        patientId: str,
+        riskAssessment: str,
+        proposedAction: str = "trigger_follow_up",
+        confidence: str = "0.90",
+        consent: str = "no",
+    ) -> str:
+        """Bounded decision model for the proposed follow-up side effect.
+
+        This is intentionally separate from TriggerFollowUp: the model decides
+        what should happen, while the service's write policy decides who may make
+        the actual change. The ObjectScript ToolSet mirrors this output.
+        """
+        if not patientId:
+            return "ERROR: patientId is required"
+        action = proposedAction.lower()
+        if action != "trigger_follow_up":
+            return f"Decision: REJECT\nReason: unsupported action '{proposedAction}'"
+        risk = riskAssessment.lower()
+        priority = "ROUTINE"
+        if "overall priority: urgent" in risk:
+            priority = "URGENT"
+        elif "overall priority: high" in risk:
+            priority = "HIGH"
+        try:
+            score = float(confidence)
+        except (TypeError, ValueError):
+            score = 0.0
+        out = (
+            f"Action Gate for {patientId}\n"
+            f"Action: {action}\n"
+            f"Priority: {priority}\n"
+            f"Confidence: {confidence}\n"
+        )
+        if consent.lower() != "yes":
+            return out + "Decision: ASK_HUMAN\nReason: patient consent is not confirmed"
+        if score < 0.75:
+            return out + "Decision: ASK_HUMAN\nReason: confidence is below the 0.75 decision threshold"
+        if priority == "URGENT" and score >= 0.85:
+            return out + "Decision: EXECUTE\nReason: urgent follow-up meets consent and confidence policy"
+        if priority == "HIGH" and score >= 0.90:
+            return out + "Decision: SIMULATE\nReason: high-priority action is eligible for simulation before a write"
+        return out + "Decision: REJECT\nReason: no policy permits an automatic follow-up for this risk level"
 
     # -- FHIR tool (offline simulator of a DocumentReference search) --
 

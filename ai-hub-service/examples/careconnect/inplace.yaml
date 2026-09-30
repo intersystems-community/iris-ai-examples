@@ -33,6 +33,7 @@ tools:
   - {name: SearchSDoHProtocols, backend: hub}
   - {name: AssessSDoHRisk, backend: hub}
   - {name: DraftCarePlan, backend: hub}
+  - {name: DecideCareAction, backend: hub}
   - {name: SearchClinicalNotes, backend: hub}
   - {name: GetInteropTraces, backend: hub}
   - {name: GetProductionStatus, backend: hub}
