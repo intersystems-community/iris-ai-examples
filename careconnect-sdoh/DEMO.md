@@ -161,34 +161,36 @@ you get a shorter plan.
 **Prompt:**
 
 ```text
-Run the action gate for Maria's urgent follow-up with confidence 0.92 and confirmed patient consent
+Run the action gate for Maria's urgent follow-up with confirmed patient consent
 ```
 
-**What happens:** The service calls Liquid AI's `d1:free` decision model with the risk
-assessment, proposed `trigger_follow_up` action, and consent state. One request asks
-three typed questions: a **Choice** for the action, a **Score** for urgency, and a
-**Noul** for consent. d1 returns calibrated probabilities with zero output tokens.
+**What happens:** The service calls the local Hugging Face `Falconsai/LightDec`
+decision model with the risk assessment, proposed `trigger_follow_up` action, and
+consent state. One request asks three typed questions: a **Choice** for the action, a
+**Score** for urgency, and a **Noul** for consent. LightDec returns calibrated
+probabilities without generating response text.
 The tool returns the decision without firing the workflow.
 
 **Expected output:**
 
 ```text
-Action Gate for maria-gonzalez-001 (Liquid d1)
+Action Gate for maria-gonzalez-001 (Hugging Face LightDec)
 Decision: EXECUTE
-d1 action confidence: 0.940
-d1 urgency score: 2.800
-d1 consent probability: 0.980
-Action probabilities: {"ASK_HUMAN": 0.02, "EXECUTE": 0.94, "REJECT": 0.01, "SIMULATE": 0.03}
-Urgency probabilities: {"high": 0.08, "routine": 0.02, "urgent": 0.9}
-Reason: Liquid d1 selected EXECUTE
+LightDec action confidence: 0.718
+LightDec urgency expected level: 1.704
+LightDec consent probability: 0.416
+Action probabilities: {"ASK_HUMAN": 0.094, "EXECUTE": 0.718, "REJECT": 0.121, "SIMULATE": 0.067}
+Urgency probabilities: {"0": 0.082, "1": 0.132, "2": 0.786}
+Reason: LightDec selected EXECUTE
 ```
 
-If d1 returns low consent probability or low action confidence, the gate escalates to
-`ASK_HUMAN`. d1 can return `SIMULATE` or `REJECT` directly, and unsupported actions are
-rejected before the API call. This is a decision-model integration example, not a clinical
-policy recommendation: the service still treats `TriggerFollowUp` as a separate write
-and approval-gated operation. Set `LIQUID_DECISION_MODE=liquid` and `LIQUID_API_KEY` to
-run this step against Liquid; the default offline mode uses a deterministic mock.
+If the caller has not explicitly confirmed consent, or LightDec defers, the gate escalates
+to `ASK_HUMAN`; the Noul probability is retained for audit but cannot create consent.
+LightDec can return `SIMULATE` or `REJECT` directly, and unsupported actions are rejected
+before inference. This is a decision-model integration example, not a
+clinical policy recommendation: the service still treats `TriggerFollowUp` as a separate
+write and approval-gated operation. Set `LIQUID_DECISION_MODE=lightdec` for local HF
+inference, or `LIQUID_DECISION_MODE=liquid` and `LIQUID_API_KEY` for Liquid d1.
 
 ---
 

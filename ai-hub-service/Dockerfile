@@ -9,7 +9,8 @@ FROM python:3.11-slim
 
 WORKDIR /app/ai-hub-service
 COPY ai-hub-service/requirements.txt .
-RUN grep -v '^pytest' requirements.txt > /tmp/req.txt \
+RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu 'torch>=2.5,<3' \
+ && grep -v -E '^(pytest|torch)' requirements.txt > /tmp/req.txt \
  && pip install --no-cache-dir -r /tmp/req.txt
 
 COPY ai-hub-service/src ./src

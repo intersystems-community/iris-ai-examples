@@ -42,6 +42,10 @@ x-service: &service
     LIQUID_DECISION_MODEL: ${LIQUID_DECISION_MODEL:-d1:free}
     LIQUID_BASE_URL: ${LIQUID_BASE_URL:-https://api.liquid.ai}
     LIQUID_API_KEY: ${LIQUID_API_KEY:-}
+    HF_DECISION_MODEL: ${HF_DECISION_MODEL:-Falconsai/LightDec}
+    HF_DECISION_VARIANT: ${HF_DECISION_VARIANT:-int8}
+    HF_DECISION_REVISION: ${HF_DECISION_REVISION:-}
+    HF_HOME: ${HF_HOME:-/tmp/huggingface}
   restart: unless-stopped
 
 services:

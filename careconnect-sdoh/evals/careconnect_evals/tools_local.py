@@ -19,6 +19,7 @@ import os
 import uuid
 from dataclasses import dataclass, field
 
+from .hf_decision import HFDecisionError, decide_with_lightdec
 from .liquid_decision import LiquidDecisionError, decide_with_d1
 
 # --- Demo patients (mirror of CareConnect.Setup.DemoData.Load) ---------------
@@ -273,7 +274,7 @@ class LocalToolClient:
 
     production_running: bool = False
     messages: list = field(default_factory=list)  # simulated Ens.MessageHeader rows
-    liquid_mode: str = "mock"  # mock keeps the offline suite keyless; liquid calls d1
+    liquid_mode: str = "mock"  # mock, lightdec, or liquid
 
     # -- deterministic data tools --
 
@@ -398,7 +399,21 @@ class LocalToolClient:
         """
         if not patientId:
             return "ERROR: patientId is required"
-        if self.liquid_mode.lower() == "liquid":
+        mode = self.liquid_mode.lower()
+        if mode in {"lightdec", "hf", "huggingface"}:
+            try:
+                return decide_with_lightdec(
+                    patientId,
+                    riskAssessment,
+                    proposedAction,
+                    consent,
+                    repo=os.getenv("HF_DECISION_MODEL", "Falconsai/LightDec"),
+                    revision=os.getenv("HF_DECISION_REVISION") or None,
+                    variant=os.getenv("HF_DECISION_VARIANT", "int8"),
+                )
+            except HFDecisionError as exc:
+                return f"ERROR: Hugging Face decision model failed: {exc}"
+        if mode == "liquid":
             try:
                 return decide_with_d1(
                     patientId,

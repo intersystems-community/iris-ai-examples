@@ -78,6 +78,10 @@ Both are declared in [examples/careconnect/base.yaml](./examples/careconnect/bas
   `LIQUID_DECISION_MODE=mock` keeps local tests keyless. Set
   `LIQUID_DECISION_MODE=liquid` and `LIQUID_API_KEY=liquid_...` to call Liquid.
   `TriggerFollowUp` remains a separate approval-gated write.
+- The same `sdoh-decision-gate` can run locally with the Hugging Face
+  `Falconsai/LightDec` model by setting `LIQUID_DECISION_MODE=lightdec`. The
+  container downloads the public int8 checkpoint on first inference; set
+  `HF_DECISION_REVISION` to pin a Hub commit in production. No API key is needed.
 - **`sdoh-assistant`** is **model-driven** over the same tools. Set
   `AIHUB_LLM_ENGINE` (`openai` or `anthropic`), `AIHUB_LLM_MODEL` and
   `AIHUB_LLM_API_KEY`. For a local model, use `AIHUB_LLM_BASE_URL` with any

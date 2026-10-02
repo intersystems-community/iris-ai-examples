@@ -183,11 +183,19 @@ export LIQUID_DECISION_MODEL=d1:free
 python -m aihub_service --config ../ai-hub-service/examples/careconnect/offline.yaml
 ```
 
-`DecideCareAction` sends a structured state plus three typed questions to
-`https://api.liquid.ai/decisions/v1/systemone`: a **Choice** for the action, a
-**Score** for urgency, and a **Noul** for consent. Liquid returns calibrated
-probabilities and `output_tokens: 0`. The service applies only narrow safety rails
-to d1's result, then keeps `TriggerFollowUp` as a separate approval-gated write.
+`DecideCareAction` uses [Falconsai/LightDec](https://huggingface.co/Falconsai/LightDec)
+by default in local mode: a 0.4B ModernBERT-based, non-autoregressive decision model
+with an int8 variant, typed **Choice**, **Score**, and **Noul** questions, calibrated
+confidence, and defer behavior. It returns probabilities without text generation.
+Set `LIQUID_DECISION_MODE=lightdec` to select it. The previous Liquid d1 integration
+remains available with `LIQUID_DECISION_MODE=liquid` and `LIQUID_API_KEY`.
+LightDec is used here as a selective workflow gate: its `defer`/low-confidence result
+must escalate to a human, and it is not a clinical decision authority.
+
+This follows the same broader direction as Databricks' `ai_decide()` announcement:
+decision execution is becoming a first-class data/workflow primitive rather than
+only a per-request agent-routing trick. Here, the decision is still separated from
+the governed `TriggerFollowUp` write.
 
 ## Architecture
 
