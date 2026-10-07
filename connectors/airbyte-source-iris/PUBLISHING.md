@@ -133,6 +133,13 @@ Concretely, before any contribution PR is opened, InterSystems needs a human to:
    an InterSystems legal/OSS-program decision is needed before anything is actually
    published under that license, since this staged copy currently lives inside
    `iris-ai-examples` under whatever license governs that repo as a whole.
+
+   **Correction (2026-10-07):** ELv2 is the common convention, not a requirement.
+   Airbyte's connector QA checks accept **MIT or ELv2**, and require only that the
+   licence in `metadata.yaml` and `pyproject.toml` match. MIT also satisfies the
+   open-source requirement of InterSystems community programmes, which ELv2 (a
+   source-available licence) does not. See
+   `../../research/connector-bounties.md`.
 3. **Provide (or provision) a real IRIS instance and real credentials** for Airbyte's
    CI to run acceptance/integration tests against, stored in Airbyte's GSM-backed
    testing secret store (`connectorTestSuitesOptions.testSecrets` in `metadata.yaml`

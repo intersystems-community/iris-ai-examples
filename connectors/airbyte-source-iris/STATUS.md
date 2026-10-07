@@ -351,7 +351,7 @@ snippet-sourced, not page-read-in-full.
    column and a stream/LOB column, and a full incremental sync with state
    resume against a table that actually gets new rows between syncs.
 2. **Decide who owns the airbytehq/airbyte contribution relationship** and the
-   licensing question (contributing means ELv2; this staged copy currently sits
+   licensing question (contributing allows MIT or ELv2 per Airbyte's QA checks — corrected 2026-10-07; this staged copy currently sits
    under whatever license governs `iris-ai-examples`) — see `PUBLISHING.md`
    section 7.
 3. **Get a real icon** — `icon.svg` is a generic placeholder, explicitly not

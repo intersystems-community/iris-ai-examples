@@ -88,7 +88,7 @@ An approved IRIS logo and icon in each host's required formats, with trademark-u
 
 *Task · S · Legal + Security*
 
-Per-repo licence decisions — contributing to Airbyte means ELv2; Superset and Airflow need ASF contributor licence agreements; Atlan's SDK is Apache 2.0. A code-signing certificate for the Tableau `.taco`, a GPG key for Terraform releases, and a public privacy-policy URL, which Claude's directory, desktop extensions and ChatGPT all require.
+Per-repo licence decisions — Airbyte accepts MIT or ELv2 for contributed connectors, provided `metadata.yaml` and `pyproject.toml` agree; Superset and Airflow need ASF contributor licence agreements; Atlan's SDK is Apache 2.0. A code-signing certificate for the Tableau `.taco`, a GPG key for Terraform releases, and a public privacy-policy URL, which Claude's directory, desktop extensions and ChatGPT all require.
 
 **Why it matters:** Each is a hard gate at submission time and slow to obtain, so start early.
 
@@ -374,7 +374,7 @@ Five Python connectors — MCP, Fivetran, Airbyte, Fabric and the Salesforce ODa
 **Tasks**
 
 - *Decide* — Name the owner of the `airbytehq/airbyte` contribution relationship.
-- *Legal & brand* — Accept ELv2 for the contributed code (F5); supply a real icon (F4).
+- *Legal & brand* — Choose MIT or ELv2 for the contributed code — Airbyte's QA checks accept either (F5); supply a real icon (F4).
 - *Submit* — Pull request to `airbytehq/airbyte` at community tier; Airbyte provisions the test secrets in its own store. Certified tier later.
 
 **Depends on:** F1, F2, F4, F5, F11
