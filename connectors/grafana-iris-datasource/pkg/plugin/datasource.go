@@ -32,6 +32,8 @@ const QueryTypeSAMMetrics = "sam_metrics"
 // editor.
 type queryModel struct {
 	QueryText string `json:"queryText"`
+	// Format is "table" (default) or "time_series".
+	Format string `json:"format"`
 }
 
 // Datasource implements the Grafana backend plugin contract
@@ -111,13 +113,28 @@ func (d *Datasource) handleSQLQuery(ctx context.Context, q backend.DataQuery) ba
 	if qm.QueryText == "" {
 		return backend.DataResponse{Frames: data.Frames{}}
 	}
+	if qm.Format != "" && qm.Format != FormatTable && qm.Format != FormatTimeSeries {
+		return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("iris: unknown format %q (use %q or %q)", qm.Format, FormatTable, FormatTimeSeries))
+	}
 
-	result, err := d.client.Query(ctx, qm.QueryText)
+	sql, err := ExpandMacros(qm.QueryText, q.TimeRange)
+	if err != nil {
+		return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("iris: %v", err))
+	}
+
+	result, err := d.client.Query(ctx, sql)
 	if err != nil {
 		return backend.ErrDataResponse(backend.StatusInternal, fmt.Sprintf("iris: %v", err))
 	}
 
 	frame := frameFromQueryResult(q.RefID, result)
+	if qm.Format == FormatTimeSeries {
+		shaped, err := asTimeSeries(frame)
+		if err != nil {
+			return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("iris: %v", err))
+		}
+		frame = shaped
+	}
 	return backend.DataResponse{Frames: data.Frames{frame}}
 }
 

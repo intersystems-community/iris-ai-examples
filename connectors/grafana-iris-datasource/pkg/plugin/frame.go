@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/grafana/grafana-plugin-sdk-go/data"
@@ -109,6 +110,10 @@ func classifyColumn(values []interface{}) columnKind {
 		if v == nil {
 			continue
 		}
+		// IRIS sends NULL as "" on this path (docs/SPEC.md), so "" must not decide a column's type.
+		if str, isString := v.(string); isString && str == "" {
+			continue
+		}
 		sawAny = true
 		if _, ok := v.(bool); !ok {
 			allBool = false
@@ -149,10 +154,37 @@ func toFloat64(v interface{}) (float64, bool) {
 	return 0, false
 }
 
+// A TIMESTAMP column created by SQL DDL is a PosixTime, and the REST/SQL path returns its internal
+// value: a decimal string equal to unix microseconds plus 2^60 (measured: 2026-10-07 12:00:00 UTC is
+// 1154712879006846976). Only values within about a thousand years of that offset are read as times, so
+// an ordinary integer column is never mistaken for one.
+const (
+	posixEpochOffset = int64(1) << 60
+	posixWindow      = int64(32_000_000_000_000_000)
+)
+
+func posixToTime(s string) (time.Time, bool) {
+	if len(s) < 16 || len(s) > 19 {
+		return time.Time{}, false
+	}
+	n, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return time.Time{}, false
+	}
+	micros := n - posixEpochOffset
+	if micros < -posixWindow || micros > posixWindow {
+		return time.Time{}, false
+	}
+	return time.UnixMicro(micros).UTC(), true
+}
+
 func toTime(v interface{}) (time.Time, bool) {
 	s, ok := v.(string)
 	if !ok {
 		return time.Time{}, false
+	}
+	if t, isPosix := posixToTime(s); isPosix {
+		return t, true
 	}
 	for _, layout := range timeLayouts {
 		if t, err := time.Parse(layout, s); err == nil {
