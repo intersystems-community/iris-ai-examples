@@ -40,6 +40,8 @@ export interface IrisDataSourceOptions extends DataSourceJsonData {
   useHTTPS?: boolean;
   skipTLSVerify?: boolean;
   timeoutSeconds?: number;
+  /** Lifts the backend's read-only guard (pkg/plugin/readonly.go). Off unless set. */
+  allowWrites?: boolean;
 }
 
 /**

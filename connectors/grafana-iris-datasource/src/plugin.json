@@ -24,7 +24,11 @@
         "url": "https://github.com/intersystems-community/iris-ai-examples"
       }
     ],
-    "screenshots": [],
+    "screenshots": [
+      { "name": "Dashboard with SQL time series, a variable-driven panel, a table and SAM metrics", "path": "img/screenshots/dashboard.png" },
+      { "name": "Query editor: SQL, format selector and the time macros", "path": "img/screenshots/query-editor.png" },
+      { "name": "Data source settings", "path": "img/screenshots/config.png" }
+    ],
     "version": "%VERSION%",
     "updated": "%TODAY%"
   },

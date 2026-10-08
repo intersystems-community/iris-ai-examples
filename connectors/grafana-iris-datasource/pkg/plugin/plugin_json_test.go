@@ -24,7 +24,10 @@ func TestPluginJSON(t *testing.T) {
 			GrafanaDependency string `json:"grafanaDependency"`
 		} `json:"dependencies"`
 		Info struct {
-			Screenshots []struct{ Name, Path string } `json:"screenshots"`
+			Screenshots []struct {
+				Name string `json:"name"`
+				Path string `json:"path"`
+			} `json:"screenshots"`
 		} `json:"info"`
 	}
 	if err := json.Unmarshal(raw, &p); err != nil {
@@ -42,6 +45,14 @@ func TestPluginJSON(t *testing.T) {
 	}
 	if !p.Metrics {
 		t.Error("metrics must be true")
+	}
+	if len(p.Info.Screenshots) < 3 {
+		t.Errorf("the catalog listing wants screenshots; have %d", len(p.Info.Screenshots))
+	}
+	for _, shot := range p.Info.Screenshots {
+		if _, err := os.Stat("../../src/" + shot.Path); err != nil {
+			t.Errorf("screenshot %q is declared but missing: %v", shot.Path, err)
+		}
 	}
 	if p.Dependencies.GrafanaDependency != ">=11.1.0" {
 		t.Errorf("grafanaDependency %q; the template writes the newest Grafana here, which would not load on 11.1", p.Dependencies.GrafanaDependency)

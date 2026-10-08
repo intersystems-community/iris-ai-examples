@@ -1,13 +1,13 @@
 import React, { ChangeEvent } from 'react';
 
 import { DataSourcePluginOptionsEditorProps } from '@grafana/data';
-import { InlineField, Input, SecretInput, Switch } from '@grafana/ui';
+import { Alert, InlineField, InlineSwitch, Input, SecretInput } from '@grafana/ui';
 
 import { IrisDataSourceOptions, IrisSecureJsonData } from '../types';
 
 interface Props extends DataSourcePluginOptionsEditorProps<IrisDataSourceOptions, IrisSecureJsonData> {}
 
-const LABEL_WIDTH = 16;
+const LABEL_WIDTH = 20;
 const FIELD_WIDTH = 40;
 
 /**
@@ -39,6 +39,7 @@ export function ConfigEditor(props: Props) {
   const onUsernameChange = (e: ChangeEvent<HTMLInputElement>) => updateJsonData('username', e.target.value);
   const onUseHTTPSChange = (e: ChangeEvent<HTMLInputElement>) => updateJsonData('useHTTPS', e.target.checked);
   const onSkipTLSVerifyChange = (e: ChangeEvent<HTMLInputElement>) => updateJsonData('skipTLSVerify', e.target.checked);
+  const onAllowWritesChange = (e: ChangeEvent<HTMLInputElement>) => updateJsonData('allowWrites', e.target.checked);
   const onTimeoutChange = (e: ChangeEvent<HTMLInputElement>) =>
     updateJsonData('timeoutSeconds', e.target.value === '' ? undefined : Number(e.target.value));
 
@@ -120,15 +121,29 @@ export function ConfigEditor(props: Props) {
         />
       </InlineField>
       <InlineField label="Use HTTPS" labelWidth={LABEL_WIDTH} tooltip="Connect to the web port over TLS.">
-        <Switch id="config-editor-usehttps" value={jsonData.useHTTPS ?? false} onChange={onUseHTTPSChange} />
+        <InlineSwitch id="config-editor-usehttps" value={jsonData.useHTTPS ?? false} onChange={onUseHTTPSChange} />
       </InlineField>
       <InlineField
         label="Skip TLS verify"
         labelWidth={LABEL_WIDTH}
         tooltip="Only for self-signed lab/demo instances. Disables certificate verification."
       >
-        <Switch id="config-editor-skiptlsverify" value={jsonData.skipTLSVerify ?? false} onChange={onSkipTLSVerifyChange} />
+        <InlineSwitch id="config-editor-skiptlsverify" value={jsonData.skipTLSVerify ?? false} onChange={onSkipTLSVerifyChange} />
       </InlineField>
+      <InlineField
+        label="Allow data changes"
+        labelWidth={LABEL_WIDTH}
+        tooltip="Off: only SELECT queries run. On: any SQL statement runs, including INSERT, UPDATE, DELETE and DROP."
+      >
+        <InlineSwitch id="config-editor-allowwrites" value={jsonData.allowWrites ?? false} onChange={onAllowWritesChange} />
+      </InlineField>
+      {jsonData.allowWrites && (
+        <Alert severity="warning" title="Data changes are allowed">
+          Anyone who can edit a panel using this data source can change or delete data in IRIS. IRIS does not limit
+          what its REST API can do to the table privileges of the account, so only switch this on for a data source
+          that nobody else can use.
+        </Alert>
+      )}
       <InlineField label="Timeout (seconds)" labelWidth={LABEL_WIDTH} tooltip="HTTP request timeout. Defaults to 30.">
         <Input
           id="config-editor-timeout"

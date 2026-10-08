@@ -42,6 +42,8 @@ type queryModel struct {
 type Datasource struct {
 	client client.IRISClient
 	nowFn  func() time.Time
+	// allowWrites lifts the read-only guard (see readonly.go); off by default.
+	allowWrites bool
 }
 
 // Compile-time interface checks.
@@ -69,7 +71,9 @@ func NewDatasource(_ context.Context, settings backend.DataSourceInstanceSetting
 		Timeout:            ps.Timeout,
 	})
 
-	return NewDatasourceWithClient(restClient), nil
+	ds := NewDatasourceWithClient(restClient)
+	ds.allowWrites = ps.AllowWrites
+	return ds, nil
 }
 
 // NewDatasourceWithClient builds a Datasource around an already-built
@@ -120,6 +124,12 @@ func (d *Datasource) handleSQLQuery(ctx context.Context, q backend.DataQuery) ba
 	sql, err := ExpandMacros(qm.QueryText, q.TimeRange)
 	if err != nil {
 		return backend.ErrDataResponseWithSource(backend.StatusBadRequest, backend.ErrorSourceDownstream, fmt.Sprintf("iris: %v", err))
+	}
+
+	if !d.allowWrites {
+		if ok, why := IsReadOnly(sql); !ok {
+			return backend.ErrDataResponseWithSource(backend.StatusBadRequest, backend.ErrorSourceDownstream, "iris: "+why)
+		}
 	}
 
 	result, err := d.client.Query(ctx, sql)

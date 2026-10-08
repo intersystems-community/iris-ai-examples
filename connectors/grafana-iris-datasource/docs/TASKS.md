@@ -9,4 +9,5 @@
 - [ ] T07 Magefile, CI workflow, validator config; README/CHANGELOG/screenshots slots (PA-08)
 - [ ] T08 Load into Grafana 11.1.0 and latest with real IRIS; screenshots (PA-07)
 - [ ] T09 Run plugin-validator; fix Errors and Warnings (PA-09)
+- [x] T06b Read-only by default: statement guard, "Allow data changes" setting, tests (PA-10)
 - [ ] T10 Phase A report: what passes, what is left for Phase B

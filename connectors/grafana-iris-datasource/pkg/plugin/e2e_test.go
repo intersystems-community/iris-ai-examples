@@ -152,3 +152,42 @@ func TestE2E_ASQLErrorIsTheUsersToFixAndCarriesIRISsMessage(t *testing.T) {
 		t.Fatalf("a bad statement is the user's to fix: %v / %v", r.Status, r.ErrorSource)
 	}
 }
+
+func countRows(t *testing.T, c client.IRISClient, table string) int {
+	t.Helper()
+	qr, err := c.Query(context.Background(), "SELECT COUNT(*) AS n FROM "+table)
+	if err != nil {
+		t.Fatal(err)
+	}
+	switch n := qr.Rows[0][0].(type) {
+	case float64:
+		return int(n)
+	default:
+		t.Fatalf("unexpected count type %T", n)
+		return -1
+	}
+}
+
+func TestE2E_TheDefaultDataSourceWillNotChangeDataButTheSettingLiftsTheGuard(t *testing.T) {
+	ds, c := realDatasource(t)
+	seed(t, c, "E2E_Guard")
+	before := countRows(t, c, "E2E_Guard")
+
+	r := run(t, ds, map[string]any{"queryText": "DELETE FROM E2E_Guard"}, t1100, t1500)
+
+	if r.Error == nil || r.Status != backend.StatusBadRequest {
+		t.Fatalf("the guard should refuse a DELETE by default: %v / %v", r.Error, r.Status)
+	}
+	if after := countRows(t, c, "E2E_Guard"); after != before {
+		t.Fatalf("the rows changed (%d -> %d) although the statement was refused", before, after)
+	}
+
+	ds.allowWrites = true
+	r = run(t, ds, map[string]any{"queryText": "DELETE FROM E2E_Guard"}, t1100, t1500)
+	if r.Error != nil {
+		t.Fatalf("with writes allowed the statement should run: %v", r.Error)
+	}
+	if after := countRows(t, c, "E2E_Guard"); after != 0 {
+		t.Fatalf("writes were allowed, so the table should be empty, got %d rows", after)
+	}
+}

@@ -70,3 +70,27 @@ describe('ConfigEditor', () => {
     expect(screen.getByPlaceholderText('52773')).toBeInTheDocument();
   });
 });
+
+describe('ConfigEditor read-only guard', () => {
+  it('shows "Allow data changes" switched off by default', () => {
+    render(<ConfigEditor onOptionsChange={jest.fn()} options={baseOptions()} />);
+    expect(screen.getByLabelText(/Allow data changes/i)).not.toBeChecked();
+  });
+
+  it('writes allowWrites into jsonData when switched on', () => {
+    const onOptionsChange = jest.fn();
+    render(<ConfigEditor onOptionsChange={onOptionsChange} options={baseOptions()} />);
+
+    fireEvent.click(screen.getByLabelText(/Allow data changes/i));
+
+    expect(onOptionsChange).toHaveBeenCalledWith(
+      expect.objectContaining({ jsonData: expect.objectContaining({ allowWrites: true }) })
+    );
+  });
+
+  it('says what the switch costs', () => {
+    render(<ConfigEditor onOptionsChange={jest.fn()} options={baseOptions({ allowWrites: true })} />);
+    expect(screen.getByText(/anyone who can edit a panel/i)).toBeInTheDocument();
+  });
+});
+

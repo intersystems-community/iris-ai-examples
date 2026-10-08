@@ -22,6 +22,8 @@ type jsonData struct {
 	UseHTTPS       bool   `json:"useHTTPS"`
 	SkipTLSVerify  bool   `json:"skipTLSVerify"`
 	TimeoutSeconds int    `json:"timeoutSeconds"`
+	// AllowWrites lifts the read-only guard (readonly.go). Off unless set.
+	AllowWrites bool `json:"allowWrites"`
 }
 
 // PluginSettings is the parsed, validated configuration for one instance
@@ -35,6 +37,7 @@ type PluginSettings struct {
 	UseHTTPS      bool
 	SkipTLSVerify bool
 	Timeout       time.Duration
+	AllowWrites   bool
 }
 
 // LoadPluginSettings parses a data source instance's JSONData and
@@ -82,6 +85,7 @@ func LoadPluginSettings(settings backend.DataSourceInstanceSettings) (*PluginSet
 		UseHTTPS:      jd.UseHTTPS,
 		SkipTLSVerify: jd.SkipTLSVerify,
 		Timeout:       time.Duration(timeoutSeconds) * time.Second,
+		AllowWrites:   jd.AllowWrites,
 	}, nil
 }
 
