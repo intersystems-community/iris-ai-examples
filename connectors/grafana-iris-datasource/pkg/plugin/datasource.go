@@ -99,7 +99,7 @@ func (d *Datasource) handleQuery(ctx context.Context, q backend.DataQuery) backe
 	case "", QueryTypeSQL:
 		return d.handleSQLQuery(ctx, q)
 	default:
-		return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("iris: unknown queryType %q", q.QueryType))
+		return backend.ErrDataResponseWithSource(backend.StatusBadRequest, backend.ErrorSourceDownstream, fmt.Sprintf("iris: unknown queryType %q", q.QueryType))
 	}
 }
 
@@ -107,31 +107,31 @@ func (d *Datasource) handleSQLQuery(ctx context.Context, q backend.DataQuery) ba
 	var qm queryModel
 	if len(q.JSON) > 0 {
 		if err := json.Unmarshal(q.JSON, &qm); err != nil {
-			return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("iris: invalid query JSON: %v", err))
+			return backend.ErrDataResponseWithSource(backend.StatusBadRequest, backend.ErrorSourcePlugin, fmt.Sprintf("iris: invalid query JSON: %v", err))
 		}
 	}
 	if qm.QueryText == "" {
 		return backend.DataResponse{Frames: data.Frames{}}
 	}
 	if qm.Format != "" && qm.Format != FormatTable && qm.Format != FormatTimeSeries {
-		return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("iris: unknown format %q (use %q or %q)", qm.Format, FormatTable, FormatTimeSeries))
+		return backend.ErrDataResponseWithSource(backend.StatusBadRequest, backend.ErrorSourceDownstream, fmt.Sprintf("iris: unknown format %q (use %q or %q)", qm.Format, FormatTable, FormatTimeSeries))
 	}
 
 	sql, err := ExpandMacros(qm.QueryText, q.TimeRange)
 	if err != nil {
-		return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("iris: %v", err))
+		return backend.ErrDataResponseWithSource(backend.StatusBadRequest, backend.ErrorSourceDownstream, fmt.Sprintf("iris: %v", err))
 	}
 
 	result, err := d.client.Query(ctx, sql)
 	if err != nil {
-		return backend.ErrDataResponse(backend.StatusInternal, fmt.Sprintf("iris: %v", err))
+		return errorResponse(err)
 	}
 
 	frame := frameFromQueryResult(q.RefID, result)
 	if qm.Format == FormatTimeSeries {
 		shaped, err := asTimeSeries(frame)
 		if err != nil {
-			return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("iris: %v", err))
+			return backend.ErrDataResponseWithSource(backend.StatusBadRequest, backend.ErrorSourceDownstream, fmt.Sprintf("iris: %v", err))
 		}
 		frame = shaped
 	}
@@ -141,7 +141,7 @@ func (d *Datasource) handleSQLQuery(ctx context.Context, q backend.DataQuery) ba
 func (d *Datasource) handleMetricsQuery(ctx context.Context) backend.DataResponse {
 	samples, err := d.client.Metrics(ctx)
 	if err != nil {
-		return backend.ErrDataResponse(backend.StatusInternal, fmt.Sprintf("iris: %v", err))
+		return errorResponse(err)
 	}
 	frame := frameFromMetrics(d.now(), samples)
 	return backend.DataResponse{Frames: data.Frames{frame}}

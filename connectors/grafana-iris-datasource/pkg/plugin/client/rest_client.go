@@ -26,6 +26,8 @@ type RESTClientConfig struct {
 	// set this for self-signed lab/demo instances.
 	InsecureSkipVerify bool
 	Timeout            time.Duration
+	// MaxResponseBytes caps what is read from IRIS for one call; 0 means DefaultMaxResponseBytes.
+	MaxResponseBytes int64
 }
 
 // RESTClient is the production IRISClient implementation. It talks to IRIS
@@ -47,6 +49,29 @@ type RESTClientConfig struct {
 type RESTClient struct {
 	cfg        RESTClientConfig
 	httpClient *http.Client
+}
+
+// DefaultMaxResponseBytes is generous for a dashboard query and finite for a runaway SELECT *.
+const DefaultMaxResponseBytes int64 = 64 << 20
+
+func (c *RESTClient) maxBytes() int64 {
+	if c.cfg.MaxResponseBytes > 0 {
+		return c.cfg.MaxResponseBytes
+	}
+	return DefaultMaxResponseBytes
+}
+
+// readLimited reads the body up to the limit, and refuses a larger one instead of buffering it.
+func (c *RESTClient) readLimited(r io.Reader) ([]byte, error) {
+	limit := c.maxBytes()
+	body, err := io.ReadAll(io.LimitReader(r, limit+1))
+	if err != nil {
+		return nil, &UnreachableError{Err: err}
+	}
+	if int64(len(body)) > limit {
+		return nil, &TooLargeError{Limit: limit}
+	}
+	return body, nil
 }
 
 // NewRESTClient builds a RESTClient from cfg. It does not make any network
@@ -148,17 +173,17 @@ func (c *RESTClient) Query(ctx context.Context, sql string) (*QueryResult, error
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("iris: query request failed: %w", err)
+		return nil, &UnreachableError{Err: err}
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := c.readLimited(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("iris: reading response: %w", err)
+		return nil, err
 	}
 
 	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
-		return nil, fmt.Errorf("iris: authentication failed (HTTP %d)", resp.StatusCode)
+		return nil, &AuthError{HTTPStatus: resp.StatusCode}
 	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("iris: unexpected HTTP status %d: %s", resp.StatusCode, string(body))
@@ -169,7 +194,7 @@ func (c *RESTClient) Query(ctx context.Context, sql string) (*QueryResult, error
 		return nil, fmt.Errorf("iris: decoding query response: %w", err)
 	}
 	if len(parsed.Status.Errors) > 0 {
-		return nil, fmt.Errorf("iris: query failed: %s", parsed.Status.errorText())
+		return nil, &SQLError{Message: parsed.Status.errorText(), Code: parsed.Status.Errors[0].Code}
 	}
 
 	return contentToQueryResult(body, parsed.Result.Content)
@@ -364,13 +389,16 @@ func (c *RESTClient) Metrics(ctx context.Context) ([]MetricSample, error) {
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("iris: metrics request failed: %w", err)
+		return nil, &UnreachableError{Err: err}
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := c.readLimited(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("iris: reading metrics response: %w", err)
+		return nil, err
+	}
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		return nil, &AuthError{HTTPStatus: resp.StatusCode}
 	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("iris: unexpected HTTP status %d from metrics endpoint: %s", resp.StatusCode, string(body))

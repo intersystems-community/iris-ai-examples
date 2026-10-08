@@ -148,4 +148,7 @@ func TestE2E_ASQLErrorIsTheUsersToFixAndCarriesIRISsMessage(t *testing.T) {
 	if r.Error == nil || !strings.Contains(r.Error.Error(), "SQLCODE") {
 		t.Fatalf("want IRIS's own SQL error, got %v", r.Error)
 	}
+	if r.Status != backend.StatusBadRequest || r.ErrorSource != backend.ErrorSourceDownstream {
+		t.Fatalf("a bad statement is the user's to fix: %v / %v", r.Status, r.ErrorSource)
+	}
 }
