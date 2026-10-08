@@ -2,14 +2,14 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 
 import { QueryEditor } from './QueryEditor';
-import { IRISQuery } from '../types';
+import { IrisQuery } from '../types';
 
 // The datasource instance is never touched by QueryEditor itself, so an
 // empty stand-in satisfies the prop type without needing a real
 // DataSource (which would need a live backend to construct properly).
 const fakeDatasource = {} as any;
 
-function baseQuery(overrides: Partial<IRISQuery> = {}): IRISQuery {
+function baseQuery(overrides: Partial<IrisQuery> = {}): IrisQuery {
   return { refId: 'A', queryType: 'sql', queryText: '', ...overrides };
 }
 

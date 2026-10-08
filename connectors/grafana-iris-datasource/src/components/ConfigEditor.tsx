@@ -3,9 +3,9 @@ import React, { ChangeEvent } from 'react';
 import { DataSourcePluginOptionsEditorProps } from '@grafana/data';
 import { InlineField, Input, SecretInput, Switch } from '@grafana/ui';
 
-import { IRISDataSourceOptions, IRISSecureJsonData } from '../types';
+import { IrisDataSourceOptions, IrisSecureJsonData } from '../types';
 
-interface Props extends DataSourcePluginOptionsEditorProps<IRISDataSourceOptions, IRISSecureJsonData> {}
+interface Props extends DataSourcePluginOptionsEditorProps<IrisDataSourceOptions, IrisSecureJsonData> {}
 
 const LABEL_WIDTH = 16;
 const FIELD_WIDTH = 40;
@@ -22,7 +22,7 @@ export function ConfigEditor(props: Props) {
   const { onOptionsChange, options } = props;
   const { jsonData, secureJsonFields, secureJsonData } = options;
 
-  const updateJsonData = <K extends keyof IRISDataSourceOptions>(key: K, value: IRISDataSourceOptions[K]) => {
+  const updateJsonData = <K extends keyof IrisDataSourceOptions>(key: K, value: IrisDataSourceOptions[K]) => {
     onOptionsChange({
       ...options,
       jsonData: {

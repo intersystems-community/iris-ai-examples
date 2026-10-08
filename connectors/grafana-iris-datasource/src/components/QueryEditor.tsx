@@ -4,11 +4,11 @@ import { QueryEditorProps, SelectableValue } from '@grafana/data';
 import { InlineField, RadioButtonGroup, Stack, TextArea } from '@grafana/ui';
 
 import { DataSource } from '../datasource';
-import { IRISDataSourceOptions, IRISQuery, IRISQueryType } from '../types';
+import { IrisDataSourceOptions, IrisQuery, IrisQueryType } from '../types';
 
-type Props = QueryEditorProps<DataSource, IRISQuery, IRISDataSourceOptions>;
+type Props = QueryEditorProps<DataSource, IrisQuery, IrisDataSourceOptions>;
 
-const QUERY_TYPE_OPTIONS: Array<SelectableValue<IRISQueryType>> = [
+const QUERY_TYPE_OPTIONS: Array<SelectableValue<IrisQueryType>> = [
   { label: 'SQL', value: 'sql', description: 'Run a SQL statement against IRIS' },
   { label: 'SAM metrics', value: 'sam_metrics', description: "Scrape IRIS's built-in /api/monitor/metrics endpoint" },
 ];
@@ -16,7 +16,7 @@ const QUERY_TYPE_OPTIONS: Array<SelectableValue<IRISQueryType>> = [
 export function QueryEditor({ query, onChange, onRunQuery }: Props) {
   const queryType = query.queryType ?? 'sql';
 
-  const onQueryTypeChange = (value: IRISQueryType) => {
+  const onQueryTypeChange = (value: IrisQueryType) => {
     onChange({ ...query, queryType: value });
     onRunQuery();
   };

@@ -2,10 +2,10 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 
 import { ConfigEditor } from './ConfigEditor';
-import { IRISDataSourceOptions, IRISSecureJsonData } from '../types';
+import { IrisDataSourceOptions, IrisSecureJsonData } from '../types';
 
 function baseOptions(
-  overrides: Partial<IRISDataSourceOptions> = {}
+  overrides: Partial<IrisDataSourceOptions> = {}
 ): Parameters<typeof ConfigEditor>[0]['options'] {
   return {
     id: 1,
@@ -22,9 +22,9 @@ function baseOptions(
     database: '',
     basicAuth: false,
     isDefault: false,
-    jsonData: { host: '', ...overrides } as IRISDataSourceOptions,
+    jsonData: { host: '', ...overrides } as IrisDataSourceOptions,
     secureJsonFields: {},
-    secureJsonData: {} as IRISSecureJsonData,
+    secureJsonData: {} as IrisSecureJsonData,
     readOnly: false,
     withCredentials: false,
   };
