@@ -1,0 +1,29 @@
+# Loads the built plugin into a real Grafana, pointed at the e2e IRIS, to check it end to end (PA-07):
+#   npm run build && go run github.com/magefile/mage buildAll       # fills dist/
+#   docker compose -f docker-compose.e2e.yaml up -d --wait && ./e2e/seed.sh
+#   GRAFANA_VERSION=11.1.0 docker compose -f docker-compose.grafana.yaml up -d --wait
+#   open http://localhost:33000        (anonymous Admin; this stack is for local testing only)
+# GRAFANA_VERSION picks the Grafana under test; the plugin must work on 11.1.0 and on the latest.
+services:
+  grafana:
+    image: grafana/grafana:${GRAFANA_VERSION:-11.1.0}
+    container_name: grafana-iris-ds-e2e-grafana-${GRAFANA_VERSION:-11.1.0}
+    network_mode: bridge
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: intersystems-iris-datasource
+      GF_LOG_LEVEL: info
+    ports:
+      - "${GRAFANA_E2E_PORT:-33000}:3000"
+    volumes:
+      - ./dist:/var/lib/grafana/plugins/intersystems-iris-datasource:ro
+      - ./e2e/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./e2e/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health | grep -q ok || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30

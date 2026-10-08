@@ -1,0 +1,16 @@
+apiVersion: 1
+datasources:
+  - name: InterSystems IRIS
+    uid: iris-e2e
+    type: intersystems-iris-datasource
+    access: proxy
+    isDefault: true
+    jsonData:
+      host: host.docker.internal
+      webPort: 33273
+      namespace: USER
+      username: _SYSTEM
+      useHTTPS: false
+      timeoutSeconds: 30
+    secureJsonData:
+      password: SYS

@@ -1,0 +1,152 @@
+{
+  "uid": "iris-demo",
+  "title": "InterSystems IRIS data source demo",
+  "schemaVersion": 39,
+  "version": 1,
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "refresh": "",
+  "tags": [
+    "iris"
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "host",
+        "label": "Host",
+        "type": "custom",
+        "query": "alpha,beta",
+        "multi": true,
+        "includeAll": true,
+        "current": {
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": [],
+        "allValue": null
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "CPU by host (SQL, time series format)",
+      "datasource": {
+        "type": "intersystems-iris-datasource",
+        "uid": "iris-e2e"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "intersystems-iris-datasource",
+            "uid": "iris-e2e"
+          },
+          "queryType": "sql",
+          "queryText": "SELECT tp, host, cpu FROM Demo_Metrics WHERE $__timeFilter(tp) ORDER BY tp",
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Requests for the selected hosts ($host variable)",
+      "datasource": {
+        "type": "intersystems-iris-datasource",
+        "uid": "iris-e2e"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "intersystems-iris-datasource",
+            "uid": "iris-e2e"
+          },
+          "queryType": "sql",
+          "queryText": "SELECT tp, host, requests FROM Demo_Metrics WHERE $__timeFilter(tp) AND host IN ($host) ORDER BY tp",
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "table",
+      "title": "Latest samples (SQL, table format)",
+      "datasource": {
+        "type": "intersystems-iris-datasource",
+        "uid": "iris-e2e"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 12,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "intersystems-iris-datasource",
+            "uid": "iris-e2e"
+          },
+          "queryType": "sql",
+          "queryText": "SELECT TOP 15 tp AS \"Time\", host AS \"Host\", cpu AS \"CPU %\", requests AS \"Requests\" FROM Demo_Metrics WHERE $__timeFilter(tp) ORDER BY tp DESC",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "table",
+      "title": "IRIS SAM metrics",
+      "datasource": {
+        "type": "intersystems-iris-datasource",
+        "uid": "iris-e2e"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 9,
+        "w": 12,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "intersystems-iris-datasource",
+            "uid": "iris-e2e"
+          },
+          "queryType": "sam_metrics"
+        }
+      ]
+    }
+  ]
+}

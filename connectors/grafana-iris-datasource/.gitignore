@@ -10,3 +10,6 @@ gpx_iris_datasource*
 
 # OS
 .DS_Store
+
+# built by `npm run build` and `mage buildAll`
+dist/
