@@ -107,3 +107,13 @@ describe('QueryEditor format', () => {
     expect(screen.getByText(/\$__timeFilter\(column\)/)).toBeInTheDocument();
   });
 });
+
+describe('QueryEditor styling', () => {
+  it('uses no hardcoded inline CSS (Grafana themes it)', () => {
+    const { container } = render(
+      <QueryEditor datasource={fakeDatasource} query={baseQuery()} onChange={jest.fn()} onRunQuery={jest.fn()} />
+    );
+    expect(container.querySelectorAll('[style*="font-size"], [style*="opacity"]').length).toBe(0);
+  });
+});
+

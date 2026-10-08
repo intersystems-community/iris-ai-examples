@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { config } from '@grafana/runtime';
 
 import { ConfigEditor } from './ConfigEditor';
 import { IrisDataSourceOptions, IrisSecureJsonData } from '../types';
@@ -91,6 +92,35 @@ describe('ConfigEditor read-only guard', () => {
   it('says what the switch costs', () => {
     render(<ConfigEditor onOptionsChange={jest.fn()} options={baseOptions({ allowWrites: true })} />);
     expect(screen.getByText(/anyone who can edit a panel/i)).toBeInTheDocument();
+  });
+});
+
+describe('ConfigEditor secure proxy', () => {
+  afterEach(() => {
+    config.secureSocksDSProxyEnabled = false;
+  });
+
+  it('offers the secure SOCKS proxy only when this Grafana has it enabled', () => {
+    config.secureSocksDSProxyEnabled = false;
+    const { unmount } = render(<ConfigEditor onOptionsChange={jest.fn()} options={baseOptions()} />);
+    expect(screen.queryByLabelText(/Secure SOCKS proxy/i)).not.toBeInTheDocument();
+    unmount();
+
+    config.secureSocksDSProxyEnabled = true;
+    render(<ConfigEditor onOptionsChange={jest.fn()} options={baseOptions()} />);
+    expect(screen.getByLabelText(/Secure SOCKS proxy/i)).toBeInTheDocument();
+  });
+
+  it('writes enableSecureSocksProxy into jsonData', () => {
+    config.secureSocksDSProxyEnabled = true;
+    const onOptionsChange = jest.fn();
+    render(<ConfigEditor onOptionsChange={onOptionsChange} options={baseOptions()} />);
+
+    fireEvent.click(screen.getByLabelText(/Secure SOCKS proxy/i));
+
+    expect(onOptionsChange).toHaveBeenCalledWith(
+      expect.objectContaining({ jsonData: expect.objectContaining({ enableSecureSocksProxy: true }) })
+    );
   });
 });
 

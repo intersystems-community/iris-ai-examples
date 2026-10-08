@@ -1,6 +1,7 @@
 import React, { ChangeEvent } from 'react';
 
 import { DataSourcePluginOptionsEditorProps } from '@grafana/data';
+import { config } from '@grafana/runtime';
 import { Alert, InlineField, InlineSwitch, Input, SecretInput } from '@grafana/ui';
 
 import { IrisDataSourceOptions, IrisSecureJsonData } from '../types';
@@ -39,6 +40,8 @@ export function ConfigEditor(props: Props) {
   const onUsernameChange = (e: ChangeEvent<HTMLInputElement>) => updateJsonData('username', e.target.value);
   const onUseHTTPSChange = (e: ChangeEvent<HTMLInputElement>) => updateJsonData('useHTTPS', e.target.checked);
   const onSkipTLSVerifyChange = (e: ChangeEvent<HTMLInputElement>) => updateJsonData('skipTLSVerify', e.target.checked);
+  const onSecureSocksProxyChange = (e: ChangeEvent<HTMLInputElement>) =>
+    updateJsonData('enableSecureSocksProxy', e.target.checked);
   const onAllowWritesChange = (e: ChangeEvent<HTMLInputElement>) => updateJsonData('allowWrites', e.target.checked);
   const onTimeoutChange = (e: ChangeEvent<HTMLInputElement>) =>
     updateJsonData('timeoutSeconds', e.target.value === '' ? undefined : Number(e.target.value));
@@ -130,6 +133,19 @@ export function ConfigEditor(props: Props) {
       >
         <InlineSwitch id="config-editor-skiptlsverify" value={jsonData.skipTLSVerify ?? false} onChange={onSkipTLSVerifyChange} />
       </InlineField>
+      {config.secureSocksDSProxyEnabled && (
+        <InlineField
+          label="Secure SOCKS proxy"
+          labelWidth={LABEL_WIDTH}
+          tooltip="Reach IRIS through Grafana's Private Data Source Connect, for an IRIS that Grafana Cloud cannot reach directly."
+        >
+          <InlineSwitch
+            id="config-editor-securesocksproxy"
+            value={jsonData.enableSecureSocksProxy ?? false}
+            onChange={onSecureSocksProxyChange}
+          />
+        </InlineField>
+      )}
       <InlineField
         label="Allow data changes"
         labelWidth={LABEL_WIDTH}

@@ -1,161 +1,109 @@
 # InterSystems IRIS data source for Grafana
 
-A Grafana backend data source plugin for InterSystems IRIS: a SQL query editor,
-a SAM/Prometheus metrics query type, a config editor with the password in
-`secureJsonData`, and a health check. Built to close the #1-ranked gap in
-[`../../research/ecosystem-connector-gaps.md`](../../research/ecosystem-connector-gaps.md):
-IRIS has no listing in the Grafana plugin catalog, while Snowflake and Databricks
-both do.
+Query InterSystems IRIS with SQL, and chart IRIS's built-in system metrics, from Grafana dashboards, Explore and
+alert rules.
 
-This is staged work per [`../README.md`](../README.md) — built to be extracted into
-its own repository, not wired into the rest of `iris-ai-examples`. Read
-[`STATUS.md`](./STATUS.md) before trusting any claim about what actually runs.
+- **SQL** with time-range macros, dashboard variables, and a Table or Time series format.
+- **System metrics** from IRIS's built-in `/api/monitor/metrics` endpoint (the same data System Alerting and
+  Monitoring reads).
+- **Alerting**: queries run on the Grafana server, so alert rules can use them.
+- **Read-only by default**, because of how IRIS's REST API handles permissions (see Security).
 
-## Why REST/SQL, not pgwire or a JDBC bridge
+## Requirements
 
-Go has no native (cgo-free) IRIS driver. Three access paths were evaluated:
+- Grafana 11.1 or later. Tested on Grafana 11.1.0 and 13.2.3.
+- InterSystems IRIS reachable on its web port (52773 by default, or your web gateway's port). The REST API the
+  plugin uses, `/api/atelier`, is part of every IRIS instance.
+- An IRIS account that holds the `%Development` resource, which the REST API requires, and can read the tables you
+  query.
 
-| Path | Pure Go? | Extra deploy step? | Chosen? |
-| --- | --- | --- | --- |
-| **REST/SQL** — IRIS's `%Api.Atelier` `action/query` endpoint over HTTP on the web port (52773) | Yes — `net/http` + `encoding/json` only | None — ships on every stock IRIS install | **Yes** |
-| **pgwire** — PostgreSQL wire protocol via the community `iris-pgwire` gateway + a Go `pgx` driver | Yes | Requires `iris-pgwire` running IRIS-side, which is not part of a stock install | No |
-| **JDBC bridge** — shell out to a JVM running `com.intersystems.jdbc.IRISDriver` | No | Requires a JVM at runtime; conflicts with Grafana backend plugins being single static Go binaries | No |
+## Security
 
-REST/SQL is the only option that works against a stock IRIS instance with nothing
-extra to deploy, using only the Go standard library. See the doc comment on
-[`pkg/plugin/client/client.go`](./pkg/plugin/client/client.go) for the full
-reasoning, and [`pkg/plugin/client/rest_client.go`](./pkg/plugin/client/rest_client.go)
-for the implementation.
+Read this before you connect a production instance.
 
-**The access path is behind an interface** (`client.IRISClient`, in
-`pkg/plugin/client/client.go`) specifically so a pgwire- or JDBC-backed client can
-be added later without touching the datasource, query-dispatch, or
-data-frame-conversion code.
+- **Queries are read-only by default.** Only `SELECT` (and `WITH ... SELECT`) statements run, and only one per
+  query. Anything else is refused before it reaches IRIS. The "Allow data changes" setting lifts this; leave it off
+  unless nobody else can use the data source.
+- **IRIS permissions do not limit what the REST API can do.** In testing, an account holding `SELECT` on a single
+  table could still delete its rows, read other namespaces and read the class dictionary through `/api/atelier`.
+  Treat any account you give Grafana as able to read everything on that IRIS instance, and treat anyone who can
+  edit a panel as having that same reach. Use a dedicated IRIS instance or namespace for dashboards, and restrict
+  network access to the Grafana server.
+- **Use HTTPS** between Grafana and IRIS. Credentials are sent with every request.
+- **The metrics endpoint needs no login on a default IRIS.** Restrict who can reach it.
 
-### Endpoints used
+## Configure
 
-| Purpose | Endpoint | Notes |
-| --- | --- | --- |
-| Run SQL | `POST /api/atelier/v1/{namespace}/action/query` | Body `{"query": "...", "parameters": []}`. Response's `result.content` is an array of JSON objects, one per row, keyed by column name. Requires `Content-Type: application/json` and HTTP Basic auth. |
-| SAM/Prometheus metrics | `GET /api/monitor/metrics` | OpenMetrics/Prometheus text exposition format. Built into IRIS since 2020.1, used by SAM. |
-| Health check | Reuses the SQL endpoint with `SELECT 1` | Exercises connectivity, auth, and the SQL engine in one call. |
+Add the data source under Connections, then fill in:
 
-## Attribution
+- **Host** and **Web port**: where IRIS's web server answers.
+- **Namespace**: the namespace queries run in. Defaults to `USER`.
+- **Username** and **Password**: the password is stored encrypted by Grafana and is never sent back to the browser.
+- **Use HTTPS** and **Skip TLS verify**: skip verification only for a self-signed lab instance.
+- **Allow data changes**: off by default (see Security).
+- **Timeout**: seconds to wait for IRIS. Defaults to 30.
 
-`caretdev/grafana-intersystems-datasource` (Dmitry Maslennikov) already exists as an
-unpublished Go/xDBC Grafana plugin for IRIS, streaming SAM metrics with real-time
-history, logs, and alerts. It was read via read-only GET for reference only — no code
-from it was copied. Two ideas it validated independently arrived at here too: that a
-Grafana IRIS plugin should surface SAM metrics as a first-class query type, and that a
-Go backend plugin is the right shape for this integration. The REST/SQL transport,
-type-inference logic, and every line of Go and TypeScript in this directory are
-original to this session.
+Select **Save & test**. "IRIS connection OK" means the credentials work and the REST API answered.
 
-## Layout
+## Query
 
-```
-main.go                    Backend plugin entrypoint (grafana-plugin-sdk-go)
-pkg/plugin/
-  client/
-    client.go               IRISClient interface + shared types (Column, Row, MetricSample)
-    rest_client.go          The only production IRISClient: REST/SQL + SAM metrics over HTTP
-  models.go                 jsonData / secureJsonData parsing (PluginSettings)
-  frame.go                  QueryResult / []MetricSample -> Grafana data.Frame, with type inference
-  datasource.go             QueryData / CheckHealth / Dispose — the Grafana backend contract
-src/
-  plugin.json               Plugin manifest
-  module.ts                 Registers DataSource + ConfigEditor + QueryEditor
-  datasource.ts             Frontend DataSource (extends DataSourceWithBackend)
-  types.ts                  IRISQuery / IRISDataSourceOptions / IRISSecureJsonData
-  components/
-    ConfigEditor.tsx         Host, port, namespace, username, password (secureJsonData), TLS, timeout
-    QueryEditor.tsx          Query type toggle (SQL / SAM metrics) + SQL text area
-provisioning/datasources/    Example Grafana provisioning YAML
-PUBLISHING.md                Grafana catalog submission requirements
-STATUS.md                   VERIFIED / UNVERIFIED / HUMAN ACTIONS REQUIRED
+Choose a query type:
+
+- **SQL** runs a statement. Choose **Time series** to plot the result: the first timestamp column becomes the time
+  axis and text columns split the result into one series each. Add `ORDER BY` the time column. Choose **Table**
+  to see rows as returned.
+- **SAM metrics** returns IRIS's current system metrics as a table.
+
+```sql
+SELECT tp, host, cpu
+FROM Metrics
+WHERE $__timeFilter(tp) AND host IN ($host)
+ORDER BY tp
 ```
 
-## Building
+### Macros
 
-Backend (Go 1.24.6+):
+| Macro                | Expands to                                        |
+| -------------------- | ------------------------------------------------- |
+| `$__timeFilter(col)` | `col >= <start> AND col <= <end>` for the range   |
+| `$__timeFrom()`      | the start of the dashboard time range             |
+| `$__timeTo()`        | the end of the dashboard time range               |
 
-```bash
-go build ./...
-go vet ./...
-go test ./... -cover
-```
+Times are written in UTC as `CAST('YYYY-MM-DD HH:MM:SS' AS TIMESTAMP)`, which compares correctly against both kinds
+of timestamp column IRIS has. If your server stores local time, convert the column in the query.
 
-Frontend (Node 22):
+### Variables
 
-```bash
-npm install
-npm run typecheck
-npm run build
-```
+Dashboard variables work in SQL. A multi-value variable becomes a quoted list for `IN (...)`: `'a','b'`. A
+single value is inserted as written, so write your own quotes (`name = '$name'`). Quotes inside a value are
+doubled. Use `${name:raw}` to insert a value exactly as it is.
 
-`npm run build` produces `dist/`. It does **not** produce the backend binary — that
-needs a matching Go build per target OS/arch (see PUBLISHING.md for the full matrix
-Grafana's signing process expects), e.g.:
+## Alerting
 
-```bash
-GOOS=linux GOARCH=amd64 go build -o dist/gpx_iris_datasource_linux_amd64 .
-```
+Alert rules can use this data source. Macros work in alerts; dashboard variables do not, which is a Grafana rule
+for all data sources.
 
-## Configuration
+## Good to know
 
-The config editor writes two kinds of data to Grafana:
+- **NULL arrives as an empty string or 0.** The REST API does not send real nulls, so a NULL cannot be told from an
+  empty value.
+- **One statement per query**, and results over 64 MiB are refused. Narrow the query with `TOP`, a `WHERE` clause
+  or `$__timeFilter`.
+- **Timestamps** in tables created with SQL `CREATE TABLE ... TIMESTAMP` are decoded for you. Other timestamps are
+  read as UTC.
+- The REST API returns each column's stored value. If a column looks odd, `CAST(col AS VARCHAR)` shows its
+  displayed form.
 
-- **`jsonData`** (plain, visible in the datasource's settings JSON): `host`, `webPort`
-  (default 52773), `namespace` (default `USER`), `username`, `useHTTPS`,
-  `skipTLSVerify`, `timeoutSeconds` (default 30).
-- **`secureJsonData`** (encrypted at rest, never re-sent to the browser): `password`.
+## Troubleshooting
 
-`pkg/plugin/models.go`'s `LoadPluginSettings` only ever reads the password from
-`DecryptedSecureJSONData["password"]` — never from the plain `jsonData` blob, even if
-a `password` key were somehow present there. `pkg/plugin/models_test.go` has a
-regression test (`TestLoadPluginSettings_NeverReadsPasswordFromPlainJSONData`) pinning
-that down.
+- **HTTP 401 or "authentication failed"**: the username or password is wrong, or the account lacks the
+  `%Development` resource.
+- **"could not reach the server"**: check the host, the web port and whether the Grafana server can reach it.
+- **`SQLCODE -30`, table not found**: tables belong to a schema, for example `SQLUser.MyTable`, and to the
+  namespace you configured.
+- **"this data source is read-only"**: the statement is not a `SELECT`. See Security.
 
-## Query types
+## Links
 
-| `queryType` | What it does |
-| --- | --- |
-| `sql` (default, including when omitted — keeps older saved queries working) | Runs `queryText` as a single SQL statement via the REST/SQL endpoint and returns one row-per-record frame. |
-| `sam_metrics` | Scrapes `/api/monitor/metrics` and returns a wide table: `time` (scrape time), `metric`, one column per distinct label key across all samples, `value`. |
-
-**SAM metrics limitation, stated plainly:** each query is a live snapshot. This
-transport has no access to IRIS's own metric history, so a single query cannot
-backfill a Grafana time range — Table/Stat panels with a short refresh interval are
-the right fit today, not a long-range time-series graph. Real history would need
-either IRIS-side retention (e.g. actual Prometheus scraping IRIS and Grafana querying
-Prometheus instead) or a caching layer in front of this plugin. Out of scope here.
-
-## Type inference
-
-The REST/SQL transport's plain (non-positional) query call does not return per-column
-SQL type metadata — see the doc comment in `rest_client.go`. `pkg/plugin/frame.go`
-infers each Grafana field's type from the values actually present in a column: bool,
-then numeric, then a handful of IRIS's common timestamp string layouts, falling back
-to string when a column is empty or its values don't agree on one type. Every column
-is built as a nullable field so a NULL in any row doesn't force the whole column to
-string. See `pkg/plugin/frame_test.go` for the cases this covers, including a
-regression test that pins column order to the SQL SELECT list order rather than
-whatever order Go's JSON decoder or map iteration would produce.
-
-## Testing
-
-There is no running IRIS instance and no Docker daemon in the environment this was
-built in (see STATUS.md), so every test is offline: real Go `net/http/httptest`
-servers standing in for IRIS's REST endpoints, and hand-written fakes for
-`client.IRISClient` in the datasource-layer tests. No test hits the network. Model:
-`careconnect-sdoh/evals` (this repo's offline, no-Docker, no-API-key test suite).
-
-```bash
-go test ./... -v -cover
-```
-
-## Development against a real Grafana + IRIS (not verified in this session)
-
-`docker-compose.yaml` and `provisioning/datasources/datasources.yml` are provided for
-a human with Docker to bring up a local Grafana pointed at this plugin and a real IRIS
-instance. Neither was run here — see STATUS.md.
+- Source and issues: <https://github.com/intersystems-community/iris-ai-examples>
+- InterSystems IRIS documentation: <https://docs.intersystems.com>

@@ -13,3 +13,4 @@ gpx_iris_datasource*
 
 # built by `npm run build` and `mage buildAll`
 dist/
+dist-zip/

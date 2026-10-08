@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/grafana/grafana-plugin-sdk-go/backend/httpclient"
 	"io"
 	"net/http"
 	"net/url"
@@ -26,6 +27,10 @@ type RESTClientConfig struct {
 	// set this for self-signed lab/demo instances.
 	InsecureSkipVerify bool
 	Timeout            time.Duration
+	// HTTPClient is used for every request when set (the plugin passes the SDK's httpclient, which carries
+	// Grafana's proxy and Private Data Source Connect support). When nil the client builds a plain net/http
+	// one from Timeout and InsecureSkipVerify, which the unit tests rely on.
+	HTTPClient *http.Client
 	// MaxResponseBytes caps what is read from IRIS for one call; 0 means DefaultMaxResponseBytes.
 	MaxResponseBytes int64
 }
@@ -49,6 +54,8 @@ type RESTClientConfig struct {
 type RESTClient struct {
 	cfg        RESTClientConfig
 	httpClient *http.Client
+	// initErr is a failure to build the HTTP client (invalid TLS options); it is reported on first use.
+	initErr error
 }
 
 // DefaultMaxResponseBytes is generous for a dashboard query and finite for a runaway SELECT *.
@@ -77,16 +84,20 @@ func (c *RESTClient) readLimited(r io.Reader) ([]byte, error) {
 // NewRESTClient builds a RESTClient from cfg. It does not make any network
 // calls; use Ping to verify connectivity.
 func NewRESTClient(cfg RESTClientConfig) *RESTClient {
+	if cfg.HTTPClient != nil {
+		return &RESTClient{cfg: cfg, httpClient: cfg.HTTPClient}
+	}
 	timeout := cfg.Timeout
 	if timeout <= 0 {
 		timeout = 30 * time.Second
 	}
-	return &RESTClient{
-		cfg: cfg,
-		httpClient: &http.Client{
-			Timeout: timeout,
-		},
+	// Built with the SDK's httpclient, like the plugin's own client, so no path creates a raw net/http client.
+	opts := httpclient.Options{Timeouts: &httpclient.TimeoutOptions{Timeout: timeout}}
+	if cfg.InsecureSkipVerify {
+		opts.TLS = &httpclient.TLSOptions{InsecureSkipVerify: true} //nolint:gosec // an explicit, documented setting
 	}
+	hc, err := httpclient.New(opts)
+	return &RESTClient{cfg: cfg, httpClient: hc, initErr: err}
 }
 
 type atelierQueryRequest struct {
@@ -159,6 +170,9 @@ func (c *RESTClient) metricsURL() string {
 
 // Query implements IRISClient.
 func (c *RESTClient) Query(ctx context.Context, sql string) (*QueryResult, error) {
+	if c.initErr != nil {
+		return nil, c.initErr
+	}
 	reqBody, err := json.Marshal(atelierQueryRequest{Query: sql, Parameters: []interface{}{}})
 	if err != nil {
 		return nil, fmt.Errorf("iris: encoding query request: %w", err)
@@ -381,6 +395,9 @@ func (c *RESTClient) Ping(ctx context.Context) error {
 // Metrics implements IRISClient by scraping /api/monitor/metrics and
 // parsing the OpenMetrics/Prometheus text exposition format.
 func (c *RESTClient) Metrics(ctx context.Context) ([]MetricSample, error) {
+	if c.initErr != nil {
+		return nil, c.initErr
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.metricsURL(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("iris: building metrics request: %w", err)

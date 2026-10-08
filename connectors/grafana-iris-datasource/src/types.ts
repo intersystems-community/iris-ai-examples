@@ -42,6 +42,8 @@ export interface IrisDataSourceOptions extends DataSourceJsonData {
   timeoutSeconds?: number;
   /** Lifts the backend's read-only guard (pkg/plugin/readonly.go). Off unless set. */
   allowWrites?: boolean;
+  /** Route requests through Grafana's secure SOCKS proxy (Private Data Source Connect). */
+  enableSecureSocksProxy?: boolean;
 }
 
 /**

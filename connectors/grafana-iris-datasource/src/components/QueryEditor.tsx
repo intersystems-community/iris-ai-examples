@@ -1,7 +1,7 @@
 import React, { ChangeEvent } from 'react';
 
 import { QueryEditorProps, SelectableValue } from '@grafana/data';
-import { InlineField, RadioButtonGroup, Stack, TextArea } from '@grafana/ui';
+import { InlineField, RadioButtonGroup, Stack, Text, TextArea } from '@grafana/ui';
 
 import { DataSource } from '../datasource';
 import { IrisDataSourceOptions, IrisFormat, IrisQuery, IrisQueryType } from '../types';
@@ -62,10 +62,10 @@ export function QueryEditor({ query, onChange, onRunQuery }: Props) {
         </InlineField>
       )}
       {queryType === 'sql' && (
-        <div style={{ opacity: 0.75, fontSize: '0.85em' }}>
+        <Text variant="bodySmall" color="secondary">
           Macros: <code>$__timeFilter(column)</code>, <code>$__timeFrom()</code>, <code>$__timeTo()</code> follow the
           dashboard time range. For a graph, choose Time series and ORDER BY the time column.
-        </div>
+        </Text>
       )}
     </Stack>
   );

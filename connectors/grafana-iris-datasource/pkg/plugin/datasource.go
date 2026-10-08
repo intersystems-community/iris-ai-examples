@@ -56,10 +56,14 @@ var (
 // NewDatasource is the InstanceFactoryFunc registered with
 // datasource.Manage in main.go. It builds the REST IRISClient from the
 // data source instance's settings.
-func NewDatasource(_ context.Context, settings backend.DataSourceInstanceSettings) (instancemgmt.Instance, error) {
+func NewDatasource(ctx context.Context, settings backend.DataSourceInstanceSettings) (instancemgmt.Instance, error) {
 	ps, err := LoadPluginSettings(settings)
 	if err != nil {
 		return nil, err
+	}
+	httpClient, err := newHTTPClient(ctx, settings, ps)
+	if err != nil {
+		return nil, fmt.Errorf("iris: building the HTTP client: %w", err)
 	}
 
 	restClient := client.NewRESTClient(client.RESTClientConfig{
@@ -69,6 +73,7 @@ func NewDatasource(_ context.Context, settings backend.DataSourceInstanceSetting
 		Password:           ps.Password,
 		InsecureSkipVerify: ps.SkipTLSVerify,
 		Timeout:            ps.Timeout,
+		HTTPClient:         httpClient,
 	})
 
 	ds := NewDatasourceWithClient(restClient)

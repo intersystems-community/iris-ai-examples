@@ -1,0 +1,88 @@
+# For the plugin's own repository (extracted from iris-ai-examples before submission). Workflows only run from
+# the root of a repository, so this file does nothing while the plugin lives under connectors/.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test:ci
+      - run: npm run build
+
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      iris:
+        image: containers.intersystems.com/intersystems/iris-community:2026.1
+        ports: ["52773:52773"]
+        options: >-
+          --health-cmd "iris qlist | grep -q running"
+          --health-interval 5s --health-retries 40 --health-start-period 20s
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go vet ./...
+      - run: go test -count=1 ./...
+      - name: Real-IRIS tests
+        env:
+          IRIS_URL: http://localhost:52773
+          IRIS_USER: _SYSTEM
+          IRIS_PASSWORD: SYS
+        run: go test -tags e2e -count=1 ./pkg/...
+
+  validate:
+    needs: [frontend, backend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: scripts/package.sh
+      - name: Grafana plugin validator
+        run: npx -y @grafana/plugin-validator@latest -sourceCodeUri file://. dist-zip/*.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plugin-zip
+          path: dist-zip/*.zip
+
+  # Grafana is the other half of the test: load the built plugin into each supported version and query it.
+  grafana:
+    needs: validate
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        grafana: ["11.1.0", "latest"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: plugin-zip
+          path: dist-zip
+      - name: Start IRIS and Grafana with the plugin
+        run: |
+          unzip -q dist-zip/*.zip -d unpacked && mv unpacked/intersystems-iris-datasource dist
+          docker compose -f docker-compose.e2e.yaml up -d --wait
+          ./e2e/seed.sh
+          GRAFANA_VERSION=${{ matrix.grafana }} docker compose -f docker-compose.grafana.yaml up -d --wait
+      - name: The data source is healthy and a query returns two series
+        run: |
+          curl -fsS http://localhost:33000/api/datasources/uid/iris-e2e/health | grep -q '"status":"OK"'
