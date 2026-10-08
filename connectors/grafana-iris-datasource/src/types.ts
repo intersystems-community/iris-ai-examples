@@ -10,11 +10,17 @@ export interface IrisQuery extends DataQuery {
   queryType?: IrisQueryType;
   /** The SQL statement to run. Ignored when queryType is 'sam_metrics'. */
   queryText?: string;
+  /** 'table' (default) returns rows as they are; 'time_series' makes the result plottable. */
+  format?: IrisFormat;
 }
+
+/** Keep in sync with pkg/plugin/timeseries.go's FormatTable / FormatTimeSeries. */
+export type IrisFormat = 'table' | 'time_series';
 
 export const DEFAULT_QUERY: Partial<IrisQuery> = {
   queryType: 'sql',
   queryText: '',
+  format: 'table',
 };
 
 /**

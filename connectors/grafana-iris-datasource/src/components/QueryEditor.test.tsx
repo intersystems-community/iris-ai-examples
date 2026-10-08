@@ -70,3 +70,40 @@ describe('QueryEditor', () => {
     expect(onRunQuery).toHaveBeenCalled();
   });
 });
+
+describe('QueryEditor format', () => {
+  it('offers Table and Time series for SQL queries', () => {
+    render(<QueryEditor datasource={fakeDatasource} query={baseQuery()} onChange={jest.fn()} onRunQuery={jest.fn()} />);
+    expect(screen.getByLabelText('Table')).toBeInTheDocument();
+    expect(screen.getByLabelText('Time series')).toBeInTheDocument();
+  });
+
+  it('defaults to Table and saves the choice, then re-runs', () => {
+    const onChange = jest.fn();
+    const onRunQuery = jest.fn();
+    render(<QueryEditor datasource={fakeDatasource} query={baseQuery()} onChange={onChange} onRunQuery={onRunQuery} />);
+    expect(screen.getByLabelText('Table')).toBeChecked();
+
+    fireEvent.click(screen.getByLabelText('Time series'));
+
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ format: 'time_series' }));
+    expect(onRunQuery).toHaveBeenCalled();
+  });
+
+  it('does not show the format for SAM metrics', () => {
+    render(
+      <QueryEditor
+        datasource={fakeDatasource}
+        query={baseQuery({ queryType: 'sam_metrics' })}
+        onChange={jest.fn()}
+        onRunQuery={jest.fn()}
+      />
+    );
+    expect(screen.queryByLabelText('Time series')).not.toBeInTheDocument();
+  });
+
+  it('documents the macros next to the SQL box', () => {
+    render(<QueryEditor datasource={fakeDatasource} query={baseQuery()} onChange={jest.fn()} onRunQuery={jest.fn()} />);
+    expect(screen.getByText(/\$__timeFilter\(column\)/)).toBeInTheDocument();
+  });
+});

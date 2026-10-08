@@ -4,7 +4,7 @@ import { QueryEditorProps, SelectableValue } from '@grafana/data';
 import { InlineField, RadioButtonGroup, Stack, TextArea } from '@grafana/ui';
 
 import { DataSource } from '../datasource';
-import { IrisDataSourceOptions, IrisQuery, IrisQueryType } from '../types';
+import { IrisDataSourceOptions, IrisFormat, IrisQuery, IrisQueryType } from '../types';
 
 type Props = QueryEditorProps<DataSource, IrisQuery, IrisDataSourceOptions>;
 
@@ -13,11 +13,25 @@ const QUERY_TYPE_OPTIONS: Array<SelectableValue<IrisQueryType>> = [
   { label: 'SAM metrics', value: 'sam_metrics', description: "Scrape IRIS's built-in /api/monitor/metrics endpoint" },
 ];
 
+const FORMAT_OPTIONS: Array<SelectableValue<IrisFormat>> = [
+  { label: 'Table', value: 'table', description: 'Rows as returned' },
+  {
+    label: 'Time series',
+    value: 'time_series',
+    description: 'First timestamp column is time; text columns split the series',
+  },
+];
+
 export function QueryEditor({ query, onChange, onRunQuery }: Props) {
   const queryType = query.queryType ?? 'sql';
 
   const onQueryTypeChange = (value: IrisQueryType) => {
     onChange({ ...query, queryType: value });
+    onRunQuery();
+  };
+
+  const onFormatChange = (value: IrisFormat) => {
+    onChange({ ...query, format: value });
     onRunQuery();
   };
 
@@ -41,6 +55,17 @@ export function QueryEditor({ query, onChange, onRunQuery }: Props) {
             placeholder="SELECT TOP 100 * FROM SQLUser.MyTable"
           />
         </InlineField>
+      )}
+      {queryType === 'sql' && (
+        <InlineField label="Format" labelWidth={16}>
+          <RadioButtonGroup options={FORMAT_OPTIONS} value={query.format ?? 'table'} onChange={onFormatChange} />
+        </InlineField>
+      )}
+      {queryType === 'sql' && (
+        <div style={{ opacity: 0.75, fontSize: '0.85em' }}>
+          Macros: <code>$__timeFilter(column)</code>, <code>$__timeFrom()</code>, <code>$__timeTo()</code> follow the
+          dashboard time range. For a graph, choose Time series and ORDER BY the time column.
+        </div>
       )}
     </Stack>
   );
