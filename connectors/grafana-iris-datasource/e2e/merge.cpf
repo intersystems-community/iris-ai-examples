@@ -1,0 +1,4 @@
+; Lets the e2e suite log in over HTTP as _SYSTEM with a known throwaway password, without the
+; change-password step a fresh image otherwise demands. Disposable container only.
+[Actions]
+ModifyUser:Name=_SYSTEM,PasswordNeverExpires=1,ChangePassword=0

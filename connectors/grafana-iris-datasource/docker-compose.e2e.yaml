@@ -1,0 +1,25 @@
+# A disposable IRIS with a built-in web server, for the real-IRIS tests (PA-02):
+#   docker compose -f docker-compose.e2e.yaml up -d --wait
+#   IRIS_URL=http://localhost:33273 IRIS_USER=_SYSTEM IRIS_PASSWORD=SYS go test -tags e2e ./pkg/...
+#   docker compose -f docker-compose.e2e.yaml down -v
+# The public community image needs no licence key. Override IRIS_IMAGE to test another version.
+services:
+  iris:
+    image: ${IRIS_IMAGE:-containers.intersystems.com/intersystems/iris-community:2026.1}
+    container_name: grafana-iris-ds-e2e-iris
+    # One container needs no network of its own; the default bridge also avoids Docker's
+    # 'all predefined address pools have been fully subnetted' on a busy machine.
+    network_mode: bridge
+    command: --check-caps false
+    environment:
+      ISC_CPF_MERGE_FILE: /e2e/merge.cpf
+    volumes:
+      - ./e2e/merge.cpf:/e2e/merge.cpf:ro
+    ports:
+      - "${IRIS_E2E_WEB_PORT:-33273}:52773"
+    healthcheck:
+      test: ["CMD-SHELL", "iris qlist | grep -q running || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+      start_period: 15s
