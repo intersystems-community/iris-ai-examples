@@ -69,9 +69,49 @@ type atelierQueryRequest struct {
 	Parameters []interface{} `json:"parameters"`
 }
 
+// atelierError is one entry of status.errors. A real IRIS sends an object
+// ({"error": "...", "code": 5540, "domain": ..., "id": ..., "params": [...]}); the
+// first version of this client assumed plain strings, so this accepts both and keeps
+// IRIS's own message either way.
+type atelierError struct {
+	Message string
+	Code    int
+}
+
+func (e *atelierError) UnmarshalJSON(b []byte) error {
+	var text string
+	if err := json.Unmarshal(b, &text); err == nil {
+		e.Message = text
+		return nil
+	}
+	var obj struct {
+		Error string `json:"error"`
+		Code  int    `json:"code"`
+	}
+	if err := json.Unmarshal(b, &obj); err != nil {
+		return err
+	}
+	e.Message, e.Code = obj.Error, obj.Code
+	return nil
+}
+
 type atelierStatus struct {
-	Errors  []string `json:"errors"`
-	Summary string   `json:"summary"`
+	Errors  []atelierError `json:"errors"`
+	Summary string         `json:"summary"`
+}
+
+// errorText joins the messages of every error, falling back to the summary.
+func (s atelierStatus) errorText() string {
+	msgs := make([]string, 0, len(s.Errors))
+	for _, e := range s.Errors {
+		if e.Message != "" {
+			msgs = append(msgs, e.Message)
+		}
+	}
+	if len(msgs) == 0 {
+		return s.Summary
+	}
+	return strings.Join(msgs, "; ")
 }
 
 type atelierQueryResult struct {
@@ -129,7 +169,7 @@ func (c *RESTClient) Query(ctx context.Context, sql string) (*QueryResult, error
 		return nil, fmt.Errorf("iris: decoding query response: %w", err)
 	}
 	if len(parsed.Status.Errors) > 0 {
-		return nil, fmt.Errorf("iris: query failed: %s", strings.Join(parsed.Status.Errors, "; "))
+		return nil, fmt.Errorf("iris: query failed: %s", parsed.Status.errorText())
 	}
 
 	return contentToQueryResult(body, parsed.Result.Content)
