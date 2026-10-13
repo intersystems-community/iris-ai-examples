@@ -5,9 +5,7 @@ import { config } from '@grafana/runtime';
 import { ConfigEditor } from './ConfigEditor';
 import { IrisDataSourceOptions, IrisSecureJsonData } from '../types';
 
-function baseOptions(
-  overrides: Partial<IrisDataSourceOptions> = {}
-): Parameters<typeof ConfigEditor>[0]['options'] {
+function baseOptions(overrides: Partial<IrisDataSourceOptions> = {}): Parameters<typeof ConfigEditor>[0]['options'] {
   return {
     id: 1,
     uid: 'iris-1',
@@ -124,7 +122,6 @@ describe('ConfigEditor secure proxy', () => {
   });
 });
 
-
 describe('ConfigEditor row limit', () => {
   it('writes rowLimit into jsonData as a number', () => {
     const onOptionsChange = jest.fn();
@@ -144,5 +141,57 @@ describe('ConfigEditor row limit', () => {
     fireEvent.change(screen.getByLabelText(/Row limit/i), { target: { value: '' } });
 
     expect(onOptionsChange.mock.calls[0][0].jsonData.rowLimit).toBeUndefined();
+  });
+});
+
+describe('ConfigEditor connection type', () => {
+  it('defaults to the REST API and hides the SuperServer settings', () => {
+    render(<ConfigEditor onOptionsChange={jest.fn()} options={baseOptions()} />);
+    expect(screen.getByLabelText(/REST API/i)).toBeChecked();
+    expect(screen.queryByLabelText(/SuperServer port/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Max open connections/i)).not.toBeInTheDocument();
+  });
+
+  it('writes transport into jsonData when Native is chosen', () => {
+    const onOptionsChange = jest.fn();
+    render(<ConfigEditor onOptionsChange={onOptionsChange} options={baseOptions()} />);
+
+    fireEvent.click(screen.getByLabelText(/Native/i));
+
+    expect(onOptionsChange).toHaveBeenCalledWith(
+      expect.objectContaining({ jsonData: expect.objectContaining({ transport: 'native' }) })
+    );
+  });
+
+  it('shows the SuperServer port and pool settings for a native connection', () => {
+    render(<ConfigEditor onOptionsChange={jest.fn()} options={baseOptions({ transport: 'native' })} />);
+    expect(screen.getByLabelText(/SuperServer port/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Max open connections/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Max idle connections/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Connection lifetime/i)).toBeInTheDocument();
+  });
+
+  it('writes the native settings as numbers, and clears them when emptied', () => {
+    const onOptionsChange = jest.fn();
+    render(
+      <ConfigEditor onOptionsChange={onOptionsChange} options={baseOptions({ transport: 'native', maxOpenConns: 4 })} />
+    );
+
+    fireEvent.change(screen.getByLabelText(/SuperServer port/i), { target: { value: '11972' } });
+    expect(onOptionsChange.mock.calls[0][0].jsonData.superserverPort).toBe(11972);
+
+    fireEvent.change(screen.getByLabelText(/Max open connections/i), { target: { value: '' } });
+    expect(onOptionsChange.mock.calls[1][0].jsonData.maxOpenConns).toBeUndefined();
+  });
+
+  it('says what the native connection does and does not do', () => {
+    render(<ConfigEditor onOptionsChange={jest.fn()} options={baseOptions({ transport: 'native' })} />);
+    expect(screen.getByText(/not encrypted/i)).toBeInTheDocument();
+    expect(screen.getByText(/SQL privileges/i)).toBeInTheDocument();
+  });
+
+  it('does not show the native warnings on a REST connection', () => {
+    render(<ConfigEditor onOptionsChange={jest.fn()} options={baseOptions()} />);
+    expect(screen.queryByText(/not encrypted/i)).not.toBeInTheDocument();
   });
 });

@@ -5,7 +5,9 @@ package plugin
 import (
 	"context"
 	"encoding/json"
+	"net"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -219,5 +221,96 @@ func TestE2E_TimeGroupBucketsBothKindsOfTimestampColumn(t *testing.T) {
 		if avg.(float64) != 2.0 {
 			t.Fatalf("%s: the 12:00 hour averages 1.5 and 2.5, got %v", col, avg)
 		}
+	}
+}
+
+// The same whole-path checks over the native transport: one query must read the same over either.
+
+func nativeDatasource(t *testing.T) (*Datasource, client.IRISClient) {
+	t.Helper()
+	addr, user, pass := os.Getenv("IRIS_SUPERSERVER"), os.Getenv("IRIS_USER"), os.Getenv("IRIS_PASSWORD")
+	if addr == "" || user == "" || pass == "" {
+		t.Fatal("set IRIS_SUPERSERVER, IRIS_USER and IRIS_PASSWORD")
+	}
+	host, portText, err := net.SplitHostPort(addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	port, _ := strconv.Atoi(portText)
+	c := client.NewNativeClient(client.NativeClientConfig{Host: host, Port: port, Namespace: "USER", Username: user, Password: pass, Timeout: 30 * time.Second})
+	t.Cleanup(func() { _ = c.Close() })
+	return NewDatasourceWithClient(c), c
+}
+
+func TestNativeE2E_TimeFilterTimeGroupAndPosixTimeMatchTheRESTPath(t *testing.T) {
+	ds, c := nativeDatasource(t)
+	seed(t, c, "NE2E_Metrics")
+	for _, col := range []string{"tp", "td"} {
+		r := run(t, ds, map[string]any{
+			"queryText": "SELECT $__timeGroup(" + col + ", 1h) AS bucket, AVG(cpu) AS cpu FROM NE2E_Metrics " +
+				"WHERE $__timeFilter(" + col + ") GROUP BY $__timeGroup(" + col + ", 1h) ORDER BY bucket",
+			"format": "time_series",
+		}, t1100, t1500)
+		if r.Error != nil {
+			t.Fatalf("%s: %v", col, r.Error)
+		}
+		f := r.Frames[0]
+		if f.Rows() != 3 {
+			t.Fatalf("%s: want 3 hourly buckets, got %d", col, f.Rows())
+		}
+		first, _ := f.Fields[0].ConcreteAt(0)
+		if want := time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC); !first.(time.Time).Equal(want) {
+			t.Fatalf("%s: first bucket %v, want %v", col, first, want)
+		}
+		avg, _ := f.Fields[1].ConcreteAt(0)
+		if avg.(float64) != 2.0 {
+			t.Fatalf("%s: the 12:00 hour averages 1.5 and 2.5, got %v", col, avg)
+		}
+	}
+}
+
+func TestNativeE2E_APosixTimeColumnComesBackAsATime(t *testing.T) {
+	ds, c := nativeDatasource(t)
+	seed(t, c, "NE2E_Metrics")
+
+	r := run(t, ds, map[string]any{"queryText": "SELECT tp, td FROM NE2E_Metrics WHERE host = 'a' ORDER BY tp"}, t1100, t1500)
+
+	if r.Error != nil {
+		t.Fatal(r.Error)
+	}
+	want := time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)
+	for i := 0; i < 2; i++ {
+		got, _ := r.Frames[0].Fields[i].ConcreteAt(0)
+		if !got.(time.Time).Equal(want) {
+			t.Fatalf("%s must read 12:00 UTC, got %v", r.Frames[0].Fields[i].Name, got)
+		}
+	}
+}
+
+func TestNativeE2E_ASQLErrorIsTheUsersToFix(t *testing.T) {
+	ds, _ := nativeDatasource(t)
+
+	r := run(t, ds, map[string]any{"queryText": "SELECT nope FROM No_Such_Table"}, t1100, t1500)
+
+	if r.Error == nil || !strings.Contains(r.Error.Error(), "SQLCODE") {
+		t.Fatalf("want IRIS's own SQL error, got %v", r.Error)
+	}
+	if r.Status != backend.StatusBadRequest || r.ErrorSource != backend.ErrorSourceDownstream {
+		t.Fatalf("%v / %v", r.Status, r.ErrorSource)
+	}
+}
+
+func TestNativeE2E_TheReadOnlyGuardStillRefusesBeforeIRISIsAsked(t *testing.T) {
+	ds, c := nativeDatasource(t)
+	seed(t, c, "NE2E_Guard")
+	before := countRows(t, c, "NE2E_Guard")
+
+	r := run(t, ds, map[string]any{"queryText": "DELETE FROM NE2E_Guard"}, t1100, t1500)
+
+	if r.Error == nil || r.Status != backend.StatusBadRequest {
+		t.Fatalf("the guard should refuse a DELETE by default: %v / %v", r.Error, r.Status)
+	}
+	if after := countRows(t, c, "NE2E_Guard"); after != before {
+		t.Fatalf("the rows changed (%d -> %d)", before, after)
 	}
 }

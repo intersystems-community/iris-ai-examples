@@ -23,6 +23,8 @@ func TestErrorMapping(t *testing.T) {
 		{"forbidden", &client.AuthError{HTTPStatus: 403}, backend.StatusForbidden, backend.ErrorSourceDownstream},
 		{"server unreachable", &client.UnreachableError{Err: errors.New("connection refused")}, backend.StatusBadGateway, backend.ErrorSourceDownstream},
 		{"result too large", &client.TooLargeError{Limit: 1024}, backend.StatusBadRequest, backend.ErrorSourceDownstream},
+		{"too many rows", &client.TooManyRowsError{Limit: 10}, backend.StatusBadRequest, backend.ErrorSourceDownstream},
+		{"settings cannot satisfy the request", &client.ConfigError{Message: "set the web port"}, backend.StatusBadRequest, backend.ErrorSourceDownstream},
 		{"wrapped errors are still recognised", fmt.Errorf("outer: %w", &client.SQLError{Message: "x"}), backend.StatusBadRequest, backend.ErrorSourceDownstream},
 		{"anything unexpected is ours", errors.New("decoder blew up"), backend.StatusInternal, backend.ErrorSourcePlugin},
 	}

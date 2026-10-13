@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
@@ -58,19 +59,31 @@ var (
 )
 
 // NewDatasource is the InstanceFactoryFunc registered with
-// datasource.Manage in main.go. It builds the REST IRISClient from the
-// data source instance's settings.
+// datasource.Manage in main.go. It builds the IRISClient the data source
+// instance's settings ask for (see buildClient).
 func NewDatasource(ctx context.Context, settings backend.DataSourceInstanceSettings) (instancemgmt.Instance, error) {
 	ps, err := LoadPluginSettings(settings)
 	if err != nil {
 		return nil, err
 	}
+	c, err := buildClient(ctx, settings, ps)
+	if err != nil {
+		return nil, err
+	}
+
+	ds := NewDatasourceWithClient(c)
+	ds.allowWrites = ps.AllowWrites
+	ds.rowLimit = ps.RowLimit
+	return ds, nil
+}
+
+// buildClient makes the IRISClient the settings ask for: REST over the web port, or native over the SuperServer.
+func buildClient(ctx context.Context, settings backend.DataSourceInstanceSettings, ps *PluginSettings) (client.IRISClient, error) {
 	httpClient, err := newHTTPClient(ctx, settings, ps)
 	if err != nil {
 		return nil, fmt.Errorf("iris: building the HTTP client: %w", err)
 	}
-
-	restClient := client.NewRESTClient(client.RESTClientConfig{
+	rest := client.NewRESTClient(client.RESTClientConfig{
 		BaseURL:            ps.BaseURL(),
 		Namespace:          ps.Namespace,
 		Username:           ps.Username,
@@ -79,11 +92,25 @@ func NewDatasource(ctx context.Context, settings backend.DataSourceInstanceSetti
 		Timeout:            ps.Timeout,
 		HTTPClient:         httpClient,
 	})
+	if ps.Transport != TransportNative {
+		return rest, nil
+	}
 
-	ds := NewDatasourceWithClient(restClient)
-	ds.allowWrites = ps.AllowWrites
-	ds.rowLimit = ps.RowLimit
-	return ds, nil
+	cfg := client.NativeClientConfig{
+		Host:            ps.Host,
+		Port:            ps.SuperServerPort,
+		Namespace:       ps.Namespace,
+		Username:        ps.Username,
+		Password:        ps.Password,
+		Timeout:         ps.Timeout,
+		MaxOpenConns:    ps.MaxOpenConns,
+		MaxIdleConns:    ps.MaxIdleConns,
+		ConnMaxLifetime: ps.ConnMaxLifetime,
+	}
+	if ps.WebPortSet {
+		cfg.Metrics = rest
+	}
+	return client.NewNativeClient(cfg), nil
 }
 
 // NewDatasourceWithClient builds a Datasource around an already-built
@@ -93,9 +120,13 @@ func NewDatasourceWithClient(c client.IRISClient) *Datasource {
 	return &Datasource{client: c, nowFn: time.Now}
 }
 
-// Dispose implements instancemgmt.InstanceDisposer. The REST client holds
-// no resources that need explicit cleanup.
-func (d *Datasource) Dispose() {}
+// Dispose implements instancemgmt.InstanceDisposer. The REST client holds no resources; the native client
+// holds a connection pool, which is closed here.
+func (d *Datasource) Dispose() {
+	if c, ok := d.client.(io.Closer); ok {
+		_ = c.Close()
+	}
+}
 
 // QueryData implements backend.QueryDataHandler.
 func (d *Datasource) QueryData(ctx context.Context, req *backend.QueryDataRequest) (*backend.QueryDataResponse, error) {

@@ -1,12 +1,17 @@
 import React, { ChangeEvent } from 'react';
 
-import { DataSourcePluginOptionsEditorProps } from '@grafana/data';
+import { DataSourcePluginOptionsEditorProps, SelectableValue } from '@grafana/data';
 import { config } from '@grafana/runtime';
-import { Alert, InlineField, InlineSwitch, Input, SecretInput } from '@grafana/ui';
+import { Alert, InlineField, InlineSwitch, Input, RadioButtonGroup, SecretInput } from '@grafana/ui';
 
-import { IrisDataSourceOptions, IrisSecureJsonData } from '../types';
+import { IrisDataSourceOptions, IrisSecureJsonData, IrisTransport } from '../types';
 
 interface Props extends DataSourcePluginOptionsEditorProps<IrisDataSourceOptions, IrisSecureJsonData> {}
+
+const TRANSPORT_OPTIONS: Array<SelectableValue<IrisTransport>> = [
+  { label: 'REST API', value: 'rest', description: "IRIS's web port (default 52773)" },
+  { label: 'Native', value: 'native', description: "IRIS's SuperServer port (default 1972)" },
+];
 
 const LABEL_WIDTH = 20;
 const FIELD_WIDTH = 40;
@@ -47,6 +52,12 @@ export function ConfigEditor(props: Props) {
     updateJsonData('rowLimit', e.target.value === '' ? undefined : Number(e.target.value));
   const onTimeoutChange = (e: ChangeEvent<HTMLInputElement>) =>
     updateJsonData('timeoutSeconds', e.target.value === '' ? undefined : Number(e.target.value));
+  const onTransportChange = (value: IrisTransport) => updateJsonData('transport', value);
+  const numberField =
+    (key: 'superserverPort' | 'maxOpenConns' | 'maxIdleConns' | 'connMaxLifetimeSeconds') =>
+    (e: ChangeEvent<HTMLInputElement>) =>
+      updateJsonData(key, e.target.value === '' ? undefined : Number(e.target.value));
+  const native = jsonData.transport === 'native';
 
   const onPasswordChange = (e: ChangeEvent<HTMLInputElement>) => {
     onOptionsChange({
@@ -73,6 +84,17 @@ export function ConfigEditor(props: Props) {
 
   return (
     <>
+      <InlineField
+        label="Connection"
+        labelWidth={LABEL_WIDTH}
+        tooltip="REST uses IRIS's web port. Native uses the SuperServer port and runs queries under the SQL privileges of the account."
+      >
+        <RadioButtonGroup
+          options={TRANSPORT_OPTIONS}
+          value={jsonData.transport ?? 'rest'}
+          onChange={onTransportChange}
+        />
+      </InlineField>
       <InlineField label="Host" labelWidth={LABEL_WIDTH} required tooltip="IRIS host name or IP address">
         <Input
           id="config-editor-host"
@@ -82,10 +104,30 @@ export function ConfigEditor(props: Props) {
           width={FIELD_WIDTH}
         />
       </InlineField>
+      {native && (
+        <InlineField
+          label="SuperServer port"
+          labelWidth={LABEL_WIDTH}
+          tooltip="IRIS SuperServer port. Defaults to 1972."
+        >
+          <Input
+            id="config-editor-superserverport"
+            onChange={numberField('superserverPort')}
+            value={jsonData.superserverPort ?? ''}
+            placeholder="1972"
+            type="number"
+            width={FIELD_WIDTH}
+          />
+        </InlineField>
+      )}
       <InlineField
         label="Web port"
         labelWidth={LABEL_WIDTH}
-        tooltip="IRIS web server port (the one that serves the Management Portal and REST APIs). Defaults to 52773."
+        tooltip={
+          native
+            ? 'Optional. Only needed for SAM metrics queries, which the IRIS web server provides.'
+            : 'IRIS web server port (the one that serves the Management Portal and REST APIs). Defaults to 52773.'
+        }
       >
         <Input
           id="config-editor-webport"
@@ -96,7 +138,11 @@ export function ConfigEditor(props: Props) {
           width={FIELD_WIDTH}
         />
       </InlineField>
-      <InlineField label="Namespace" labelWidth={LABEL_WIDTH} tooltip="IRIS namespace to run queries against. Defaults to USER.">
+      <InlineField
+        label="Namespace"
+        labelWidth={LABEL_WIDTH}
+        tooltip="IRIS namespace to run queries against. Defaults to USER."
+      >
         <Input
           id="config-editor-namespace"
           onChange={onNamespaceChange}
@@ -114,7 +160,11 @@ export function ConfigEditor(props: Props) {
           width={FIELD_WIDTH}
         />
       </InlineField>
-      <InlineField label="Password" labelWidth={LABEL_WIDTH} tooltip="Stored encrypted; never sent back to the browser.">
+      <InlineField
+        label="Password"
+        labelWidth={LABEL_WIDTH}
+        tooltip="Stored encrypted; never sent back to the browser."
+      >
         <SecretInput
           id="config-editor-password"
           isConfigured={Boolean(secureJsonFields?.password)}
@@ -133,7 +183,11 @@ export function ConfigEditor(props: Props) {
         labelWidth={LABEL_WIDTH}
         tooltip="Only for self-signed lab/demo instances. Disables certificate verification."
       >
-        <InlineSwitch id="config-editor-skiptlsverify" value={jsonData.skipTLSVerify ?? false} onChange={onSkipTLSVerifyChange} />
+        <InlineSwitch
+          id="config-editor-skiptlsverify"
+          value={jsonData.skipTLSVerify ?? false}
+          onChange={onSkipTLSVerifyChange}
+        />
       </InlineField>
       {config.secureSocksDSProxyEnabled && (
         <InlineField
@@ -153,13 +207,17 @@ export function ConfigEditor(props: Props) {
         labelWidth={LABEL_WIDTH}
         tooltip="Off: only SELECT queries run. On: any SQL statement runs, including INSERT, UPDATE, DELETE and DROP."
       >
-        <InlineSwitch id="config-editor-allowwrites" value={jsonData.allowWrites ?? false} onChange={onAllowWritesChange} />
+        <InlineSwitch
+          id="config-editor-allowwrites"
+          value={jsonData.allowWrites ?? false}
+          onChange={onAllowWritesChange}
+        />
       </InlineField>
       {jsonData.allowWrites && (
         <Alert severity="warning" title="Data changes are allowed">
-          Anyone who can edit a panel using this data source can change or delete data in IRIS. IRIS does not limit
-          what its REST API can do to the table privileges of the account, so only switch this on for a data source
-          that nobody else can use.
+          Anyone who can edit a panel using this data source can change or delete data in IRIS. IRIS does not limit what
+          its REST API can do to the table privileges of the account, so only switch this on for a data source that
+          nobody else can use.
         </Alert>
       )}
       <InlineField label="Timeout (seconds)" labelWidth={LABEL_WIDTH} tooltip="HTTP request timeout. Defaults to 30.">
@@ -172,6 +230,60 @@ export function ConfigEditor(props: Props) {
           width={FIELD_WIDTH}
         />
       </InlineField>
+      {native && (
+        <>
+          <Alert severity="info" title="Native connection">
+            Queries run under the SQL privileges of the account, so a SELECT-only account cannot change data or read
+            system tables (the REST API does not enforce this). The connection is not encrypted: the native driver has
+            no TLS option yet, so use it on a trusted network.
+          </Alert>
+          <InlineField
+            label="Max open connections"
+            labelWidth={LABEL_WIDTH}
+            tooltip="Connection pool size. Defaults to 10."
+          >
+            <Input
+              id="config-editor-maxopen"
+              onChange={numberField('maxOpenConns')}
+              value={jsonData.maxOpenConns ?? ''}
+              placeholder="10"
+              type="number"
+              min={1}
+              width={FIELD_WIDTH}
+            />
+          </InlineField>
+          <InlineField
+            label="Max idle connections"
+            labelWidth={LABEL_WIDTH}
+            tooltip="Idle connections kept open. Defaults to 5."
+          >
+            <Input
+              id="config-editor-maxidle"
+              onChange={numberField('maxIdleConns')}
+              value={jsonData.maxIdleConns ?? ''}
+              placeholder="5"
+              type="number"
+              min={1}
+              width={FIELD_WIDTH}
+            />
+          </InlineField>
+          <InlineField
+            label="Connection lifetime (s)"
+            labelWidth={LABEL_WIDTH}
+            tooltip="Longest a connection is reused. Defaults to 1800."
+          >
+            <Input
+              id="config-editor-connlifetime"
+              onChange={numberField('connMaxLifetimeSeconds')}
+              value={jsonData.connMaxLifetimeSeconds ?? ''}
+              placeholder="1800"
+              type="number"
+              min={1}
+              width={FIELD_WIDTH}
+            />
+          </InlineField>
+        </>
+      )}
       <InlineField
         label="Row limit"
         labelWidth={LABEL_WIDTH}

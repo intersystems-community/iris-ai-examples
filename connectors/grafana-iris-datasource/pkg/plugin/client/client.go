@@ -1,7 +1,7 @@
 // Package client defines the seam between the Grafana IRIS datasource
 // plugin and InterSystems IRIS itself.
 //
-// Go has no native (cgo-free) IRIS driver. Three access paths were
+// Three access paths were
 // evaluated for this plugin (see /STATUS.md and /README.md at the module
 // root for the full write-up):
 //

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -262,4 +263,44 @@ func noticesOf(f *data.Frame) []data.Notice {
 		return nil
 	}
 	return f.Meta.Notices
+}
+
+func TestBuildClient_ChoosesTheTransportFromTheSettings(t *testing.T) {
+	for _, c := range []struct {
+		json string
+		want string
+	}{
+		{`{"host":"h"}`, "*client.RESTClient"},
+		{`{"host":"h","transport":"native"}`, "*client.NativeClient"},
+	} {
+		settings := backend.DataSourceInstanceSettings{JSONData: []byte(c.json)}
+		ps, err := LoadPluginSettings(settings)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		got, err := buildClient(context.Background(), settings, ps)
+
+		if err != nil {
+			t.Fatal(err)
+		}
+		if name := fmt.Sprintf("%T", got); name != c.want {
+			t.Fatalf("%s: got %s, want %s", c.json, name, c.want)
+		}
+	}
+}
+
+type closableClient struct {
+	fakeIRISClient
+	closed bool
+}
+
+func (c *closableClient) Close() error { c.closed = true; return nil }
+
+func TestDispose_ClosesAClientThatHoldsAPool(t *testing.T) {
+	c := &closableClient{}
+	NewDatasourceWithClient(c).Dispose()
+	if !c.closed {
+		t.Fatal("Dispose must close the native client's connection pool")
+	}
 }

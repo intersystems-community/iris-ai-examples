@@ -1,0 +1,260 @@
+package list
+
+import (
+	"math"
+	"reflect"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+type TestItem struct {
+	value interface{}
+	dump  []byte
+}
+
+var tests []TestItem = []TestItem{
+	{
+		nil,
+		[]byte{0x01},
+	},
+	{
+		0,
+		[]byte{0x02, 0x04},
+	},
+	{
+		144,
+		[]byte{0x03, 0x04, 0x90},
+	},
+	{
+		256,
+		[]byte{0x04, 0x04, 0x00, 0x01},
+	},
+	{
+		-1,
+		[]byte{0x02, 0x05},
+	},
+	{
+		-256,
+		[]byte{0x03, 0x05, 0x00},
+	},
+	{
+		-257,
+		[]byte{0x04, 0x05, 0xff, 0xfe},
+	},
+	{
+		"abc",
+		[]byte{0x05, 0x01, 0x61, 0x62, 0x63},
+	},
+	{
+		"",
+		[]byte{0x02, 0x01},
+	},
+	{
+		[]byte{0x61, 0x62, 0x63},
+		[]byte{0x05, 0x01, 0x61, 0x62, 0x63},
+	},
+}
+
+func TestListItem(t *testing.T) {
+	for _, v := range tests {
+		var offset uint = 0
+		var listItem = GetListItem(v.dump, &offset)
+		if tempDump := listItem.Dump(); !reflect.DeepEqual(v.dump, tempDump) {
+			t.Error("Not equal", v.dump, tempDump, listItem)
+		}
+		if offset != uint(len(v.dump)) {
+			t.Error("Wrong offset: ", v)
+		}
+	}
+}
+
+var longString = map[int][]byte{
+	253: {0xff, 0x01},
+	254: {0x00, 0xff, 0x00, 0x01},
+	255: {0x00, 0x00, 0x01, 0x01},
+	256: {0x00, 0x01, 0x01, 0x01},
+	512: {0x00, 0x01, 0x02, 0x01},
+}
+
+func TestLongListItem(t *testing.T) {
+	for l, v := range longString {
+		temp := make([]byte, l)
+		for i := range temp {
+			temp[i] = 255
+		}
+		li := NewListItem(temp)
+		tempDump := li.Dump()[:len(v)]
+		if !reflect.DeepEqual(v, tempDump) {
+			t.Error("Not equal", l, tempDump, v)
+		}
+	}
+}
+
+func TestIntListItem(t *testing.T) {
+	var li ListItem
+	li = NewListItem(int(1))
+	assert.Equal(t, li.Dump(), []byte{0x3, 0x4, 0x1})
+	li = NewListItem(int8(1))
+	assert.Equal(t, li.Dump(), []byte{0x3, 0x4, 0x1})
+	li = NewListItem(int16(1))
+	assert.Equal(t, li.Dump(), []byte{0x3, 0x4, 0x1})
+	li = NewListItem(int32(1))
+	assert.Equal(t, li.Dump(), []byte{0x3, 0x4, 0x1})
+	li = NewListItem(int64(1))
+	assert.Equal(t, li.Dump(), []byte{0x3, 0x4, 0x1})
+
+	li = NewListItem(uint(1))
+	assert.Equal(t, li.Dump(), []byte{0x3, 0x4, 0x1})
+	li = NewListItem(uint8(1))
+	assert.Equal(t, li.Dump(), []byte{0x3, 0x4, 0x1})
+	li = NewListItem(uint16(1))
+	assert.Equal(t, li.Dump(), []byte{0x3, 0x4, 0x1})
+	li = NewListItem(uint32(1))
+	assert.Equal(t, li.Dump(), []byte{0x3, 0x4, 0x1})
+	li = NewListItem(uint64(1))
+	assert.Equal(t, li.Dump(), []byte{0x3, 0x4, 0x1})
+}
+
+func TestFloatListItem(t *testing.T) {
+	var li ListItem
+	var v float64
+
+	// Test float32 encoding (compact float, type 08)
+	li = NewListItem(float32(0.01))
+	dump := li.Dump()
+	assert.Equal(t, byte(0x08), dump[1]) // Should be type 08 (compact float)
+	v, _ = li.asFloat64()
+	assert.InDelta(t, float64(0.01), v, 0.0001)
+
+	// Test float64 encoding (IEEE double, type 09)
+	li = NewListItem(float64(0.01))
+	dump = li.Dump()
+	assert.Equal(t, byte(0x09), dump[1]) // Should be type 09 (IEEE double)
+	v, _ = li.asFloat64()
+	assert.InDelta(t, float64(0.01), v, 0.0001)
+
+	// Test round-trip for various float values
+	testValues := []float64{1.234, -12.345, 100, -100, 0.5, -0.5, 1.5, -1.5}
+	for _, testVal := range testValues {
+		li = NewListItem(testVal)
+		dump = li.Dump()
+		assert.Equal(t, byte(0x09), dump[1]) // Should be type 09 (IEEE double)
+		v, _ = li.asFloat64()
+		assert.InDelta(t, testVal, v, 0.0001)
+	}
+
+	li = ListItem{
+		size:     8,
+		itemType: LISTITEM_COMPACTFLOAT,
+		data:     []byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x40, 0x45, 0x40},
+	}
+	v, _ = li.asFloat64()
+	assert.Equal(t, float64(42.5), v)
+
+	li = ListItem{
+		size:     2,
+		itemType: LISTITEM_COMPACTFLOAT,
+		data:     []byte{0x2a, 0x42},
+	}
+	v, _ = li.asFloat64()
+	assert.Equal(t, float64(42.5), v)
+}
+
+func TestBoolListItem(t *testing.T) {
+	var li ListItem
+	li = NewListItem(false)
+	assert.Equal(t, []byte{0x3, 0x4, 0x0}, li.Dump())
+	li = NewListItem(true)
+	assert.Equal(t, []byte{0x3, 0x4, 0x1}, li.Dump())
+}
+
+func TestEmptyListItem(t *testing.T) {
+	var li ListItem
+	li = NewListItem(nil)
+	assert.Equal(t, []byte{0x1}, li.Dump())
+	// assert.Equal(t, []byte{0x2, 0x1}, li.Dump())
+	li = NewListItem("")
+	assert.Equal(t, []byte{0x2, 0x1}, li.Dump())
+}
+
+func TestUnicode(t *testing.T) {
+	var li ListItem
+	var v string
+	var val string = "тест"
+	li = NewListItem(val)
+	assert.Equal(t, byte(0x02), li.Dump()[1]) // Should be type 02 (Unicode)
+	v, _ = li.asString()
+	assert.Equal(t, v, val)
+
+	val = "test"
+	li = NewListItem(val)
+	assert.Equal(t, byte(0x01), li.Dump()[1]) // Should be type 01 (ASCII string)
+	v, _ = li.asString()
+	assert.Equal(t, v, val)
+
+	val = "testтест"
+	li = NewListItem(val)
+	assert.Equal(t, byte(0x02), li.Dump()[1]) // Should be type 02 (Unicode)
+	v, _ = li.asString()
+	assert.Equal(t, v, val)
+
+	// Test emoji (surrogate pairs)
+	val = "💻"
+	li = NewListItem(val)
+	assert.Equal(t, byte(0x02), li.Dump()[1]) // Should be type 02 (Unicode)
+	v, _ = li.asString()
+	assert.Equal(t, v, val)
+}
+
+func TestSpecialIEEEValues(t *testing.T) {
+	var li ListItem
+	var v float64
+
+	// Test positive infinity
+	li = NewListItem(math.Inf(1))
+	dump := li.Dump()
+	assert.Equal(t, byte(0x08), dump[1]) // Should be type 08 (compact float)
+	v, _ = li.asFloat64()
+	assert.True(t, math.IsInf(v, 1))
+
+	// Test negative infinity
+	li = NewListItem(math.Inf(-1))
+	dump = li.Dump()
+	assert.Equal(t, byte(0x08), dump[1]) // Should be type 08 (compact float)
+	v, _ = li.asFloat64()
+	assert.True(t, math.IsInf(v, -1))
+
+	// Test NaN
+	li = NewListItem(math.NaN())
+	dump = li.Dump()
+	assert.Equal(t, byte(0x09), dump[1]) // Should be type 09 (IEEE double)
+	v, _ = li.asFloat64()
+	assert.True(t, math.IsNaN(v))
+}
+
+// IRIS drops the low-order zero bytes of a float, so 2.0 arrives as the single byte 0x40 and 0 as nothing.
+// The bytes kept are the most significant ones, in little-endian order. Before this was handled, any query
+// returning such a value failed with "invalid compact float data length" or "invalid IEEE double data length".
+func TestCompactFloatWithDroppedZeroBytes(t *testing.T) {
+	for _, c := range []struct {
+		itemType ListItemType
+		data     []byte
+		want     float64
+	}{
+		{8, []byte{}, 0.0},
+		{8, []byte{0x40}, 2.0},
+		{8, []byte{0xC0}, -2.0},
+		{8, []byte{0x3F}, 0.5},
+		{8, []byte{0x70, 0x40}, 3.75},
+		{8, []byte{0x02, 0x49}, 532480.0},
+		{9, []byte{0x80, 0x54, 0x34, 0x6F, 0x9D, 0x41}, 123456789.125},
+		{9, []byte{0xE8, 0x76, 0x48, 0x17, 0x42}, 25000000000.0},
+		{9, []byte{0x34, 0x26, 0xF5, 0x6B, 0x0C, 0x43}, 1000000000000000.0},
+	} {
+		li := ListItem{itemType: c.itemType, data: c.data}
+		got, err := li.asFloat64()
+		assert.NoError(t, err)
+		assert.Equal(t, c.want, got)
+	}
+}

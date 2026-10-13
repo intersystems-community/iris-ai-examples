@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -98,5 +99,44 @@ func TestLoadPluginSettings_RowLimit(t *testing.T) {
 		if ps.RowLimit != c.want {
 			t.Errorf("%s: RowLimit = %d, want %d", c.json, ps.RowLimit, c.want)
 		}
+	}
+}
+
+func TestLoadPluginSettings_TransportDefaultsToREST(t *testing.T) {
+	ps, err := LoadPluginSettings(backend.DataSourceInstanceSettings{JSONData: []byte(`{"host":"h"}`)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ps.Transport != TransportREST || ps.SuperServerPort != 1972 {
+		t.Fatalf("transport = %q, superserver port = %d", ps.Transport, ps.SuperServerPort)
+	}
+	if ps.MaxOpenConns != 10 || ps.MaxIdleConns != 5 || ps.ConnMaxLifetime != 30*time.Minute {
+		t.Fatalf("pool defaults: %d / %d / %v", ps.MaxOpenConns, ps.MaxIdleConns, ps.ConnMaxLifetime)
+	}
+	if ps.WebPortSet {
+		t.Fatal("no web port was given, so none is set")
+	}
+}
+
+func TestLoadPluginSettings_NativeTransportAndPool(t *testing.T) {
+	js := `{"host":"h","transport":"native","superserverPort":11972,"webPort":8080,"maxOpenConns":4,"maxIdleConns":2,"connMaxLifetimeSeconds":60}`
+
+	ps, err := LoadPluginSettings(backend.DataSourceInstanceSettings{JSONData: []byte(js)})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ps.Transport != TransportNative || ps.SuperServerPort != 11972 || !ps.WebPortSet || ps.WebPort != 8080 {
+		t.Fatalf("unexpected settings %+v", ps)
+	}
+	if ps.MaxOpenConns != 4 || ps.MaxIdleConns != 2 || ps.ConnMaxLifetime != time.Minute {
+		t.Fatalf("pool: %d / %d / %v", ps.MaxOpenConns, ps.MaxIdleConns, ps.ConnMaxLifetime)
+	}
+}
+
+func TestLoadPluginSettings_AnUnknownTransportIsRefused(t *testing.T) {
+	_, err := LoadPluginSettings(backend.DataSourceInstanceSettings{JSONData: []byte(`{"host":"h","transport":"odbc"}`)})
+	if err == nil || !strings.Contains(err.Error(), "transport") {
+		t.Fatalf("want an error naming the transport, got %v", err)
 	}
 }

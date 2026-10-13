@@ -23,9 +23,11 @@ func classify(err error) (backend.Status, backend.ErrorSource) {
 		authErr  *client.AuthError
 		unreach  *client.UnreachableError
 		tooLarge *client.TooLargeError
+		tooMany  *client.TooManyRowsError
+		cfgErr   *client.ConfigError
 	)
 	switch {
-	case errors.As(err, &sqlErr), errors.As(err, &tooLarge):
+	case errors.As(err, &sqlErr), errors.As(err, &tooLarge), errors.As(err, &tooMany), errors.As(err, &cfgErr):
 		return backend.StatusBadRequest, backend.ErrorSourceDownstream
 	case errors.As(err, &authErr):
 		if authErr.HTTPStatus == 403 {
