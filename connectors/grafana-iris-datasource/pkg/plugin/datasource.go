@@ -34,6 +34,8 @@ type queryModel struct {
 	QueryText string `json:"queryText"`
 	// Format is "table" (default) or "time_series".
 	Format string `json:"format"`
+	// RowLimit overrides the data source's row limit for this query when greater than zero.
+	RowLimit int `json:"rowLimit,omitempty"`
 }
 
 // Datasource implements the Grafana backend plugin contract
@@ -44,6 +46,8 @@ type Datasource struct {
 	nowFn  func() time.Time
 	// allowWrites lifts the read-only guard (see readonly.go); off by default.
 	allowWrites bool
+	// rowLimit caps the rows a query returns; 0 means no cap (see PluginSettings.RowLimit).
+	rowLimit int
 }
 
 // Compile-time interface checks.
@@ -78,6 +82,7 @@ func NewDatasource(ctx context.Context, settings backend.DataSourceInstanceSetti
 
 	ds := NewDatasourceWithClient(restClient)
 	ds.allowWrites = ps.AllowWrites
+	ds.rowLimit = ps.RowLimit
 	return ds, nil
 }
 
@@ -126,7 +131,7 @@ func (d *Datasource) handleSQLQuery(ctx context.Context, q backend.DataQuery) ba
 		return backend.ErrDataResponseWithSource(backend.StatusBadRequest, backend.ErrorSourceDownstream, fmt.Sprintf("iris: unknown format %q (use %q or %q)", qm.Format, FormatTable, FormatTimeSeries))
 	}
 
-	sql, err := ExpandMacros(qm.QueryText, q.TimeRange)
+	sql, err := ExpandMacros(qm.QueryText, q.TimeRange, q.Interval)
 	if err != nil {
 		return backend.ErrDataResponseWithSource(backend.StatusBadRequest, backend.ErrorSourceDownstream, fmt.Sprintf("iris: %v", err))
 	}
@@ -142,6 +147,15 @@ func (d *Datasource) handleSQLQuery(ctx context.Context, q backend.DataQuery) ba
 		return errorResponse(err)
 	}
 
+	limit := d.rowLimit
+	if qm.RowLimit > 0 {
+		limit = qm.RowLimit
+	}
+	cut := limit > 0 && len(result.Rows) > limit
+	if cut {
+		result = &client.QueryResult{Columns: result.Columns, Rows: result.Rows[:limit]}
+	}
+
 	frame := frameFromQueryResult(q.RefID, result)
 	if qm.Format == FormatTimeSeries {
 		shaped, err := asTimeSeries(frame)
@@ -149,6 +163,12 @@ func (d *Datasource) handleSQLQuery(ctx context.Context, q backend.DataQuery) ba
 			return backend.ErrDataResponseWithSource(backend.StatusBadRequest, backend.ErrorSourceDownstream, fmt.Sprintf("iris: %v", err))
 		}
 		frame = shaped
+	}
+	if cut {
+		frame.AppendNotices(data.Notice{
+			Severity: data.NoticeSeverityWarning,
+			Text:     fmt.Sprintf("Showing only the first %d rows; the query returned more. Raise the row limit to see them.", limit),
+		})
 	}
 	return backend.DataResponse{Frames: data.Frames{frame}}
 }

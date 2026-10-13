@@ -24,6 +24,8 @@ type jsonData struct {
 	TimeoutSeconds int    `json:"timeoutSeconds"`
 	// AllowWrites lifts the read-only guard (readonly.go). Off unless set.
 	AllowWrites bool `json:"allowWrites"`
+	// RowLimit caps the rows one query returns; 0 (the default) means no cap. A query's own rowLimit overrides it.
+	RowLimit int `json:"rowLimit"`
 }
 
 // PluginSettings is the parsed, validated configuration for one instance
@@ -38,6 +40,7 @@ type PluginSettings struct {
 	SkipTLSVerify bool
 	Timeout       time.Duration
 	AllowWrites   bool
+	RowLimit      int
 }
 
 // LoadPluginSettings parses a data source instance's JSONData and
@@ -86,6 +89,7 @@ func LoadPluginSettings(settings backend.DataSourceInstanceSettings) (*PluginSet
 		SkipTLSVerify: jd.SkipTLSVerify,
 		Timeout:       time.Duration(timeoutSeconds) * time.Second,
 		AllowWrites:   jd.AllowWrites,
+		RowLimit:      max(jd.RowLimit, 0),
 	}, nil
 }
 

@@ -43,6 +43,8 @@ export function ConfigEditor(props: Props) {
   const onSecureSocksProxyChange = (e: ChangeEvent<HTMLInputElement>) =>
     updateJsonData('enableSecureSocksProxy', e.target.checked);
   const onAllowWritesChange = (e: ChangeEvent<HTMLInputElement>) => updateJsonData('allowWrites', e.target.checked);
+  const onRowLimitChange = (e: ChangeEvent<HTMLInputElement>) =>
+    updateJsonData('rowLimit', e.target.value === '' ? undefined : Number(e.target.value));
   const onTimeoutChange = (e: ChangeEvent<HTMLInputElement>) =>
     updateJsonData('timeoutSeconds', e.target.value === '' ? undefined : Number(e.target.value));
 
@@ -167,6 +169,21 @@ export function ConfigEditor(props: Props) {
           value={jsonData.timeoutSeconds ?? ''}
           placeholder="30"
           type="number"
+          width={FIELD_WIDTH}
+        />
+      </InlineField>
+      <InlineField
+        label="Row limit"
+        labelWidth={LABEL_WIDTH}
+        tooltip="Most rows any query returns; a query's own row limit overrides this. Empty means no limit."
+      >
+        <Input
+          id="config-editor-rowlimit"
+          onChange={onRowLimitChange}
+          value={jsonData.rowLimit ?? ''}
+          placeholder="No limit"
+          type="number"
+          min={1}
           width={FIELD_WIDTH}
         />
       </InlineField>

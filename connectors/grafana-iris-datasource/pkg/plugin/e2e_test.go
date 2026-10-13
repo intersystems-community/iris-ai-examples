@@ -191,3 +191,33 @@ func TestE2E_TheDefaultDataSourceWillNotChangeDataButTheSettingLiftsTheGuard(t *
 		t.Fatalf("writes were allowed, so the table should be empty, got %d rows", after)
 	}
 }
+
+func TestE2E_TimeGroupBucketsBothKindsOfTimestampColumn(t *testing.T) {
+	ds, c := realDatasource(t)
+	seed(t, c, "E2E_Metrics")
+	for _, col := range []string{"tp", "td"} {
+		r := run(t, ds, map[string]any{
+			"queryText": "SELECT $__timeGroup(" + col + ", 1h) AS bucket, AVG(cpu) AS cpu FROM E2E_Metrics " +
+				"WHERE $__timeFilter(" + col + ") GROUP BY $__timeGroup(" + col + ", 1h) ORDER BY bucket",
+			"format": "time_series",
+		}, t1100, t1500)
+		if r.Error != nil {
+			t.Fatalf("%s: %v", col, r.Error)
+		}
+		f := r.Frames[0]
+		if f.Rows() != 3 {
+			t.Fatalf("%s: 12:00, 13:00 and the 14:30 reading in the 14:00 bucket, got %d rows", col, f.Rows())
+		}
+		if f.Fields[0].Type() != data.FieldTypeNullableTime && f.Fields[0].Type() != data.FieldTypeTime {
+			t.Fatalf("%s: the bucket must come back as a time, got %v", col, f.Fields[0].Type())
+		}
+		got, _ := f.Fields[0].ConcreteAt(2)
+		if want := time.Date(2026, 10, 7, 14, 0, 0, 0, time.UTC); !got.(time.Time).Equal(want) {
+			t.Fatalf("%s: 14:30 belongs in the 14:00 bucket, got %v", col, got)
+		}
+		avg, _ := f.Fields[1].ConcreteAt(0)
+		if avg.(float64) != 2.0 {
+			t.Fatalf("%s: the 12:00 hour averages 1.5 and 2.5, got %v", col, avg)
+		}
+	}
+}

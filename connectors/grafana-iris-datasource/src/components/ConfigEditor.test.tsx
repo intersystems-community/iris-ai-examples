@@ -124,3 +124,25 @@ describe('ConfigEditor secure proxy', () => {
   });
 });
 
+
+describe('ConfigEditor row limit', () => {
+  it('writes rowLimit into jsonData as a number', () => {
+    const onOptionsChange = jest.fn();
+    render(<ConfigEditor onOptionsChange={onOptionsChange} options={baseOptions()} />);
+
+    fireEvent.change(screen.getByLabelText(/Row limit/i), { target: { value: '5000' } });
+
+    expect(onOptionsChange).toHaveBeenCalledWith(
+      expect.objectContaining({ jsonData: expect.objectContaining({ rowLimit: 5000 }) })
+    );
+  });
+
+  it('clears rowLimit when the field is emptied, meaning no limit', () => {
+    const onOptionsChange = jest.fn();
+    render(<ConfigEditor onOptionsChange={onOptionsChange} options={baseOptions({ rowLimit: 100 })} />);
+
+    fireEvent.change(screen.getByLabelText(/Row limit/i), { target: { value: '' } });
+
+    expect(onOptionsChange.mock.calls[0][0].jsonData.rowLimit).toBeUndefined();
+  });
+});

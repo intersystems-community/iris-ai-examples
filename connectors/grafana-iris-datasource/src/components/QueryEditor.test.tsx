@@ -108,6 +108,38 @@ describe('QueryEditor format', () => {
   });
 });
 
+describe('QueryEditor row limit and time grouping', () => {
+  it('offers a per-query row limit for SQL queries, written as a number', () => {
+    const onChange = jest.fn();
+    render(<QueryEditor datasource={fakeDatasource} query={baseQuery()} onChange={onChange} onRunQuery={jest.fn()} />);
+
+    fireEvent.change(screen.getByLabelText(/Row limit/i), { target: { value: '250' } });
+
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ rowLimit: 250 }));
+  });
+
+  it('removes the per-query limit when emptied so the data source default applies', () => {
+    const onChange = jest.fn();
+    render(<QueryEditor datasource={fakeDatasource} query={baseQuery({ rowLimit: 10 })} onChange={onChange} onRunQuery={jest.fn()} />);
+
+    fireEvent.change(screen.getByLabelText(/Row limit/i), { target: { value: '' } });
+
+    expect(onChange.mock.calls[0][0].rowLimit).toBeUndefined();
+  });
+
+  it('does not show a row limit for SAM metrics', () => {
+    render(
+      <QueryEditor datasource={fakeDatasource} query={baseQuery({ queryType: 'sam_metrics' })} onChange={jest.fn()} onRunQuery={jest.fn()} />
+    );
+    expect(screen.queryByLabelText(/Row limit/i)).not.toBeInTheDocument();
+  });
+
+  it('documents $__timeGroup next to the other macros', () => {
+    render(<QueryEditor datasource={fakeDatasource} query={baseQuery()} onChange={jest.fn()} onRunQuery={jest.fn()} />);
+    expect(screen.getByText(/\$__timeGroup\(column, interval\)/)).toBeInTheDocument();
+  });
+});
+
 describe('QueryEditor styling', () => {
   it('uses no hardcoded inline CSS (Grafana themes it)', () => {
     const { container } = render(

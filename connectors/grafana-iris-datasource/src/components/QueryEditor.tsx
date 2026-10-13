@@ -1,7 +1,7 @@
 import React, { ChangeEvent } from 'react';
 
 import { QueryEditorProps, SelectableValue } from '@grafana/data';
-import { InlineField, RadioButtonGroup, Stack, Text, TextArea } from '@grafana/ui';
+import { InlineField, Input, RadioButtonGroup, Stack, Text, TextArea } from '@grafana/ui';
 
 import { DataSource } from '../datasource';
 import { IrisDataSourceOptions, IrisFormat, IrisQuery, IrisQueryType } from '../types';
@@ -35,6 +35,11 @@ export function QueryEditor({ query, onChange, onRunQuery }: Props) {
     onRunQuery();
   };
 
+  const onRowLimitChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const raw = event.target.value;
+    onChange({ ...query, rowLimit: raw === '' ? undefined : Number(raw) });
+  };
+
   const onQueryTextChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
     onChange({ ...query, queryText: event.target.value });
   };
@@ -62,9 +67,29 @@ export function QueryEditor({ query, onChange, onRunQuery }: Props) {
         </InlineField>
       )}
       {queryType === 'sql' && (
+        <InlineField
+          label="Row limit"
+          labelWidth={16}
+          tooltip="Most rows this query returns. Empty uses the data source's row limit."
+        >
+          <Input
+            id="query-editor-row-limit"
+            type="number"
+            min={1}
+            value={query.rowLimit ?? ''}
+            onChange={onRowLimitChange}
+            onBlur={onRunQuery}
+            placeholder="Data source default"
+            width={24}
+          />
+        </InlineField>
+      )}
+      {queryType === 'sql' && (
         <Text variant="bodySmall" color="secondary">
           Macros: <code>$__timeFilter(column)</code>, <code>$__timeFrom()</code>, <code>$__timeTo()</code> follow the
-          dashboard time range. For a graph, choose Time series and ORDER BY the time column.
+          dashboard time range; <code>$__timeFrom(column)</code> and <code>$__timeTo(column)</code> add the comparison.{' '}
+          <code>$__timeGroup(column, interval)</code> buckets a time column (30s, 5m, 2h, 1d or $__interval) for GROUP
+          BY. For a graph, choose Time series and ORDER BY the time column.
         </Text>
       )}
     </Stack>

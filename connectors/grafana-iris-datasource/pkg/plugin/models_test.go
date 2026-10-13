@@ -80,3 +80,23 @@ func TestLoadPluginSettings_NeverReadsPasswordFromPlainJSONData(t *testing.T) {
 		t.Fatalf("password must never be sourced from plain jsonData, got %q", ps.Password)
 	}
 }
+
+func TestLoadPluginSettings_RowLimit(t *testing.T) {
+	cases := []struct {
+		json string
+		want int
+	}{
+		{`{"host":"h"}`, 0},                  // not set: no limit, as before this setting existed
+		{`{"host":"h","rowLimit":500}`, 500}, // set
+		{`{"host":"h","rowLimit":-3}`, 0},    // nonsense reads as no limit
+	}
+	for _, c := range cases {
+		ps, err := LoadPluginSettings(backend.DataSourceInstanceSettings{JSONData: []byte(c.json)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ps.RowLimit != c.want {
+			t.Errorf("%s: RowLimit = %d, want %d", c.json, ps.RowLimit, c.want)
+		}
+	}
+}

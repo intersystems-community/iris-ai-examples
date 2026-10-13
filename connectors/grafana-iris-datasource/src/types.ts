@@ -12,6 +12,8 @@ export interface IrisQuery extends DataQuery {
   queryText?: string;
   /** 'table' (default) returns rows as they are; 'time_series' makes the result plottable. */
   format?: IrisFormat;
+  /** Caps the rows this query returns; overrides the data source's row limit. Unset or 0: use the data source's. */
+  rowLimit?: number;
 }
 
 /** Keep in sync with pkg/plugin/timeseries.go's FormatTable / FormatTimeSeries. */
@@ -42,6 +44,8 @@ export interface IrisDataSourceOptions extends DataSourceJsonData {
   timeoutSeconds?: number;
   /** Lifts the backend's read-only guard (pkg/plugin/readonly.go). Off unless set. */
   allowWrites?: boolean;
+  /** Caps the rows any query returns (a query's own rowLimit overrides it). Unset: no cap. */
+  rowLimit?: number;
   /** Route requests through Grafana's secure SOCKS proxy (Private Data Source Connect). */
   enableSecureSocksProxy?: boolean;
 }

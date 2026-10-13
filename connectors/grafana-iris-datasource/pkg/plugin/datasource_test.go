@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
+	"github.com/grafana/grafana-plugin-sdk-go/data"
 
 	"github.com/intersystems-community/iris-ai-examples/connectors/grafana-iris-datasource/pkg/plugin/client"
 )
@@ -177,4 +179,87 @@ func TestDatasource_CheckHealth_Failure(t *testing.T) {
 	if res.Status != backend.HealthStatusError {
 		t.Fatalf("expected HealthStatusError, got %v", res.Status)
 	}
+}
+
+// fiveRows returns a fake client holding 5 one-column rows.
+func fiveRows() *fakeIRISClient {
+	var rows []client.Row
+	for i := 1; i <= 5; i++ {
+		rows = append(rows, client.Row{float64(i)})
+	}
+	return &fakeIRISClient{queryResult: &client.QueryResult{Columns: []client.Column{{Name: "N"}}, Rows: rows}}
+}
+
+func runWithLimit(t *testing.T, ds *Datasource, perQuery string) backend.DataResponse {
+	t.Helper()
+	body := `{"queryText":"SELECT N FROM T"` + perQuery + `}`
+	resp, err := ds.QueryData(context.Background(), &backend.QueryDataRequest{Queries: []backend.DataQuery{{RefID: "A", JSON: []byte(body)}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return resp.Responses["A"]
+}
+
+func TestRowLimit_NoLimitReturnsEveryRow(t *testing.T) {
+	r := runWithLimit(t, NewDatasourceWithClient(fiveRows()), "")
+	if r.Error != nil || r.Frames[0].Rows() != 5 {
+		t.Fatalf("want all 5 rows, got %d (%v)", r.Frames[0].Rows(), r.Error)
+	}
+	if len(noticesOf(r.Frames[0])) != 0 {
+		t.Fatalf("nothing was cut, so there is nothing to warn about: %+v", noticesOf(r.Frames[0]))
+	}
+}
+
+func TestRowLimit_TheDataSourceSettingCutsTheResultAndSaysSo(t *testing.T) {
+	ds := NewDatasourceWithClient(fiveRows())
+	ds.rowLimit = 2
+
+	r := runWithLimit(t, ds, "")
+
+	if r.Error != nil || r.Frames[0].Rows() != 2 {
+		t.Fatalf("want 2 rows, got %d (%v)", r.Frames[0].Rows(), r.Error)
+	}
+	notices := noticesOf(r.Frames[0])
+	if len(notices) != 1 || notices[0].Severity != data.NoticeSeverityWarning || !strings.Contains(notices[0].Text, "2") {
+		t.Fatalf("a cut result must carry a warning naming the limit, got %+v", notices)
+	}
+}
+
+func TestRowLimit_APerQueryLimitOverridesTheDataSourceOne(t *testing.T) {
+	ds := NewDatasourceWithClient(fiveRows())
+	ds.rowLimit = 2
+
+	r := runWithLimit(t, ds, `,"rowLimit":4`)
+
+	if r.Frames[0].Rows() != 4 {
+		t.Fatalf("the query's own limit wins, want 4 rows, got %d", r.Frames[0].Rows())
+	}
+}
+
+func TestRowLimit_AZeroPerQueryLimitFallsBackToTheDataSourceOne(t *testing.T) {
+	ds := NewDatasourceWithClient(fiveRows())
+	ds.rowLimit = 3
+
+	r := runWithLimit(t, ds, `,"rowLimit":0`)
+
+	if r.Frames[0].Rows() != 3 {
+		t.Fatalf("want the data source's 3, got %d", r.Frames[0].Rows())
+	}
+}
+
+func TestRowLimit_ALimitAtOrAboveTheRowCountCutsNothing(t *testing.T) {
+	ds := NewDatasourceWithClient(fiveRows())
+
+	r := runWithLimit(t, ds, `,"rowLimit":5`)
+
+	if r.Frames[0].Rows() != 5 || len(noticesOf(r.Frames[0])) != 0 {
+		t.Fatalf("exactly at the limit is not a cut: %d rows, %+v", r.Frames[0].Rows(), noticesOf(r.Frames[0]))
+	}
+}
+
+func noticesOf(f *data.Frame) []data.Notice {
+	if f.Meta == nil {
+		return nil
+	}
+	return f.Meta.Notices
 }
