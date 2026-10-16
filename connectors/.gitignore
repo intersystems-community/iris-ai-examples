@@ -1,0 +1,36 @@
+# Build and dependency artifacts across the connector implementations.
+# These are reproducible from each connector's own manifest, and some are
+# enormous (the Grafana plugin's node_modules alone is ~530MB).
+
+# Node / TypeScript (Grafana plugin, Tableau connector tests)
+node_modules/
+dist/
+coverage/
+.npm/
+*.tsbuildinfo
+
+# Go (Grafana plugin backend)
+/grafana-iris-datasource/grafana-iris-datasource_*
+*.exe
+
+# Java / Kafka Connect
+target/
+build/
+.gradle/
+*.class
+*.jar
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Local secrets and scratch output — never commit connection details
+.env
+*.local.json
+/*/out/
