@@ -159,3 +159,52 @@ func TestExpandMacros_TimeGroupRejectsBadArguments(t *testing.T) {
 		}
 	}
 }
+
+// Epoch-millisecond macros, for tables that store time as an integer count of ms since 1970 (opsreview's
+// IrisEvents.Events.Ts). tr is 2026-10-07 12:00:00 to 13:30:15 UTC.
+const (
+	trFromMs = "1791374400000"
+	trToMs   = "1791379815000"
+)
+
+func TestExpandMacros_UnixEpochMs(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"WHERE $__unixEpochMsFilter(Ts)", "WHERE Ts >= " + trFromMs + " AND Ts <= " + trToMs},
+		{"WHERE $__unixEpochMsFilter( e.Ts )", "WHERE e.Ts >= " + trFromMs + " AND e.Ts <= " + trToMs},
+		{"SELECT $__unixEpochMsFrom(), $__unixEpochMsTo()", "SELECT " + trFromMs + ", " + trToMs},
+		{"SELECT $__unixEpochMsGroup(Ts, 1m)", "SELECT (FLOOR(Ts / 60000) * 60000)"},
+		{"SELECT $__unixEpochMsGroup(Ts, 500ms)", "SELECT (FLOOR(Ts / 500) * 500)"}, // ms are exact here
+		{"SELECT $__unixEpochMsGroup(Ts, 1d)", "SELECT (FLOOR(Ts / 86400000) * 86400000)"},
+	}
+	for _, c := range cases {
+		got, err := ExpandMacros(c.in, tr, 0)
+		if err != nil || got != c.want {
+			t.Fatalf("%q\n got: %s (%v)\nwant: %s", c.in, got, err, c.want)
+		}
+	}
+}
+
+func TestExpandMacros_UnixEpochMsGroupFollowsTheQueryInterval(t *testing.T) {
+	got, err := ExpandMacros("$__unixEpochMsGroup(Ts, $__interval)", tr, 1500*time.Millisecond)
+	if err != nil || got != "(FLOOR(Ts / 1500) * 1500)" {
+		t.Fatalf("got %s (%v)", got, err)
+	}
+}
+
+func TestExpandMacros_UnixEpochMsRejectsBadArguments(t *testing.T) {
+	for _, c := range []struct{ in, name string }{
+		{"$__unixEpochMsFilter(1=1 OR x)", "unixEpochMsFilter"},
+		{"$__unixEpochMsFilter()", "unixEpochMsFilter"},
+		{"$__unixEpochMsFrom(Ts)", "unixEpochMsFrom"}, // the bare form only: compare with $__unixEpochMsFilter
+		{"$__unixEpochMsGroup(Ts)", "unixEpochMsGroup"},
+		{"$__unixEpochMsGroup(Ts, 0s)", "unixEpochMsGroup"},
+		{"$__unixEpochMsGroup(Ts, 1m; DROP TABLE t)", "unixEpochMsGroup"},
+		{"$__unixEpochMsGroup(Ts, $__interval)", "unixEpochMsGroup"}, // no query interval
+		{"$__unixEpochMsFilter(Ts", "not closed"},
+	} {
+		_, err := ExpandMacros(c.in, tr, 0)
+		if err == nil || !strings.Contains(err.Error(), c.name) {
+			t.Fatalf("%q: want an error mentioning %q, got %v", c.in, c.name, err)
+		}
+	}
+}

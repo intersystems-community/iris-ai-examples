@@ -97,6 +97,38 @@ ORDER BY bucket
 Times are written in UTC as `CAST('YYYY-MM-DD HH:MM:SS' AS TIMESTAMP)`, which compares correctly against both kinds
 of timestamp column IRIS has. If your server stores local time, convert the column in the query.
 
+For a column that holds time as an integer count of milliseconds since 1970:
+
+| Macro                            | Expands to                                                           |
+| -------------------------------- | -------------------------------------------------------------------- |
+| `$__unixEpochMsFilter(col)`      | `col >= <start ms> AND col <= <end ms>`                              |
+| `$__unixEpochMsFrom()`           | the start of the range, in epoch ms                                  |
+| `$__unixEpochMsTo()`             | the end of the range, in epoch ms                                    |
+| `$__unixEpochMsGroup(col, step)` | `col` rounded down to a whole number of steps, in ms (exact to 1 ms) |
+
+A numeric column named `time` or `timeEnd` is read as a Unix epoch, in seconds, milliseconds, microseconds or
+nanoseconds by its size, the convention Grafana's own SQL data sources use. So an integer-ms column becomes the time
+axis with an alias. `TIME` is a reserved word in IRIS SQL, so quote it:
+
+```sql
+SELECT $__unixEpochMsGroup(Ts, 5m) AS "time", COUNT(*) AS events
+FROM IrisEvents.Events
+WHERE $__unixEpochMsFilter(Ts)
+GROUP BY $__unixEpochMsGroup(Ts, 5m)
+ORDER BY "time"
+```
+
+### Annotations
+
+Any SQL query can be a dashboard annotation source (Dashboard settings, Annotations, this data source). Return a
+column named `time`, and optionally `timeEnd` for a band, `text`, and `tags` as a comma-separated string:
+
+```sql
+SELECT Ts AS "time", TsEnd AS timeEnd, msg AS text, tags
+FROM Deploys
+WHERE $__unixEpochMsFilter(Ts)
+```
+
 ### Variables
 
 Dashboard variables work in SQL. A multi-value variable becomes a quoted list for `IN (...)`: `'a','b'`. A

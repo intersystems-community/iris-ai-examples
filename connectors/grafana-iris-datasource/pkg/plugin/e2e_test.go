@@ -314,3 +314,89 @@ func TestNativeE2E_TheReadOnlyGuardStillRefusesBeforeIRISIsAsked(t *testing.T) {
 		t.Fatalf("the rows changed (%d -> %d)", before, after)
 	}
 }
+
+// seedEpochMs makes a table shaped like opsreview's IrisEvents.Events: time as integer epoch milliseconds, a
+// text column and a tags column, for two hosts.
+func seedEpochMs(t *testing.T, c client.IRISClient, table string) {
+	t.Helper()
+	ctx := context.Background()
+	_, _ = c.Query(ctx, "DROP TABLE "+table)
+	if _, err := c.Query(ctx, "CREATE TABLE "+table+" (Ts BIGINT, TsEnd BIGINT, host VARCHAR(20), cpu DOUBLE, msg VARCHAR(80), tags VARCHAR(80))"); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _, _ = c.Query(ctx, "DROP TABLE "+table) })
+	for _, row := range []string{
+		"1791374400000,1791374460000,'a',1.5,'deploy rev 41','deploy,rev-41'",   // 12:00:00
+		"1791374400500,1791374460000,'b',2.5,'config change','config'",          // 12:00:00.5
+		"1791378000000,1791378900000,'a',3.5,'Episode 7 opened','episode,ep-7'", // 13:00
+		"1791383400000,1791383400000,'a',9.5,'out of range','late'",             // 14:30
+	} {
+		if _, err := c.Query(ctx, "INSERT INTO "+table+" VALUES ("+row+")"); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestE2E_EpochMsMacrosAndTimeAxis(t *testing.T) {
+	ds, c := realDatasource(t)
+	seedEpochMs(t, c, "E2E_EpochMs")
+
+	r := run(t, ds, map[string]any{
+		"queryText": "SELECT $__unixEpochMsGroup(Ts, 1h) AS \"time\", AVG(cpu) AS cpu FROM E2E_EpochMs " +
+			"WHERE $__unixEpochMsFilter(Ts) GROUP BY $__unixEpochMsGroup(Ts, 1h) ORDER BY \"time\"",
+		"format": "time_series",
+	}, t1100, t1330)
+
+	if r.Error != nil {
+		t.Fatal(r.Error)
+	}
+	f := r.Frames[0]
+	if f.Rows() != 2 {
+		t.Fatalf("12:00 and 13:00 are in range and 14:30 is not, got %d rows", f.Rows())
+	}
+	first, _ := f.Fields[0].ConcreteAt(0)
+	if want := time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC); !first.(time.Time).Equal(want) {
+		t.Fatalf("an integer-ms column aliased as time must be the time axis, bucketed to 12:00; got %v", first)
+	}
+	avg, _ := f.Fields[1].ConcreteAt(0)
+	if avg.(float64) != 2.0 {
+		t.Fatalf("the 12:00 hour averages 1.5 and 2.5, got %v", avg)
+	}
+}
+
+// An annotation query is a table query whose columns are named time, timeEnd, text and tags; Grafana maps them.
+// TIME is a reserved word in IRIS SQL, so the alias is quoted: AS "time". The others need no quotes.
+func TestE2E_AnAnnotationShapedQueryReturnsTimesAndText(t *testing.T) {
+	ds, c := realDatasource(t)
+	seedEpochMs(t, c, "E2E_Anno")
+
+	r := run(t, ds, map[string]any{
+		"queryText": "SELECT Ts AS \"time\", TsEnd AS timeEnd, msg AS text, tags FROM E2E_Anno WHERE $__unixEpochMsFilter(Ts) ORDER BY Ts",
+	}, t1100, t1330)
+
+	if r.Error != nil {
+		t.Fatal(r.Error)
+	}
+	f := r.Frames[0]
+	if f.Rows() != 3 {
+		t.Fatalf("want the three in-range events, got %d", f.Rows())
+	}
+	names := map[string]data.FieldType{}
+	for _, fld := range f.Fields {
+		names[fld.Name] = fld.Type()
+	}
+	if names["time"] != data.FieldTypeNullableTime || names["timeEnd"] != data.FieldTypeNullableTime {
+		t.Fatalf("time and timeEnd must be times, got %v", names)
+	}
+	if names["text"] != data.FieldTypeNullableString || names["tags"] != data.FieldTypeNullableString {
+		t.Fatalf("text and tags must be strings, got %v", names)
+	}
+	end, _ := f.Fields[1].ConcreteAt(2)
+	if want := time.Date(2026, 10, 7, 13, 15, 0, 0, time.UTC); !end.(time.Time).Equal(want) {
+		t.Fatalf("the Episode band must end at 13:15, got %v", end)
+	}
+	half, _ := f.Fields[0].ConcreteAt(1)
+	if want := time.Date(2026, 10, 7, 12, 0, 0, 500_000_000, time.UTC); !half.(time.Time).Equal(want) {
+		t.Fatalf("millisecond precision must survive, got %v", half)
+	}
+}

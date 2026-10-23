@@ -21,6 +21,13 @@ import (
 //	$__timeGroup(col, step)    col floored to a whole number of steps, for GROUP BY on a time series;
 //	                           step is 30s, 5m, 2h, 7d (or 500ms, rounded up to 1s), or $__interval
 //
+// For a column that holds Unix epoch milliseconds as an integer:
+//
+//	$__unixEpochMsFrom()           the start of the time range, in epoch ms
+//	$__unixEpochMsTo()             the end of the time range
+//	$__unixEpochMsFilter(col)      col >= <from ms> AND col <= <to ms>
+//	$__unixEpochMsGroup(col, step) col floored to a whole number of steps, in ms (500ms is exact here)
+//
 // Times are written in UTC as 'YYYY-MM-DD HH:MM:SS', because that is how IRIS renders and compares
 // %TimeStamp values on a server whose clock is UTC (as containers are). A server on local time needs
 // the column converted in the query; the data source does not guess.
@@ -37,7 +44,7 @@ const epoch = "CAST('1970-01-01 00:00:00' AS TIMESTAMP)"
 var (
 	// An identifier IRIS accepts as a column: optional table qualifiers, or a double-quoted name.
 	columnPattern = regexp.MustCompile(`^(?:[A-Za-z_%][A-Za-z0-9_%]*|"[^"]+")(?:\.(?:[A-Za-z_%][A-Za-z0-9_%]*|"[^"]+"))*$`)
-	macroOpen     = regexp.MustCompile(`\$__(timeFilter|timeFrom|timeTo|timeGroup)\(`)
+	macroOpen     = regexp.MustCompile(`\$__(timeFilter|timeFrom|timeTo|timeGroup|unixEpochMsFilter|unixEpochMsFrom|unixEpochMsTo|unixEpochMsGroup)\(`)
 	// A step such as 30s, 5m, 2h, 7d, 1500ms.
 	intervalPattern = regexp.MustCompile(`^([0-9]+)(ms|s|m|h|d)$`)
 	intervalUnits   = map[string]time.Duration{"ms": time.Millisecond, "s": time.Second, "m": time.Minute, "h": time.Hour, "d": 24 * time.Hour}
@@ -53,9 +60,6 @@ func timestampLiteral(t time.Time) string {
 // ExpandMacros replaces the time macros in sql using the query's time range. interval is the query's
 // step (Grafana's $__interval), used by $__timeGroup(col, $__interval); zero means none is available.
 func ExpandMacros(sql string, tr backend.TimeRange, interval time.Duration) (string, error) {
-	from := timestampLiteral(tr.From)
-	to := timestampLiteral(tr.To)
-
 	var out strings.Builder
 	rest := sql
 	for {
@@ -71,7 +75,7 @@ func ExpandMacros(sql string, tr backend.TimeRange, interval time.Duration) (str
 		if closeAt < 0 {
 			return "", fmt.Errorf("$__%s( is not closed with )", name)
 		}
-		expanded, err := expandMacro(name, rest[argStart:argStart+closeAt], from, to, interval)
+		expanded, err := expandMacro(name, rest[argStart:argStart+closeAt], tr, interval)
 		if err != nil {
 			return "", err
 		}
@@ -81,12 +85,17 @@ func ExpandMacros(sql string, tr backend.TimeRange, interval time.Duration) (str
 	}
 }
 
-func expandMacro(name, args, from, to string, interval time.Duration) (string, error) {
+func expandMacro(name, args string, tr backend.TimeRange, interval time.Duration) (string, error) {
+	from, to := timestampLiteral(tr.From), timestampLiteral(tr.To)
+	fromMs, toMs := strconv.FormatInt(tr.From.UnixMilli(), 10), strconv.FormatInt(tr.To.UnixMilli(), 10)
 	switch name {
-	case "timeFilter":
+	case "timeFilter", "unixEpochMsFilter":
 		col, err := oneColumn(name, args)
 		if err != nil {
 			return "", err
+		}
+		if name == "unixEpochMsFilter" {
+			from, to = fromMs, toMs
 		}
 		return fmt.Sprintf("%s >= %s AND %s <= %s", col, from, col, to), nil
 	case "timeFrom", "timeTo":
@@ -103,8 +112,28 @@ func expandMacro(name, args, from, to string, interval time.Duration) (string, e
 			return "", err
 		}
 		return fmt.Sprintf("%s %s %s", col, op, bound), nil
+	case "unixEpochMsFrom", "unixEpochMsTo":
+		if strings.TrimSpace(args) != "" {
+			return "", fmt.Errorf("$__%s takes no argument; to compare a column use $__unixEpochMsFilter(col)", name)
+		}
+		if name == "unixEpochMsTo" {
+			return toMs, nil
+		}
+		return fromMs, nil
+	case "unixEpochMsGroup":
+		col, step, err := columnAndStep(name, args, interval)
+		if err != nil {
+			return "", err
+		}
+		n := strconv.FormatInt(ceilUnits(step, time.Millisecond), 10)
+		return fmt.Sprintf("(FLOOR(%s / %s) * %s)", col, n, n), nil
 	default: // timeGroup
-		return expandTimeGroup(args, interval)
+		col, step, err := columnAndStep(name, args, interval)
+		if err != nil {
+			return "", err
+		}
+		n := strconv.FormatInt(ceilUnits(step, time.Second), 10)
+		return fmt.Sprintf("DATEADD(second, FLOOR(DATEDIFF(second, %s, %s) / %s) * %s, %s)", epoch, col, n, n, epoch), nil
 	}
 }
 
@@ -116,47 +145,37 @@ func oneColumn(name, args string) (string, error) {
 	return col, nil
 }
 
-func expandTimeGroup(args string, interval time.Duration) (string, error) {
+// columnAndStep parses the "col, step" arguments of a grouping macro. step is 30s, 5m, 2h, 1d, 500ms, or
+// $__interval for the panel's resolution.
+func columnAndStep(name, args string, interval time.Duration) (string, time.Duration, error) {
 	parts := strings.Split(args, ",")
 	if len(parts) != 2 {
-		return "", fmt.Errorf("$__timeGroup needs a column and an interval, got %q", args)
+		return "", 0, fmt.Errorf("$__%s needs a column and an interval, got %q", name, args)
 	}
 	col := strings.TrimSpace(parts[0])
 	if !columnPattern.MatchString(col) {
-		return "", fmt.Errorf("$__timeGroup needs a column name first, got %q", col)
+		return "", 0, fmt.Errorf("$__%s needs a column name first, got %q", name, col)
 	}
-	seconds, err := intervalSeconds(strings.TrimSpace(parts[1]), interval)
-	if err != nil {
-		return "", err
-	}
-	n := strconv.FormatInt(seconds, 10)
-	return fmt.Sprintf("DATEADD(second, FLOOR(DATEDIFF(second, %s, %s) / %s) * %s, %s)", epoch, col, n, n, epoch), nil
-}
-
-// intervalSeconds turns "5m" or "$__interval" into whole seconds, at least one. IRIS buckets at one-second
-// resolution here, so a sub-second step is rounded up rather than refused.
-func intervalSeconds(raw string, queryInterval time.Duration) (int64, error) {
+	raw := strings.TrimSpace(parts[1])
 	if raw == "$__interval" {
-		if queryInterval <= 0 {
-			return 0, fmt.Errorf("$__timeGroup interval $__interval has no value here; give an explicit step such as 1m")
+		if interval <= 0 {
+			return "", 0, fmt.Errorf("$__%s interval $__interval has no value here; give an explicit step such as 1m", name)
 		}
-		return ceilSeconds(queryInterval), nil
+		return col, interval, nil
 	}
 	m := intervalPattern.FindStringSubmatch(raw)
 	if m == nil {
-		return 0, fmt.Errorf("$__timeGroup interval %q is not a step such as 30s, 5m, 2h or 1d", raw)
+		return "", 0, fmt.Errorf("$__%s interval %q is not a step such as 30s, 5m, 2h or 1d", name, raw)
 	}
 	n, err := strconv.ParseInt(m[1], 10, 64)
 	if err != nil || n <= 0 {
-		return 0, fmt.Errorf("$__timeGroup interval %q must be greater than zero", raw)
+		return "", 0, fmt.Errorf("$__%s interval %q must be greater than zero", name, raw)
 	}
-	return ceilSeconds(time.Duration(n) * intervalUnits[m[2]]), nil
+	return col, time.Duration(n) * intervalUnits[m[2]], nil
 }
 
-func ceilSeconds(d time.Duration) int64 {
-	s := int64((d + time.Second - 1) / time.Second)
-	if s < 1 {
-		return 1
-	}
-	return s
+// ceilUnits rounds a step up to a whole number of units, at least one: $__timeGroup buckets at one-second
+// resolution, so a sub-second step is rounded up rather than refused.
+func ceilUnits(d, unit time.Duration) int64 {
+	return max(int64((d+unit-1)/unit), 1)
 }

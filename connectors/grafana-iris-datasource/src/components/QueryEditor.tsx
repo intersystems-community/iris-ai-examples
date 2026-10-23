@@ -89,7 +89,9 @@ export function QueryEditor({ query, onChange, onRunQuery }: Props) {
           Macros: <code>$__timeFilter(column)</code>, <code>$__timeFrom()</code>, <code>$__timeTo()</code> follow the
           dashboard time range; <code>$__timeFrom(column)</code> and <code>$__timeTo(column)</code> add the comparison.{' '}
           <code>$__timeGroup(column, interval)</code> buckets a time column (30s, 5m, 2h, 1d or $__interval) for GROUP
-          BY. For a graph, choose Time series and ORDER BY the time column.
+          BY. For epoch-millisecond columns use <code>$__unixEpochMsFilter(column)</code> and{' '}
+          <code>$__unixEpochMsGroup(column, interval)</code>; a numeric column named <code>&quot;time&quot;</code> is
+          read as an epoch. For a graph, choose Time series and ORDER BY the time column.
         </Text>
       )}
     </Stack>

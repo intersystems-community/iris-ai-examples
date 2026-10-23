@@ -35,6 +35,9 @@ export function interpolateSqlVariable(value: VariableValue, variable: VariableI
 export class DataSource extends DataSourceWithBackend<IrisQuery, IrisDataSourceOptions> {
   constructor(instanceSettings: DataSourceInstanceSettings<IrisDataSourceOptions>) {
     super(instanceSettings);
+    // Standard annotation support: an annotation query uses the same editor and backend as a panel query.
+    // Return columns named time (and optionally timeEnd), text and tags (comma-separated).
+    this.annotations = {};
   }
 
   getDefaultQuery(_: CoreApp): Partial<IrisQuery> {

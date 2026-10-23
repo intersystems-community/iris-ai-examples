@@ -3,8 +3,10 @@ package plugin
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/grafana/grafana-plugin-sdk-go/data"
@@ -53,6 +55,16 @@ func frameFromQueryResult(frameName string, qr *client.QueryResult) *data.Frame 
 // empty or its values don't agree on a single type.
 func fieldFromValues(name string, values []interface{}) *data.Field {
 	kind := classifyColumn(values)
+	if kind == colFloat && isEpochTimeName(name) {
+		out := make([]*time.Time, len(values))
+		for i, v := range values {
+			if f, ok := toFloat64(v); ok {
+				t := epochToTime(f)
+				out[i] = &t
+			}
+		}
+		return data.NewField(name, nil, out)
+	}
 	switch kind {
 	case colBool:
 		out := make([]*bool, len(values))
@@ -88,6 +100,27 @@ func fieldFromValues(name string, values []interface{}) *data.Field {
 			out[i] = &s
 		}
 		return data.NewField(name, nil, out)
+	}
+}
+
+// isEpochTimeName says whether a numeric column is read as a Unix epoch. Grafana's own SQL data sources
+// treat a column named time this way; timeEnd is the end of an annotation's span.
+func isEpochTimeName(name string) bool {
+	return strings.EqualFold(name, "time") || strings.EqualFold(name, "timeEnd")
+}
+
+// epochToTime reads a Unix epoch in seconds, milliseconds, microseconds or nanoseconds, deciding the unit by
+// magnitude: present-day values are about 1.8e9 s, 1.8e12 ms, 1.8e15 us and 1.8e18 ns.
+func epochToTime(v float64) time.Time {
+	switch a := math.Abs(v); {
+	case a < 1e11:
+		return time.UnixMilli(int64(math.Round(v * 1e3))).UTC()
+	case a < 1e14:
+		return time.UnixMilli(int64(v)).UTC()
+	case a < 1e17:
+		return time.UnixMicro(int64(v)).UTC()
+	default:
+		return time.Unix(0, int64(v)).UTC()
 	}
 }
 

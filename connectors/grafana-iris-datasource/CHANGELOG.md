@@ -6,6 +6,10 @@ First release.
 
 - SQL queries with the `$__timeFilter(col)`, `$__timeFrom()`/`$__timeTo()` (and column forms) and
   `$__timeGroup(col, step)` macros, dashboard variables, a row limit, and Table or Time series format.
+- Epoch-millisecond macros (`$__unixEpochMsFilter`, `$__unixEpochMsFrom`/`To`, `$__unixEpochMsGroup`), and a
+  numeric column named `time` or `timeEnd` read as an epoch.
+- Annotation queries: any SQL query returning `time`, `timeEnd`, `text` and `tags` can be a dashboard annotation
+  source.
 - A Native connection over the IRIS SuperServer port, which runs queries under the account's SQL privileges.
 - SAM metrics query.
 - Alerting support.

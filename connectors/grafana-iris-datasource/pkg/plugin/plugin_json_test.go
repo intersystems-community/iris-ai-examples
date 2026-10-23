@@ -20,6 +20,7 @@ func TestPluginJSON(t *testing.T) {
 		Executable   string `json:"executable"`
 		Metrics      bool   `json:"metrics"`
 		Alerting     bool   `json:"alerting"`
+		Annotations  bool   `json:"annotations"`
 		Dependencies struct {
 			GrafanaDependency string `json:"grafanaDependency"`
 		} `json:"dependencies"`
@@ -42,6 +43,9 @@ func TestPluginJSON(t *testing.T) {
 	}
 	if !p.Alerting {
 		t.Error("alerting must be true: the whole query path is in the backend (PA-05)")
+	}
+	if !p.Annotations {
+		t.Error("annotations must be true: a SQL query can be a dashboard annotation source")
 	}
 	if !p.Metrics {
 		t.Error("metrics must be true")

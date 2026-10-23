@@ -56,3 +56,16 @@ describe('DataSource.applyTemplateVariables', () => {
     expect(out.format).toBe('time_series');
   });
 });
+
+describe('DataSource annotations', () => {
+  const ds = new DataSource({ id: 1, uid: 'x', name: 'iris', type: 'intersystems-iris-datasource', jsonData: {} } as any);
+
+  it('offers standard annotation support, so a SQL query can be an annotation source', () => {
+    expect(ds.annotations).toBeDefined();
+  });
+
+  it('runs an annotation query that has SQL, and skips one that has none', () => {
+    expect(ds.filterQuery({ refId: 'Anno', queryText: 'SELECT 1 AS time' } as any)).toBe(true);
+    expect(ds.filterQuery({ refId: 'Anno', queryText: '' } as any)).toBe(false);
+  });
+});
