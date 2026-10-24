@@ -10,6 +10,11 @@ interface Props extends DataSourcePluginOptionsEditorProps<IrisDataSourceOptions
 
 const TRANSPORT_OPTIONS: Array<SelectableValue<IrisTransport>> = [
   { label: 'REST API', value: 'rest', description: "IRIS's web port (default 52773)" },
+  {
+    label: 'Web terminal',
+    value: 'terminal',
+    description: "IRIS's web port, under the account's SQL privileges (IRIS 2023.2 or later)",
+  },
   { label: 'Native', value: 'native', description: "IRIS's SuperServer port (default 1972)" },
 ];
 
@@ -58,6 +63,7 @@ export function ConfigEditor(props: Props) {
     (e: ChangeEvent<HTMLInputElement>) =>
       updateJsonData(key, e.target.value === '' ? undefined : Number(e.target.value));
   const native = jsonData.transport === 'native';
+  const terminal = jsonData.transport === 'terminal';
 
   const onPasswordChange = (e: ChangeEvent<HTMLInputElement>) => {
     onOptionsChange({
@@ -87,7 +93,7 @@ export function ConfigEditor(props: Props) {
       <InlineField
         label="Connection"
         labelWidth={LABEL_WIDTH}
-        tooltip="REST uses IRIS's web port. Native uses the SuperServer port and runs queries under the SQL privileges of the account."
+        tooltip="REST uses IRIS's web port. Web terminal uses the same port and runs queries under the SQL privileges of the account. Native uses the SuperServer port, also under the account's SQL privileges."
       >
         <RadioButtonGroup
           options={TRANSPORT_OPTIONS}
@@ -215,9 +221,9 @@ export function ConfigEditor(props: Props) {
       </InlineField>
       {jsonData.allowWrites && (
         <Alert severity="warning" title="Data changes are allowed">
-          Anyone who can edit a panel using this data source can change or delete data in IRIS. IRIS does not limit what
-          its REST API can do to the table privileges of the account, so only switch this on for a data source that
-          nobody else can use.
+          {terminal
+            ? 'Anyone who can edit a panel using this data source can change or delete whatever the SQL privileges of the account allow.'
+            : 'Anyone who can edit a panel using this data source can change or delete data in IRIS. IRIS does not limit what its REST API can do to the table privileges of the account, so only switch this on for a data source that nobody else can use.'}
         </Alert>
       )}
       <InlineField label="Timeout (seconds)" labelWidth={LABEL_WIDTH} tooltip="HTTP request timeout. Defaults to 30.">
@@ -230,6 +236,14 @@ export function ConfigEditor(props: Props) {
           width={FIELD_WIDTH}
         />
       </InlineField>
+      {terminal && (
+        <Alert severity="info" title="Web terminal connection">
+          Queries run under the SQL privileges of the account: a user granted SELECT on one view reads that view and
+          nothing else, which the REST API does not enforce. Each query opens IRIS&apos;s terminal WebSocket on the web
+          port, so it needs IRIS 2023.2 or later and takes longer than REST (a few hundred milliseconds). The account
+          needs the %Development resource, as it does for REST.
+        </Alert>
+      )}
       {native && (
         <>
           <Alert severity="info" title="Native connection">

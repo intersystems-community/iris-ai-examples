@@ -272,6 +272,7 @@ func TestBuildClient_ChoosesTheTransportFromTheSettings(t *testing.T) {
 	}{
 		{`{"host":"h"}`, "*client.RESTClient"},
 		{`{"host":"h","transport":"native"}`, "*client.NativeClient"},
+		{`{"host":"h","transport":"terminal"}`, "*client.TerminalClient"},
 	} {
 		settings := backend.DataSourceInstanceSettings{JSONData: []byte(c.json)}
 		ps, err := LoadPluginSettings(settings)

@@ -4,6 +4,7 @@ go 1.26.5
 
 require (
 	github.com/caretdev/go-irisnative v0.3.0
+	github.com/coder/websocket v1.8.15
 	github.com/grafana/grafana-plugin-sdk-go v0.297.0
 )
 

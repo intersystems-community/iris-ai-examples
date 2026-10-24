@@ -77,7 +77,8 @@ func NewDatasource(ctx context.Context, settings backend.DataSourceInstanceSetti
 	return ds, nil
 }
 
-// buildClient makes the IRISClient the settings ask for: REST over the web port, or native over the SuperServer.
+// buildClient makes the IRISClient the settings ask for: REST or the terminal over the web port, or native over
+// the SuperServer.
 func buildClient(ctx context.Context, settings backend.DataSourceInstanceSettings, ps *PluginSettings) (client.IRISClient, error) {
 	httpClient, err := newHTTPClient(ctx, settings, ps)
 	if err != nil {
@@ -92,8 +93,19 @@ func buildClient(ctx context.Context, settings backend.DataSourceInstanceSetting
 		Timeout:            ps.Timeout,
 		HTTPClient:         httpClient,
 	})
-	if ps.Transport != TransportNative {
+	switch ps.Transport {
+	case TransportREST:
 		return rest, nil
+	case TransportTerminal:
+		return client.NewTerminalClient(client.TerminalClientConfig{
+			BaseURL:    ps.BaseURL(),
+			Namespace:  ps.Namespace,
+			Username:   ps.Username,
+			Password:   ps.Password,
+			Timeout:    ps.Timeout,
+			HTTPClient: httpClient,
+			Metrics:    rest,
+		}), nil
 	}
 
 	cfg := client.NativeClientConfig{
@@ -188,7 +200,8 @@ func (d *Datasource) handleSQLQuery(ctx context.Context, q backend.DataQuery) ba
 	}
 
 	frame := frameFromQueryResult(q.RefID, result)
-	if qm.Format == FormatTimeSeries {
+	// An empty result has no column that can show it holds times; it is simply no data, not a wrong query.
+	if qm.Format == FormatTimeSeries && len(result.Rows) > 0 {
 		shaped, err := asTimeSeries(frame)
 		if err != nil {
 			return backend.ErrDataResponseWithSource(backend.StatusBadRequest, backend.ErrorSourceDownstream, fmt.Sprintf("iris: %v", err))

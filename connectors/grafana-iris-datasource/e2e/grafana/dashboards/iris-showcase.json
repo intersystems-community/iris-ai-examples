@@ -1,0 +1,196 @@
+{
+  "uid": "iris-showcase",
+  "title": "IRIS showcase: deploys, Episodes and log storms",
+  "description": "Synthetic data from e2e/seed-showcase.sh: two Tenants, three IRIS instances each, 48 hours. Times are epoch milliseconds.",
+  "schemaVersion": 39,
+  "version": 1,
+  "time": {
+    "from": "now-48h",
+    "to": "now"
+  },
+  "refresh": "",
+  "tags": [
+    "iris",
+    "showcase"
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "tenant",
+        "label": "Tenant (acme or globex)",
+        "type": "textbox",
+        "query": "acme",
+        "current": {
+          "text": "acme",
+          "value": "acme"
+        }
+      }
+    ]
+  },
+  "annotations": {
+    "list": [
+      {
+        "name": "Deploys",
+        "datasource": {
+          "type": "intersystems-iris-datasource",
+          "uid": "iris-e2e"
+        },
+        "enable": true,
+        "iconColor": "#5794F2",
+        "target": {
+          "refId": "Deploys",
+          "datasource": {
+            "type": "intersystems-iris-datasource",
+            "uid": "iris-e2e"
+          },
+          "queryType": "sql",
+          "queryText": "SELECT Ts AS \"time\", Title || ' (' || RevisionId || ')' AS text, 'deploy,' || InstanceID AS tags\nFROM Demo.Events WHERE TenantID = '$tenant' AND Category = 'sal_lifecycle' AND $__unixEpochMsFilter(Ts)",
+          "format": "table"
+        }
+      },
+      {
+        "name": "Episodes",
+        "datasource": {
+          "type": "intersystems-iris-datasource",
+          "uid": "iris-e2e"
+        },
+        "enable": true,
+        "iconColor": "#F2495C",
+        "target": {
+          "refId": "Episodes",
+          "datasource": {
+            "type": "intersystems-iris-datasource",
+            "uid": "iris-e2e"
+          },
+          "queryType": "sql",
+          "queryText": "SELECT StartTs AS \"time\", EndTs AS timeEnd, Summary AS text, 'episode,' || Metric AS tags\nFROM Demo.Episodes WHERE TenantID = '$tenant' AND $__unixEpochMsFilter(StartTs)",
+          "format": "table"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Log-storm volume ($tenant)",
+      "datasource": {
+        "type": "intersystems-iris-datasource",
+        "uid": "iris-e2e"
+      },
+      "description": "Lines per bucket from the 5-minute log rollups. Deploys (blue) and Episodes (red bands) are annotations.",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "intersystems-iris-datasource",
+            "uid": "iris-e2e"
+          },
+          "queryType": "sql",
+          "queryText": "SELECT $__unixEpochMsGroup(BucketStart, $__interval) AS \"time\", SUM(\"Count\") AS lines\nFROM Demo.LogRollups WHERE TenantID = '$tenant' AND $__unixEpochMsFilter(BucketStart)\nGROUP BY $__unixEpochMsGroup(BucketStart, $__interval) ORDER BY 1",
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "table",
+      "title": "Events ($tenant)",
+      "datasource": {
+        "type": "intersystems-iris-datasource",
+        "uid": "iris-e2e"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 14,
+        "h": 10
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "intersystems-iris-datasource",
+            "uid": "iris-e2e"
+          },
+          "queryType": "sql",
+          "queryText": "SELECT Ts AS \"time\", InstanceID, Category, Severity, Title, RevisionId\nFROM Demo.Events WHERE TenantID = '$tenant' AND $__unixEpochMsFilter(Ts) ORDER BY Ts DESC",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "table",
+      "title": "Episodes ($tenant)",
+      "datasource": {
+        "type": "intersystems-iris-datasource",
+        "uid": "iris-e2e"
+      },
+      "gridPos": {
+        "x": 14,
+        "y": 9,
+        "w": 10,
+        "h": 10
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "intersystems-iris-datasource",
+            "uid": "iris-e2e"
+          },
+          "queryType": "sql",
+          "queryText": "SELECT StartTs AS \"time\", EndTs AS timeEnd, InstanceID, Metric, Summary\nFROM Demo.Episodes WHERE TenantID = '$tenant' AND $__unixEpochMsFilter(StartTs) ORDER BY StartTs DESC",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "barchart",
+      "title": "Log lines by template ($tenant)",
+      "datasource": {
+        "type": "intersystems-iris-datasource",
+        "uid": "iris-e2e"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 19,
+        "w": 24,
+        "h": 8
+      },
+      "options": {
+        "orientation": "horizontal",
+        "xField": "TemplateText"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "intersystems-iris-datasource",
+            "uid": "iris-e2e"
+          },
+          "queryType": "sql",
+          "queryText": "SELECT TemplateText, SUM(\"Count\") AS lines\nFROM Demo.LogRollups WHERE TenantID = '$tenant' AND $__unixEpochMsFilter(BucketStart)\nGROUP BY TemplateText ORDER BY lines DESC",
+          "format": "table"
+        }
+      ]
+    }
+  ]
+}

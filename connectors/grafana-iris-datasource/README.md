@@ -4,7 +4,9 @@ Query InterSystems IRIS with SQL, and chart IRIS's built-in system metrics, from
 alert rules.
 
 - **SQL** with time-range macros, time bucketing, dashboard variables, a row limit, and a Table or Time series format.
-- **Two ways to connect**: IRIS's REST API (web port) or its native SuperServer port.
+- **Three ways to connect**: IRIS's REST API (web port), its web terminal (the same port, with the account's SQL
+  privileges enforced), or its native SuperServer port.
+- **Multi-tenant dashboards** on one shared IRIS, with the web terminal connection and a Grafana org per Tenant.
 - **System metrics** from IRIS's built-in `/api/monitor/metrics` endpoint (the same data System Alerting and
   Monitoring reads).
 - **Alerting**: queries run on the Grafana server, so alert rules can use them.
@@ -15,9 +17,10 @@ alert rules.
 - Grafana 11.1 or later. Tested on Grafana 11.1.0 and 13.2.3.
 - InterSystems IRIS reachable on its web port (52773 by default, or your web gateway's port) for the **REST API**
   connection, whose `/api/atelier` endpoint is part of every IRIS instance, or on its SuperServer port (1972) for
-  the **Native** connection.
+  the **Native** connection. The **Web terminal** connection uses the web port too, and needs IRIS 2023.2 or later.
 - For REST, an IRIS account that holds the `%Development` resource, which the REST API requires, and can read the
-  tables you query. For Native, an account with `SELECT` on the tables you query and nothing more.
+  tables you query. For the web terminal, the same `%Development` resource plus `SELECT` on exactly what the
+  account may read. For Native, an account with `SELECT` on the tables you query and nothing more.
 
 ## Security
 
@@ -26,10 +29,16 @@ Read this before you connect a production instance.
 - **Queries are read-only by default.** Only `SELECT` (and `WITH ... SELECT`) statements run, and only one per
   query. Anything else is refused before it reaches IRIS. The "Allow data changes" setting lifts this; leave it off
   unless nobody else can use the data source.
-- **Prefer the Native connection for a shared or production instance.** It runs every query under the account's SQL
-  privileges: in testing, a `SELECT`-only account was refused `INSERT`, `DELETE` and a read of `%SYS.Task`
-  (SQLCODE -99). Its limits: the driver has no TLS option, so the connection is not encrypted, and it is alpha
-  software (see Good to know).
+- **Prefer the Web terminal connection for a shared or production instance.** It runs every query under the
+  account's SQL privileges: in testing, an account granted `SELECT` on one view read that view and was refused the
+  base table, another Tenant's view and a `DELETE` on its own view (SQLCODE -99), while the same account over REST
+  read all of them. It uses the web port, so HTTPS and your web gateway apply as they do for REST.
+- **The Native connection also enforces SQL privileges**, but its driver has no TLS option, so the connection is not
+  encrypted, and it is alpha software (see Good to know).
+- **The account still holds `%Development`**, as `/api/atelier` requires on any connection, so whoever knows its
+  password can run ObjectScript on that IRIS. Grafana keeps the password encrypted and never sends it to the browser.
+  The web terminal connection types a fixed program and passes the panel's SQL to it as base64 data, so a panel's
+  SQL can never run as ObjectScript.
 - **IRIS permissions do not limit what the REST API can do.** In testing, an account holding `SELECT` on a single
   table could still delete its rows, read other namespaces and read the class dictionary through `/api/atelier`.
   Treat any account you give Grafana as able to read everything on that IRIS instance, and treat anyone who can
@@ -42,7 +51,7 @@ Read this before you connect a production instance.
 
 Add the data source under Connections, then fill in:
 
-- **Connection**: **REST API** (default) or **Native**.
+- **Connection**: **REST API** (default), **Web terminal** or **Native**.
 - **Host** and **Web port**: where IRIS's web server answers. With a Native connection also set **SuperServer
   port** (1972 by default); the web port is then optional and used only for SAM metrics.
 - **Namespace**: the namespace queries run in. Defaults to `USER`.
@@ -129,6 +138,10 @@ FROM Deploys
 WHERE $__unixEpochMsFilter(Ts)
 ```
 
+On Grafana 13, an annotation query that uses a **Custom** or **Constant** dashboard variable does not run at all,
+with no error. A **Text box** variable works, and so does every variable type on Grafana 11.1. Measured on
+13.2.3; it is Grafana's behaviour, not this data source's.
+
 ### Variables
 
 Dashboard variables work in SQL. A multi-value variable becomes a quoted list for `IN (...)`: `'a','b'`. A
@@ -140,11 +153,32 @@ doubled. Use `${name:raw}` to insert a value exactly as it is.
 Alert rules can use this data source. Macros work in alerts; dashboard variables do not, which is a Grafana rule
 for all data sources.
 
+## Multi-tenant dashboards
+
+To give several Tenants dashboards over one shared IRIS, with no Tenant able to see another's rows:
+
+1. In IRIS, give each Tenant a view over the shared tables (`... WHERE TenantID = 'acme'`) and an account granted
+   `SELECT` on that view only, plus `%Development`.
+2. In Grafana, make an organisation per Tenant, with one data source using the **Web terminal** connection and that
+   Tenant's account. Grafana OSS has no per-data-source permissions, so the organisation is the boundary; Grafana
+   Enterprise and Cloud can restrict a data source to a team instead.
+3. Add the Tenant's people to their organisation only.
+
+A viewer can send any SQL to their data source through Grafana's query API, not just the panels' SQL. That is
+why the boundary is in IRIS: the view and the grant decide what the account reads. With the **REST API**
+connection the same setup leaks, because `/api/atelier` does not check the grant. `e2e/tenant-isolation.sh` builds
+this setup against a real IRIS and Grafana and checks both: it passes with the web terminal and fails with
+`TENANT_TRANSPORT=rest`.
+
 ## Good to know
 
-- **NULL arrives as an empty string or 0.** The REST API does not send real nulls, so a NULL cannot be told from an
-  empty value.
-- **One statement per query.** Over REST, results over 64 MiB are refused; over Native, results over 1,000,000 rows.
+- **NULL arrives as an empty string or 0 over REST.** The REST API does not send real nulls, so a NULL cannot be told
+  from an empty value. The web terminal and Native connections send real nulls.
+- **The web terminal is slower than REST**: each query opens a terminal session and types about ten short lines,
+  about 250 ms on a local container against tens of milliseconds for REST. Panels still run in parallel. Its other
+  results read the same as REST, which the tests check value by value.
+- **One statement per query.** Over REST, results over 64 MiB are refused; over Native, results over 1,000,000 rows;
+  over the web terminal, either.
   Narrow the query with `TOP`, a `WHERE` clause or `$__timeFilter`. A row limit cuts the result after IRIS has
   sent it and says so on the panel; it does not make IRIS do less work.
 - **The Native connection uses the community [`go-irisnative`](https://github.com/caretdev/go-irisnative) driver**,
@@ -164,6 +198,9 @@ for all data sources.
 - **`SQLCODE -30`, table not found**: tables belong to a schema, for example `SQLUser.MyTable`, and to the
   namespace you configured.
 - **"this data source is read-only"**: the statement is not a `SELECT`. See Security.
+- **`SQLCODE -99`, "not privileged for the operation"** (web terminal or Native): IRIS refused the account. Grant it
+  `SELECT` on the table or view, or query one it can read.
+- **"this IRIS has no web terminal"**: the web terminal connection needs IRIS 2023.2 or later. Use REST or Native.
 
 ## Links
 

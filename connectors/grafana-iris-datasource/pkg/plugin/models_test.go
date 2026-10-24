@@ -134,6 +134,16 @@ func TestLoadPluginSettings_NativeTransportAndPool(t *testing.T) {
 	}
 }
 
+func TestLoadPluginSettings_TerminalTransportUsesTheWebPort(t *testing.T) {
+	ps, err := LoadPluginSettings(backend.DataSourceInstanceSettings{JSONData: []byte(`{"host":"h","transport":"terminal"}`)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ps.Transport != TransportTerminal || ps.BaseURL() != "http://h:52773" {
+		t.Fatalf("transport %q, base URL %q", ps.Transport, ps.BaseURL())
+	}
+}
+
 func TestLoadPluginSettings_AnUnknownTransportIsRefused(t *testing.T) {
 	_, err := LoadPluginSettings(backend.DataSourceInstanceSettings{JSONData: []byte(`{"host":"h","transport":"odbc"}`)})
 	if err == nil || !strings.Contains(err.Error(), "transport") {

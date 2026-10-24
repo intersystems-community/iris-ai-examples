@@ -117,6 +117,27 @@ func TestFormat_TimeSeriesWithoutATimeColumnSaysSo(t *testing.T) {
 	}
 }
 
+func TestFormat_TimeSeriesWithNoRowsIsAnEmptyResultNotAnError(t *testing.T) {
+	// A Tenant with no data in the range is normal. REST sends no columns for an empty result; the terminal
+	// sends the names with no values. Neither can show a timestamp column, and neither is the user's mistake.
+	for _, res := range []*client.QueryResult{
+		{},
+		{Columns: []client.Column{{Name: "time"}, {Name: "lines"}}},
+	} {
+		ds := NewDatasourceWithClient(&fakeIRISClient{queryResult: res})
+
+		resp, _ := ds.QueryData(context.Background(), sqlRequest(t, map[string]any{"queryText": "SELECT x", "format": "time_series"}))
+
+		r := resp.Responses["A"]
+		if r.Error != nil {
+			t.Fatalf("%d columns: want no error, got %v", len(res.Columns), r.Error)
+		}
+		if len(r.Frames) != 1 || r.Frames[0].Rows() != 0 {
+			t.Fatalf("%d columns: want one empty frame, got %v", len(res.Columns), r.Frames)
+		}
+	}
+}
+
 func TestFormat_AnUnknownFormatIsRejected(t *testing.T) {
 	ds := NewDatasourceWithClient(&fakeIRISClient{queryResult: timeSeriesResult()})
 

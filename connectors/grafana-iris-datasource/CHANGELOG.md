@@ -11,6 +11,12 @@ First release.
 - Annotation queries: any SQL query returning `time`, `timeEnd`, `text` and `tags` can be a dashboard annotation
   source.
 - A Native connection over the IRIS SuperServer port, which runs queries under the account's SQL privileges.
+- A Web terminal connection over the web port (IRIS 2023.2 or later), which also runs queries under the account's
+  SQL privileges, through IRIS's `/api/atelier/v7/%SYS/terminal` WebSocket. With a Grafana org per Tenant it keeps
+  each Tenant to its own rows on a shared IRIS; `e2e/tenant-isolation.sh` checks that on Grafana 11.1.0 and 13.2.3.
+- A showcase dashboard over a synthetic dataset (`e2e/seed-showcase.sh`): two Tenants' deploys, findings, Episodes
+  and log-storm rollups in epoch milliseconds, with deploy and Episode annotations.
+- A Time series query that returns no rows is an empty panel, not an error.
 - SAM metrics query.
 - Alerting support.
 - Read-only by default; an "Allow data changes" setting lifts the guard.

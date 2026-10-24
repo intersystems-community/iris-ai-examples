@@ -20,7 +20,12 @@
 // This plugin implements (1) as IRISClient's only production
 // implementation (see rest_client.go), because it is the only option that
 // works against a stock IRIS install with nothing extra to deploy, using
-// only the Go standard library. The interface below is what keeps that
+// only the Go standard library.
+//
+// Two more implementations came later. terminal_client.go runs SQL through
+// the web port's terminal WebSocket, because (1) does not enforce the
+// account's SQL privileges and the terminal does. native_client.go talks to
+// the SuperServer through a community driver. The interface below is what keeps that
 // decision swappable: a pgwire- or JDBC-backed IRISClient can be added
 // later without touching the datasource, query, or frame-conversion code.
 package client

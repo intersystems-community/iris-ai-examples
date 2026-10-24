@@ -33,12 +33,26 @@ IRIS_SUPERSERVER=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAd
   go test -tags e2e -count=1 ./pkg/...                          # fails, not skips, without the variables
 
 ./e2e/seed.sh                                                    # demo data for the dashboard
+./e2e/seed-showcase.sh                                           # synthetic Tenant events for /d/iris-showcase
 GRAFANA_VERSION=11.1.0 docker compose -f docker-compose.grafana.yaml up -d --wait   # Grafana on :33000
 GRAFANA_VERSION=13.2.3 GRAFANA_E2E_PORT=33001 \
   docker compose -p grafana-iris-ds-13 -f docker-compose.grafana.yaml up -d --wait  # a second one on :33001
 ```
 
-Open `http://localhost:33000/d/iris-demo`. Grafana is anonymous Admin in this stack: it is for local testing only.
+Open `http://localhost:33000/d/iris-demo` and `/d/iris-showcase`. Grafana is anonymous Admin in this stack: it is
+for local testing only. The e2e suite runs every query in the showcase dashboard, so seed it before the suite.
+
+```bash
+./e2e/tenant-isolation.sh                                        # Tenant isolation through Grafana on :33000
+GRAFANA_URL=http://localhost:33001 ./e2e/tenant-isolation.sh     # and on :33001
+TENANT_TRANSPORT=rest ./e2e/tenant-isolation.sh                  # the control: must exit 1
+```
+
+The terminal transport (`pkg/plugin/client/terminal_*.go`) rests on three things measured against IRIS 2026.1, each
+pinned by a test. A terminal line of 427 characters or more is dropped with no output, so everything goes over in
+short base64 chunks. A WebSocket without the CSP session cookie holds a licence slot until its session times out,
+so one cookie is seeded with `GET /api/atelier/` and shared. And the terminal discards input that arrives while it
+is busy, so each line waits for its prompt.
 
 ### The browser cache trap
 

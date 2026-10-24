@@ -41,6 +41,10 @@ metrics; minimum Grafana 11.1.0 with `@grafana/*` pinned to 11.x; test on 11.1 a
 - `GET /api/monitor/metrics` is Prometheus text, parsed without error (742 samples). It needs no login by default
   (its web application has authentication level 64).
 - `/api/atelier` needs the `%Development` resource, and then runs SQL without enforcing table privileges (see PA-10).
+- `/api/atelier/v7/%SYS/terminal` (IRIS 2023.2+) runs ObjectScript as the logged-in user, and
+  `%SQL.Statement.%Prepare(sql, 1)` there does enforce table privileges (SQLCODE -99). The web terminal transport
+  is built on that. Its terminal drops input lines of 427 characters or more without output, discards input sent
+  while it is busy, and holds a licence per CSP session, so connections share one session cookie.
 - A DDL `TIMESTAMP` column is a PosixTime: returned as unix microseconds + 2^60, and compared correctly only against
   `CAST('...' AS TIMESTAMP)`, never a bare string literal.
 

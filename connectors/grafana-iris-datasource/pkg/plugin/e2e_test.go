@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"net"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -398,5 +399,76 @@ func TestE2E_AnAnnotationShapedQueryReturnsTimesAndText(t *testing.T) {
 	half, _ := f.Fields[0].ConcreteAt(1)
 	if want := time.Date(2026, 10, 7, 12, 0, 0, 500_000_000, time.UTC); !half.(time.Time).Equal(want) {
 		t.Fatalf("millisecond precision must survive, got %v", half)
+	}
+}
+
+// The terminal transport, built from settings the way Grafana builds it, so the SDK's HTTP client is in the path.
+
+func terminalDatasource(t *testing.T, user, password string) *Datasource {
+	t.Helper()
+	u, err := url.Parse(os.Getenv("IRIS_URL"))
+	if err != nil || u.Host == "" {
+		t.Fatal("set IRIS_URL")
+	}
+	port, _ := strconv.Atoi(u.Port())
+	js, _ := json.Marshal(map[string]any{"host": u.Hostname(), "webPort": port, "namespace": "USER", "username": user, "transport": "terminal"})
+	inst, err := NewDatasource(context.Background(), backend.DataSourceInstanceSettings{JSONData: js, DecryptedSecureJSONData: map[string]string{"password": password}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return inst.(*Datasource)
+}
+
+func TestTerminalE2E_TimeFilterAndTimeGroupMatchTheRESTPath(t *testing.T) {
+	_, rest := realDatasource(t)
+	seed(t, rest, "TE2E_Metrics")
+	ds := terminalDatasource(t, os.Getenv("IRIS_USER"), os.Getenv("IRIS_PASSWORD"))
+	for _, col := range []string{"tp", "td"} {
+		r := run(t, ds, map[string]any{
+			"queryText": "SELECT $__timeGroup(" + col + ", 1h) AS bucket, AVG(cpu) AS cpu FROM TE2E_Metrics " +
+				"WHERE $__timeFilter(" + col + ") GROUP BY $__timeGroup(" + col + ", 1h) ORDER BY bucket",
+			"format": "time_series",
+		}, t1100, t1500)
+		if r.Error != nil {
+			t.Fatalf("%s: %v", col, r.Error)
+		}
+		f := r.Frames[0]
+		if f.Rows() != 3 {
+			t.Fatalf("%s: want 3 hourly buckets, got %d", col, f.Rows())
+		}
+		first, _ := f.Fields[0].ConcreteAt(0)
+		if want := time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC); !first.(time.Time).Equal(want) {
+			t.Fatalf("%s: first bucket %v, want %v", col, first, want)
+		}
+		avg, _ := f.Fields[1].ConcreteAt(0)
+		if avg.(float64) != 2.0 {
+			t.Fatalf("%s: the 12:00 hour averages 1.5 and 2.5, got %v", col, avg)
+		}
+	}
+}
+
+func TestTerminalE2E_ARefusedReadIsTheUsersToFixAndHealthStillPasses(t *testing.T) {
+	_, rest := realDatasource(t)
+	seed(t, rest, "TE2E_Private")
+	ctx := context.Background()
+	_, _ = rest.Query(ctx, "DROP USER te2eviewer")
+	for _, sql := range []string{"CREATE USER te2eviewer IDENTIFY BY 'te2e-pw'", "GRANT %Developer TO te2eviewer"} {
+		if _, err := rest.Query(ctx, sql); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Cleanup(func() { _, _ = rest.Query(ctx, "DROP USER te2eviewer") })
+	ds := terminalDatasource(t, "te2eviewer", "te2e-pw")
+
+	health, err := ds.CheckHealth(ctx, &backend.CheckHealthRequest{})
+	if err != nil || health.Status != backend.HealthStatusOk {
+		t.Fatalf("health: %+v %v", health, err)
+	}
+	r := run(t, ds, map[string]any{"queryText": "SELECT * FROM TE2E_Private"}, t1100, t1500)
+	if r.Error == nil || !strings.Contains(r.Error.Error(), "not privileged") {
+		t.Fatalf("want IRIS's privilege refusal, got %v", r.Error)
+	}
+	if r.Status != backend.StatusBadRequest || r.ErrorSource != backend.ErrorSourceDownstream {
+		t.Fatalf("%v / %v", r.Status, r.ErrorSource)
 	}
 }

@@ -24,7 +24,8 @@ type jsonData struct {
 	TimeoutSeconds int    `json:"timeoutSeconds"`
 	// AllowWrites lifts the read-only guard (readonly.go). Off unless set.
 	AllowWrites bool `json:"allowWrites"`
-	// Transport is how the plugin talks to IRIS: "rest" (default, the web port) or "native" (the SuperServer).
+	// Transport is how the plugin talks to IRIS: "rest" (default, the web port), "terminal" (the web port's
+	// terminal WebSocket, with SQL privileges enforced) or "native" (the SuperServer).
 	Transport string `json:"transport"`
 	// SuperServerPort is the SuperServer port used by the native transport. Defaults to 1972.
 	SuperServerPort int `json:"superserverPort"`
@@ -50,7 +51,7 @@ type PluginSettings struct {
 	AllowWrites   bool
 	RowLimit      int
 
-	// Transport is TransportREST or TransportNative.
+	// Transport is TransportREST, TransportTerminal or TransportNative.
 	Transport       string
 	SuperServerPort int
 	// WebPortSet is true when the user gave a web port. The native transport scrapes SAM metrics through the
@@ -63,8 +64,9 @@ type PluginSettings struct {
 
 // The transports a data source can use.
 const (
-	TransportREST   = "rest"
-	TransportNative = "native"
+	TransportREST     = "rest"
+	TransportTerminal = "terminal"
+	TransportNative   = "native"
 )
 
 // LoadPluginSettings parses a data source instance's JSONData and
@@ -92,8 +94,8 @@ func LoadPluginSettings(settings backend.DataSourceInstanceSettings) (*PluginSet
 	if transport == "" {
 		transport = TransportREST
 	}
-	if transport != TransportREST && transport != TransportNative {
-		return nil, fmt.Errorf("iris: unknown transport %q (use %q or %q)", transport, TransportREST, TransportNative)
+	if transport != TransportREST && transport != TransportTerminal && transport != TransportNative {
+		return nil, fmt.Errorf("iris: unknown transport %q (use %q, %q or %q)", transport, TransportREST, TransportTerminal, TransportNative)
 	}
 
 	webPort := jd.WebPort

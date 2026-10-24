@@ -194,4 +194,31 @@ describe('ConfigEditor connection type', () => {
     render(<ConfigEditor onOptionsChange={jest.fn()} options={baseOptions()} />);
     expect(screen.queryByText(/not encrypted/i)).not.toBeInTheDocument();
   });
+
+  it('writes transport into jsonData when the web terminal is chosen', () => {
+    const onOptionsChange = jest.fn();
+    render(<ConfigEditor onOptionsChange={onOptionsChange} options={baseOptions()} />);
+
+    fireEvent.click(screen.getByLabelText(/Web terminal/i));
+
+    expect(onOptionsChange).toHaveBeenCalledWith(
+      expect.objectContaining({ jsonData: expect.objectContaining({ transport: 'terminal' }) })
+    );
+  });
+
+  it('says what the web terminal connection does and needs', () => {
+    render(<ConfigEditor onOptionsChange={jest.fn()} options={baseOptions({ transport: 'terminal' })} />);
+    expect(screen.getByText(/SQL privileges of the account/i)).toBeInTheDocument();
+    expect(screen.getByText(/2023\.2/)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/SuperServer port/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/not encrypted/i)).not.toBeInTheDocument();
+  });
+
+  it('does not claim IRIS ignores table privileges for writes on a web terminal connection', () => {
+    render(
+      <ConfigEditor onOptionsChange={jest.fn()} options={baseOptions({ transport: 'terminal', allowWrites: true })} />
+    );
+    expect(screen.queryByText(/does not limit what its REST API can do/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Data changes are allowed/i)).toBeInTheDocument();
+  });
 });
