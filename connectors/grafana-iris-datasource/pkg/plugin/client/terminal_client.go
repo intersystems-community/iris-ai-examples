@@ -56,6 +56,9 @@ type TerminalClient struct {
 
 var _ IRISClient = (*TerminalClient)(nil)
 
+// DefaultMaxRows is generous for a dashboard query and finite for a runaway SELECT *.
+const DefaultMaxRows = 1_000_000
+
 // sessionRefresh renews the CSP session well inside IRIS's default 900-second timeout.
 const sessionRefresh = 5 * time.Minute
 

@@ -29,7 +29,6 @@ The suites below can, and found the plugin's most serious bugs.
 ```bash
 docker compose -f docker-compose.e2e.yaml up -d --wait          # a disposable IRIS on :33273
 IRIS_URL=http://localhost:33273 IRIS_USER=_SYSTEM IRIS_PASSWORD=SYS \
-IRIS_SUPERSERVER=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' grafana-iris-ds-e2e-iris):1972 \
   go test -tags e2e -count=1 ./pkg/...                          # fails, not skips, without the variables
 
 ./e2e/seed.sh                                                    # demo data for the dashboard

@@ -145,54 +145,23 @@ describe('ConfigEditor row limit', () => {
 });
 
 describe('ConfigEditor connection type', () => {
-  it('defaults to the REST API and hides the SuperServer settings', () => {
+  it('defaults to the REST API and offers only the web-port connections', () => {
     render(<ConfigEditor onOptionsChange={jest.fn()} options={baseOptions()} />);
     expect(screen.getByLabelText(/REST API/i)).toBeChecked();
+    expect(screen.getByLabelText(/Web terminal/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Native/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/SuperServer port/i)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/Max open connections/i)).not.toBeInTheDocument();
   });
 
-  it('writes transport into jsonData when Native is chosen', () => {
-    const onOptionsChange = jest.fn();
-    render(<ConfigEditor onOptionsChange={onOptionsChange} options={baseOptions()} />);
-
-    fireEvent.click(screen.getByLabelText(/Native/i));
-
-    expect(onOptionsChange).toHaveBeenCalledWith(
-      expect.objectContaining({ jsonData: expect.objectContaining({ transport: 'native' }) })
-    );
-  });
-
-  it('shows the SuperServer port and pool settings for a native connection', () => {
-    render(<ConfigEditor onOptionsChange={jest.fn()} options={baseOptions({ transport: 'native' })} />);
-    expect(screen.getByLabelText(/SuperServer port/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Max open connections/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Max idle connections/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Connection lifetime/i)).toBeInTheDocument();
-  });
-
-  it('writes the native settings as numbers, and clears them when emptied', () => {
-    const onOptionsChange = jest.fn();
+  it('tells a data source saved with the removed native connection what to switch to', () => {
     render(
-      <ConfigEditor onOptionsChange={onOptionsChange} options={baseOptions({ transport: 'native', maxOpenConns: 4 })} />
+      <ConfigEditor
+        onOptionsChange={jest.fn()}
+        options={baseOptions({ transport: 'native' as IrisDataSourceOptions['transport'] })}
+      />
     );
-
-    fireEvent.change(screen.getByLabelText(/SuperServer port/i), { target: { value: '11972' } });
-    expect(onOptionsChange.mock.calls[0][0].jsonData.superserverPort).toBe(11972);
-
-    fireEvent.change(screen.getByLabelText(/Max open connections/i), { target: { value: '' } });
-    expect(onOptionsChange.mock.calls[1][0].jsonData.maxOpenConns).toBeUndefined();
-  });
-
-  it('says what the native connection does and does not do', () => {
-    render(<ConfigEditor onOptionsChange={jest.fn()} options={baseOptions({ transport: 'native' })} />);
-    expect(screen.getByText(/not encrypted/i)).toBeInTheDocument();
-    expect(screen.getByText(/SQL privileges/i)).toBeInTheDocument();
-  });
-
-  it('does not show the native warnings on a REST connection', () => {
-    render(<ConfigEditor onOptionsChange={jest.fn()} options={baseOptions()} />);
-    expect(screen.queryByText(/not encrypted/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/native connection was removed/i)).toBeInTheDocument();
+    expect(screen.getByText(/choose Web terminal/i)).toBeInTheDocument();
   });
 
   it('writes transport into jsonData when the web terminal is chosen', () => {
@@ -210,8 +179,6 @@ describe('ConfigEditor connection type', () => {
     render(<ConfigEditor onOptionsChange={jest.fn()} options={baseOptions({ transport: 'terminal' })} />);
     expect(screen.getByText(/SQL privileges of the account/i)).toBeInTheDocument();
     expect(screen.getByText(/2023\.2/)).toBeInTheDocument();
-    expect(screen.queryByLabelText(/SuperServer port/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/not encrypted/i)).not.toBeInTheDocument();
   });
 
   it('does not claim IRIS ignores table privileges for writes on a web terminal connection', () => {

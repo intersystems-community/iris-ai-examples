@@ -15,7 +15,6 @@ const TRANSPORT_OPTIONS: Array<SelectableValue<IrisTransport>> = [
     value: 'terminal',
     description: "IRIS's web port, under the account's SQL privileges (IRIS 2023.2 or later)",
   },
-  { label: 'Native', value: 'native', description: "IRIS's SuperServer port (default 1972)" },
 ];
 
 const LABEL_WIDTH = 20;
@@ -58,11 +57,8 @@ export function ConfigEditor(props: Props) {
   const onTimeoutChange = (e: ChangeEvent<HTMLInputElement>) =>
     updateJsonData('timeoutSeconds', e.target.value === '' ? undefined : Number(e.target.value));
   const onTransportChange = (value: IrisTransport) => updateJsonData('transport', value);
-  const numberField =
-    (key: 'superserverPort' | 'maxOpenConns' | 'maxIdleConns' | 'connMaxLifetimeSeconds') =>
-    (e: ChangeEvent<HTMLInputElement>) =>
-      updateJsonData(key, e.target.value === '' ? undefined : Number(e.target.value));
-  const native = jsonData.transport === 'native';
+  // A data source saved while the SuperServer connection existed still says so; the backend refuses it.
+  const removedNative = (jsonData.transport as string | undefined) === 'native';
   const terminal = jsonData.transport === 'terminal';
 
   const onPasswordChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -93,7 +89,7 @@ export function ConfigEditor(props: Props) {
       <InlineField
         label="Connection"
         labelWidth={LABEL_WIDTH}
-        tooltip="REST uses IRIS's web port. Web terminal uses the same port and runs queries under the SQL privileges of the account. Native uses the SuperServer port, also under the account's SQL privileges."
+        tooltip="REST uses IRIS's web port. Web terminal uses the same port and runs queries under the SQL privileges of the account."
       >
         <RadioButtonGroup
           options={TRANSPORT_OPTIONS}
@@ -101,6 +97,12 @@ export function ConfigEditor(props: Props) {
           onChange={onTransportChange}
         />
       </InlineField>
+      {removedNative && (
+        <Alert severity="error" title="This connection type no longer exists">
+          The native connection was removed. To keep queries under the SQL privileges of the account, choose Web
+          terminal, which uses the web port.
+        </Alert>
+      )}
       <InlineField label="Host" labelWidth={LABEL_WIDTH} required tooltip="IRIS host name or IP address">
         <Input
           id="config-editor-host"
@@ -110,30 +112,10 @@ export function ConfigEditor(props: Props) {
           width={FIELD_WIDTH}
         />
       </InlineField>
-      {native && (
-        <InlineField
-          label="SuperServer port"
-          labelWidth={LABEL_WIDTH}
-          tooltip="IRIS SuperServer port. Defaults to 1972."
-        >
-          <Input
-            id="config-editor-superserverport"
-            onChange={numberField('superserverPort')}
-            value={jsonData.superserverPort ?? ''}
-            placeholder="1972"
-            type="number"
-            width={FIELD_WIDTH}
-          />
-        </InlineField>
-      )}
       <InlineField
         label="Web port"
         labelWidth={LABEL_WIDTH}
-        tooltip={
-          native
-            ? 'Optional. Only needed for SAM metrics queries, which the IRIS web server provides.'
-            : 'IRIS web server port (the one that serves the Management Portal and REST APIs). Defaults to 52773.'
-        }
+        tooltip="IRIS web server port (the one that serves the Management Portal and REST APIs). Defaults to 52773."
       >
         <Input
           id="config-editor-webport"
@@ -243,60 +225,6 @@ export function ConfigEditor(props: Props) {
           port, so it needs IRIS 2023.2 or later and takes longer than REST (a few hundred milliseconds). The account
           needs the %Development resource, as it does for REST.
         </Alert>
-      )}
-      {native && (
-        <>
-          <Alert severity="info" title="Native connection">
-            Queries run under the SQL privileges of the account, so a SELECT-only account cannot change data or read
-            system tables (the REST API does not enforce this). The connection is not encrypted: the native driver has
-            no TLS option yet, so use it on a trusted network.
-          </Alert>
-          <InlineField
-            label="Max open connections"
-            labelWidth={LABEL_WIDTH}
-            tooltip="Connection pool size. Defaults to 10."
-          >
-            <Input
-              id="config-editor-maxopen"
-              onChange={numberField('maxOpenConns')}
-              value={jsonData.maxOpenConns ?? ''}
-              placeholder="10"
-              type="number"
-              min={1}
-              width={FIELD_WIDTH}
-            />
-          </InlineField>
-          <InlineField
-            label="Max idle connections"
-            labelWidth={LABEL_WIDTH}
-            tooltip="Idle connections kept open. Defaults to 5."
-          >
-            <Input
-              id="config-editor-maxidle"
-              onChange={numberField('maxIdleConns')}
-              value={jsonData.maxIdleConns ?? ''}
-              placeholder="5"
-              type="number"
-              min={1}
-              width={FIELD_WIDTH}
-            />
-          </InlineField>
-          <InlineField
-            label="Connection lifetime (s)"
-            labelWidth={LABEL_WIDTH}
-            tooltip="Longest a connection is reused. Defaults to 1800."
-          >
-            <Input
-              id="config-editor-connlifetime"
-              onChange={numberField('connMaxLifetimeSeconds')}
-              value={jsonData.connMaxLifetimeSeconds ?? ''}
-              placeholder="1800"
-              type="number"
-              min={1}
-              width={FIELD_WIDTH}
-            />
-          </InlineField>
-        </>
       )}
       <InlineField
         label="Row limit"

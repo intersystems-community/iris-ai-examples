@@ -24,15 +24,9 @@ type jsonData struct {
 	TimeoutSeconds int    `json:"timeoutSeconds"`
 	// AllowWrites lifts the read-only guard (readonly.go). Off unless set.
 	AllowWrites bool `json:"allowWrites"`
-	// Transport is how the plugin talks to IRIS: "rest" (default, the web port), "terminal" (the web port's
-	// terminal WebSocket, with SQL privileges enforced) or "native" (the SuperServer).
+	// Transport is how the plugin talks to IRIS over the web port: "rest" (default) or "terminal" (the terminal
+	// WebSocket, with SQL privileges enforced).
 	Transport string `json:"transport"`
-	// SuperServerPort is the SuperServer port used by the native transport. Defaults to 1972.
-	SuperServerPort int `json:"superserverPort"`
-	// Connection pool for the native transport.
-	MaxOpenConns           int `json:"maxOpenConns"`
-	MaxIdleConns           int `json:"maxIdleConns"`
-	ConnMaxLifetimeSeconds int `json:"connMaxLifetimeSeconds"`
 	// RowLimit caps the rows one query returns; 0 (the default) means no cap. A query's own rowLimit overrides it.
 	RowLimit int `json:"rowLimit"`
 }
@@ -51,23 +45,19 @@ type PluginSettings struct {
 	AllowWrites   bool
 	RowLimit      int
 
-	// Transport is TransportREST, TransportTerminal or TransportNative.
-	Transport       string
-	SuperServerPort int
-	// WebPortSet is true when the user gave a web port. The native transport scrapes SAM metrics through the
-	// web port, so it offers them only then; the REST transport needs the port anyway and defaults it.
-	WebPortSet      bool
-	MaxOpenConns    int
-	MaxIdleConns    int
-	ConnMaxLifetime time.Duration
+	// Transport is TransportREST or TransportTerminal.
+	Transport string
 }
 
 // The transports a data source can use.
 const (
 	TransportREST     = "rest"
 	TransportTerminal = "terminal"
-	TransportNative   = "native"
 )
+
+// removedNative is the SuperServer transport this plugin had before 0.1.0 shipped. Its only Go driver was a
+// community one, so it lives on the feat/grafana-iris-datasource-native branch; the web terminal took its place.
+const removedNative = "native"
 
 // LoadPluginSettings parses a data source instance's JSONData and
 // DecryptedSecureJSONData into a PluginSettings, applying defaults and
@@ -94,13 +84,16 @@ func LoadPluginSettings(settings backend.DataSourceInstanceSettings) (*PluginSet
 	if transport == "" {
 		transport = TransportREST
 	}
-	if transport != TransportREST && transport != TransportTerminal && transport != TransportNative {
-		return nil, fmt.Errorf("iris: unknown transport %q (use %q, %q or %q)", transport, TransportREST, TransportTerminal, TransportNative)
+	switch transport {
+	case TransportREST, TransportTerminal:
+	case removedNative:
+		return nil, fmt.Errorf("iris: the native connection was removed; choose Web terminal (transport %q), which also runs queries under the account's SQL privileges", TransportTerminal)
+	default:
+		return nil, fmt.Errorf("iris: unknown transport %q (use %q or %q)", transport, TransportREST, TransportTerminal)
 	}
 
 	webPort := jd.WebPort
-	webPortSet := webPort != 0
-	if webPort == 0 {
+	if webPort <= 0 {
 		webPort = 52773
 	}
 
@@ -125,13 +118,7 @@ func LoadPluginSettings(settings backend.DataSourceInstanceSettings) (*PluginSet
 		Timeout:       time.Duration(timeoutSeconds) * time.Second,
 		AllowWrites:   jd.AllowWrites,
 		RowLimit:      max(jd.RowLimit, 0),
-
-		Transport:       transport,
-		SuperServerPort: orDefault(jd.SuperServerPort, 1972),
-		WebPortSet:      webPortSet,
-		MaxOpenConns:    orDefault(jd.MaxOpenConns, 10),
-		MaxIdleConns:    orDefault(jd.MaxIdleConns, 5),
-		ConnMaxLifetime: time.Duration(orDefault(jd.ConnMaxLifetimeSeconds, 1800)) * time.Second,
+		Transport:     transport,
 	}, nil
 }
 
@@ -143,12 +130,4 @@ func (s *PluginSettings) BaseURL() string {
 		scheme = "https"
 	}
 	return fmt.Sprintf("%s://%s:%d", scheme, s.Host, s.WebPort)
-}
-
-// orDefault is v, or def when v is unset or not positive.
-func orDefault(v, def int) int {
-	if v <= 0 {
-		return def
-	}
-	return v
 }

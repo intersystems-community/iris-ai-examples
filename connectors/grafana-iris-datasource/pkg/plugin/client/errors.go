@@ -14,14 +14,10 @@ type SQLError struct {
 
 func (e *SQLError) Error() string { return "iris: query failed: " + e.Message }
 
-// AuthError is HTTP 401 or 403 from IRIS or its web gateway, or a refused login on the native connection
-// (HTTPStatus 0).
+// AuthError is HTTP 401 or 403 from IRIS or its web gateway.
 type AuthError struct{ HTTPStatus int }
 
 func (e *AuthError) Error() string {
-	if e.HTTPStatus == 0 {
-		return "iris: authentication failed"
-	}
 	return fmt.Sprintf("iris: authentication failed (HTTP %d)", e.HTTPStatus)
 }
 

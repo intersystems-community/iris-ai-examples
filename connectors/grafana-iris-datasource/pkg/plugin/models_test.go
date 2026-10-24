@@ -107,30 +107,16 @@ func TestLoadPluginSettings_TransportDefaultsToREST(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ps.Transport != TransportREST || ps.SuperServerPort != 1972 {
-		t.Fatalf("transport = %q, superserver port = %d", ps.Transport, ps.SuperServerPort)
-	}
-	if ps.MaxOpenConns != 10 || ps.MaxIdleConns != 5 || ps.ConnMaxLifetime != 30*time.Minute {
-		t.Fatalf("pool defaults: %d / %d / %v", ps.MaxOpenConns, ps.MaxIdleConns, ps.ConnMaxLifetime)
-	}
-	if ps.WebPortSet {
-		t.Fatal("no web port was given, so none is set")
+	if ps.Transport != TransportREST {
+		t.Fatalf("transport = %q", ps.Transport)
 	}
 }
 
-func TestLoadPluginSettings_NativeTransportAndPool(t *testing.T) {
-	js := `{"host":"h","transport":"native","superserverPort":11972,"webPort":8080,"maxOpenConns":4,"maxIdleConns":2,"connMaxLifetimeSeconds":60}`
-
-	ps, err := LoadPluginSettings(backend.DataSourceInstanceSettings{JSONData: []byte(js)})
-
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ps.Transport != TransportNative || ps.SuperServerPort != 11972 || !ps.WebPortSet || ps.WebPort != 8080 {
-		t.Fatalf("unexpected settings %+v", ps)
-	}
-	if ps.MaxOpenConns != 4 || ps.MaxIdleConns != 2 || ps.ConnMaxLifetime != time.Minute {
-		t.Fatalf("pool: %d / %d / %v", ps.MaxOpenConns, ps.MaxIdleConns, ps.ConnMaxLifetime)
+func TestLoadPluginSettings_TheRemovedNativeTransportPointsAtTheWebTerminal(t *testing.T) {
+	// A data source saved while the native transport existed must say what to switch to, not just "unknown".
+	_, err := LoadPluginSettings(backend.DataSourceInstanceSettings{JSONData: []byte(`{"host":"h","transport":"native"}`)})
+	if err == nil || !strings.Contains(err.Error(), "removed") || !strings.Contains(err.Error(), "Web terminal") {
+		t.Fatalf("want an error saying native was removed and naming the Web terminal, got %v", err)
 	}
 }
 

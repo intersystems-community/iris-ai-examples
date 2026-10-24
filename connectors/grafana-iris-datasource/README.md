@@ -4,8 +4,8 @@ Query InterSystems IRIS with SQL, and chart IRIS's built-in system metrics, from
 alert rules.
 
 - **SQL** with time-range macros, time bucketing, dashboard variables, a row limit, and a Table or Time series format.
-- **Three ways to connect**: IRIS's REST API (web port), its web terminal (the same port, with the account's SQL
-  privileges enforced), or its native SuperServer port.
+- **Two ways to connect**, both over IRIS's web port: the REST API, or the web terminal, which enforces the
+  account's SQL privileges.
 - **Multi-tenant dashboards** on one shared IRIS, with the web terminal connection and a Grafana org per Tenant.
 - **System metrics** from IRIS's built-in `/api/monitor/metrics` endpoint (the same data System Alerting and
   Monitoring reads).
@@ -16,11 +16,11 @@ alert rules.
 
 - Grafana 11.1 or later. Tested on Grafana 11.1.0 and 13.2.3.
 - InterSystems IRIS reachable on its web port (52773 by default, or your web gateway's port) for the **REST API**
-  connection, whose `/api/atelier` endpoint is part of every IRIS instance, or on its SuperServer port (1972) for
-  the **Native** connection. The **Web terminal** connection uses the web port too, and needs IRIS 2023.2 or later.
+  connection, whose `/api/atelier` endpoint is part of every IRIS instance. The **Web terminal** connection uses the
+  web port too, and needs IRIS 2023.2 or later.
 - For REST, an IRIS account that holds the `%Development` resource, which the REST API requires, and can read the
   tables you query. For the web terminal, the same `%Development` resource plus `SELECT` on exactly what the
-  account may read. For Native, an account with `SELECT` on the tables you query and nothing more.
+  account may read.
 
 ## Security
 
@@ -33,8 +33,6 @@ Read this before you connect a production instance.
   account's SQL privileges: in testing, an account granted `SELECT` on one view read that view and was refused the
   base table, another Tenant's view and a `DELETE` on its own view (SQLCODE -99), while the same account over REST
   read all of them. It uses the web port, so HTTPS and your web gateway apply as they do for REST.
-- **The Native connection also enforces SQL privileges**, but its driver has no TLS option, so the connection is not
-  encrypted, and it is alpha software (see Good to know).
 - **The account still holds `%Development`**, as `/api/atelier` requires on any connection, so whoever knows its
   password can run ObjectScript on that IRIS. Grafana keeps the password encrypted and never sends it to the browser.
   The web terminal connection types a fixed program and passes the panel's SQL to it as base64 data, so a panel's
@@ -51,17 +49,14 @@ Read this before you connect a production instance.
 
 Add the data source under Connections, then fill in:
 
-- **Connection**: **REST API** (default), **Web terminal** or **Native**.
-- **Host** and **Web port**: where IRIS's web server answers. With a Native connection also set **SuperServer
-  port** (1972 by default); the web port is then optional and used only for SAM metrics.
+- **Connection**: **REST API** (default) or **Web terminal**.
+- **Host** and **Web port**: where IRIS's web server answers.
 - **Namespace**: the namespace queries run in. Defaults to `USER`.
 - **Username** and **Password**: the password is stored encrypted by Grafana and is never sent back to the browser.
 - **Use HTTPS** and **Skip TLS verify**: skip verification only for a self-signed lab instance.
 - **Allow data changes**: off by default (see Security).
 - **Timeout**: seconds to wait for IRIS. Defaults to 30.
 - **Row limit**: most rows any query returns. Empty means no limit. A query can set its own, which wins.
-- With a Native connection: **Max open connections** (10), **Max idle connections** (5) and **Connection lifetime**
-  (1800 seconds) tune the connection pool.
 
 Select **Save & test**. "IRIS connection OK" means the credentials work and the REST API answered.
 
@@ -173,18 +168,14 @@ this setup against a real IRIS and Grafana and checks both: it passes with the w
 ## Good to know
 
 - **NULL arrives as an empty string or 0 over REST.** The REST API does not send real nulls, so a NULL cannot be told
-  from an empty value. The web terminal and Native connections send real nulls.
+  from an empty value. The web terminal connection sends real nulls.
 - **The web terminal is slower than REST**: each query opens a terminal session and types about ten short lines,
   about 250 ms on a local container against tens of milliseconds for REST. Panels still run in parallel. Its other
   results read the same as REST, which the tests check value by value.
-- **One statement per query.** Over REST, results over 64 MiB are refused; over Native, results over 1,000,000 rows;
-  over the web terminal, either.
+- **One statement per query.** Over REST, results over 64 MiB are refused; over the web terminal, results over
+  64 MiB or 1,000,000 rows.
   Narrow the query with `TOP`, a `WHERE` clause or `$__timeFilter`. A row limit cuts the result after IRIS has
   sent it and says so on the panel; it does not make IRIS do less work.
-- **The Native connection uses the community [`go-irisnative`](https://github.com/caretdev/go-irisnative) driver**,
-  which is alpha. Version 0.3.0 failed any query that returned a double such as `0`, `2.0` or an `AVG` that lands on
-  a whole number. This plugin carries a one-file fix under `third_party/go-irisnative` (see its `PATCHES.md`)
-  until upstream releases one. Native results otherwise read the same as REST: numbers, UTC times, and real NULLs.
 - **Timestamps** in tables created with SQL `CREATE TABLE ... TIMESTAMP` are decoded for you. Other timestamps are
   read as UTC.
 - The REST API returns each column's stored value. If a column looks odd, `CAST(col AS VARCHAR)` shows its
@@ -198,9 +189,11 @@ this setup against a real IRIS and Grafana and checks both: it passes with the w
 - **`SQLCODE -30`, table not found**: tables belong to a schema, for example `SQLUser.MyTable`, and to the
   namespace you configured.
 - **"this data source is read-only"**: the statement is not a `SELECT`. See Security.
-- **`SQLCODE -99`, "not privileged for the operation"** (web terminal or Native): IRIS refused the account. Grant it
+- **`SQLCODE -99`, "not privileged for the operation"** (web terminal): IRIS refused the account. Grant it
   `SELECT` on the table or view, or query one it can read.
-- **"this IRIS has no web terminal"**: the web terminal connection needs IRIS 2023.2 or later. Use REST or Native.
+- **"the native connection was removed"**: a data source saved with an earlier build of this plugin used IRIS's
+  SuperServer port. Choose **Web terminal**, which also runs queries under the account's SQL privileges.
+- **"this IRIS has no web terminal"**: the web terminal connection needs IRIS 2023.2 or later. Use REST.
 
 ## Links
 

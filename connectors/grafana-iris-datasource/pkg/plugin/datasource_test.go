@@ -271,7 +271,6 @@ func TestBuildClient_ChoosesTheTransportFromTheSettings(t *testing.T) {
 		want string
 	}{
 		{`{"host":"h"}`, "*client.RESTClient"},
-		{`{"host":"h","transport":"native"}`, "*client.NativeClient"},
 		{`{"host":"h","transport":"terminal"}`, "*client.TerminalClient"},
 	} {
 		settings := backend.DataSourceInstanceSettings{JSONData: []byte(c.json)}
@@ -288,20 +287,5 @@ func TestBuildClient_ChoosesTheTransportFromTheSettings(t *testing.T) {
 		if name := fmt.Sprintf("%T", got); name != c.want {
 			t.Fatalf("%s: got %s, want %s", c.json, name, c.want)
 		}
-	}
-}
-
-type closableClient struct {
-	fakeIRISClient
-	closed bool
-}
-
-func (c *closableClient) Close() error { c.closed = true; return nil }
-
-func TestDispose_ClosesAClientThatHoldsAPool(t *testing.T) {
-	c := &closableClient{}
-	NewDatasourceWithClient(c).Dispose()
-	if !c.closed {
-		t.Fatal("Dispose must close the native client's connection pool")
 	}
 }

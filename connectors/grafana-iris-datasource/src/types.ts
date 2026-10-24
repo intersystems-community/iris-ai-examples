@@ -6,8 +6,8 @@ import { DataQuery } from '@grafana/schema';
  * constants. */
 export type IrisQueryType = 'sql' | 'sam_metrics';
 
-/** Keep in sync with pkg/plugin/models.go's TransportREST / TransportTerminal / TransportNative. */
-export type IrisTransport = 'rest' | 'terminal' | 'native';
+/** Keep in sync with pkg/plugin/models.go's TransportREST / TransportTerminal. */
+export type IrisTransport = 'rest' | 'terminal';
 
 export interface IrisQuery extends DataQuery {
   queryType?: IrisQueryType;
@@ -47,15 +47,9 @@ export interface IrisDataSourceOptions extends DataSourceJsonData {
   timeoutSeconds?: number;
   /** Lifts the backend's read-only guard (pkg/plugin/readonly.go). Off unless set. */
   allowWrites?: boolean;
-  /** How the backend reaches IRIS: 'rest' (default, the web port), 'terminal' (the web port's terminal
-   * WebSocket, under the account's SQL privileges) or 'native' (the SuperServer). */
+  /** How the backend reaches IRIS over the web port: 'rest' (default) or 'terminal' (the terminal WebSocket,
+   * under the account's SQL privileges). */
   transport?: IrisTransport;
-  /** IRIS SuperServer port for the native transport. Defaults to 1972. */
-  superserverPort?: number;
-  /** Connection pool for the native transport. */
-  maxOpenConns?: number;
-  maxIdleConns?: number;
-  connMaxLifetimeSeconds?: number;
   /** Caps the rows any query returns (a query's own rowLimit overrides it). Unset: no cap. */
   rowLimit?: number;
   /** Route requests through Grafana's secure SOCKS proxy (Private Data Source Connect). */

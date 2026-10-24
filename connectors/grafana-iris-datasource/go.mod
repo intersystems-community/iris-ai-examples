@@ -3,7 +3,6 @@ module github.com/intersystems-community/iris-ai-examples/connectors/grafana-iri
 go 1.26.5
 
 require (
-	github.com/caretdev/go-irisnative v0.3.0
 	github.com/coder/websocket v1.8.15
 	github.com/grafana/grafana-plugin-sdk-go v0.297.0
 )
@@ -88,5 +87,3 @@ require (
 	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/fsnotify/fsnotify.v1 v1.4.7 // indirect
 )
-
-replace github.com/caretdev/go-irisnative => ./third_party/go-irisnative

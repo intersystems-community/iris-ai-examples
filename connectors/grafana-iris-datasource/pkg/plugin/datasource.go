@@ -10,7 +10,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"time"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
@@ -77,8 +76,7 @@ func NewDatasource(ctx context.Context, settings backend.DataSourceInstanceSetti
 	return ds, nil
 }
 
-// buildClient makes the IRISClient the settings ask for: REST or the terminal over the web port, or native over
-// the SuperServer.
+// buildClient makes the IRISClient the settings ask for: REST or the terminal, both over the web port.
 func buildClient(ctx context.Context, settings backend.DataSourceInstanceSettings, ps *PluginSettings) (client.IRISClient, error) {
 	httpClient, err := newHTTPClient(ctx, settings, ps)
 	if err != nil {
@@ -93,36 +91,18 @@ func buildClient(ctx context.Context, settings backend.DataSourceInstanceSetting
 		Timeout:            ps.Timeout,
 		HTTPClient:         httpClient,
 	})
-	switch ps.Transport {
-	case TransportREST:
+	if ps.Transport != TransportTerminal {
 		return rest, nil
-	case TransportTerminal:
-		return client.NewTerminalClient(client.TerminalClientConfig{
-			BaseURL:    ps.BaseURL(),
-			Namespace:  ps.Namespace,
-			Username:   ps.Username,
-			Password:   ps.Password,
-			Timeout:    ps.Timeout,
-			HTTPClient: httpClient,
-			Metrics:    rest,
-		}), nil
 	}
-
-	cfg := client.NativeClientConfig{
-		Host:            ps.Host,
-		Port:            ps.SuperServerPort,
-		Namespace:       ps.Namespace,
-		Username:        ps.Username,
-		Password:        ps.Password,
-		Timeout:         ps.Timeout,
-		MaxOpenConns:    ps.MaxOpenConns,
-		MaxIdleConns:    ps.MaxIdleConns,
-		ConnMaxLifetime: ps.ConnMaxLifetime,
-	}
-	if ps.WebPortSet {
-		cfg.Metrics = rest
-	}
-	return client.NewNativeClient(cfg), nil
+	return client.NewTerminalClient(client.TerminalClientConfig{
+		BaseURL:    ps.BaseURL(),
+		Namespace:  ps.Namespace,
+		Username:   ps.Username,
+		Password:   ps.Password,
+		Timeout:    ps.Timeout,
+		HTTPClient: httpClient,
+		Metrics:    rest,
+	}), nil
 }
 
 // NewDatasourceWithClient builds a Datasource around an already-built
@@ -132,13 +112,8 @@ func NewDatasourceWithClient(c client.IRISClient) *Datasource {
 	return &Datasource{client: c, nowFn: time.Now}
 }
 
-// Dispose implements instancemgmt.InstanceDisposer. The REST client holds no resources; the native client
-// holds a connection pool, which is closed here.
-func (d *Datasource) Dispose() {
-	if c, ok := d.client.(io.Closer); ok {
-		_ = c.Close()
-	}
-}
+// Dispose implements instancemgmt.InstanceDisposer. Neither client holds anything open between queries.
+func (d *Datasource) Dispose() {}
 
 // QueryData implements backend.QueryDataHandler.
 func (d *Datasource) QueryData(ctx context.Context, req *backend.QueryDataRequest) (*backend.QueryDataResponse, error) {
